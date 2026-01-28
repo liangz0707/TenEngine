@@ -6,9 +6,10 @@
 
 ## 1. 原则
 
-- **单一事实来源**：跨模块的“谁提供什么、谁消费什么”写在 `specs/_contracts/` 的契约文件中；各模块的规格引用契约而非重复描述接口细节。
-- **T0 约束分支**：契约文件的官方维护分支为 **`T0-contracts`**；所有契约的更新都合并到该分支，各 **T0-NNN-modulename** 分支的 Agent 从该分支拉取最新契约后再开始工作。
-- **契约先行**：下游模块（消费者）依赖的接口，由上游模块（提供方）的契约定义；Agent 在实现或改规格前先读契约。
+- **主分支仅用于配置**：**master**（或 main）分支仅用于仓库与工程配置（如构建、CI、文档索引等）；**契约内容不以主分支为来源**，各模块开发与接口同步不依赖主分支上的 `specs/_contracts/`。
+- **契约必须从 T0-contracts 拉取**：契约的**唯一权威来源**是 **`T0-contracts`** 分支。所有 T0-* 模块分支的 Agent 必须且只能从 **`origin/T0-contracts`** 拉取契约（`git pull origin T0-contracts`），不得以主分支上的 `_contracts/` 作为契约依据。
+- **单一事实来源**：跨模块的“谁提供什么、谁消费什么”写在 `specs/_contracts/` 的契约文件中（以 **T0-contracts** 分支为准）；各模块的规格引用契约而非重复描述接口细节。
+- **契约先行**：下游模块（消费者）依赖的接口，由上游模块（提供方）的契约定义；Agent 在实现或改规格前先读契约（从 T0-contracts 拉取后的本地 `_contracts/`）。
 - **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件（并合并到 `T0-contracts` 分支），并检查依赖该契约的模块列表，必要时更新其规格或创建 follow-up 任务。
 
 ---
@@ -36,15 +37,16 @@ git pull origin T0-contracts
 
 | 位置 | 用途 |
 |------|------|
-| **分支 `T0-contracts`** | 契约与全局依赖图的官方维护分支；各 T0-* 分支从此拉取最新契约。 |
-| **分支 `T0-NNN-modulename`** | 各模块的独立分支（如 T0-001-core … T0-027-xr），仅含约束 + 该模块描述 + 全局依赖。 |
-| `specs/_contracts/` | 存放**跨模块接口契约**：API 边界、数据类型、调用顺序、版本。 |
+| **分支 master / main** | **仅用于配置**：仓库配置、构建、CI、文档索引等；**不**作为契约的来源，Agent 不得从主分支拉取契约。 |
+| **分支 `T0-contracts`** | **契约的唯一权威来源**；契约与全局依赖图的官方维护分支；各 T0-* 分支**必须**从此分支拉取最新契约。 |
+| **分支 `T0-NNN-modulename`** | 各模块的独立分支（如 T0-001-core … T0-027-xr），仅含约束 + 该模块描述 + 全局依赖；工作前须先 `git pull origin T0-contracts`。 |
+| `specs/_contracts/`（以 T0-contracts 为准） | 存放**跨模块接口契约**：API 边界、数据类型、调用顺序、版本；**仅以 T0-contracts 分支上的内容为准**。 |
 | `specs/_contracts/000-module-dependency-map.md` | T0 模块依赖图：27 模块谁依赖谁、契约一览。 |
-| `docs/dependency-graph-full.md` | 完整依赖图（Mermaid、矩阵、边列表）。 |
-| `docs/module-specs/` | 各模块详细规格（001-core.md … 027-xr.md）；主仓库或 T0-contracts 可含全量，各 T0-NNN-* 分支仅含对应单模块。 |
+| `docs/dependency-graph-full.md` | 完整依赖图（Mermaid、矩阵、边列表）；可在 T0-contracts 或各 T0-* 分支上查阅。 |
+| `docs/module-specs/` | 各模块详细规格（001-core.md … 027-xr.md）；T0-contracts 或各 T0-NNN-* 分支可含对应内容。 |
 | `.specify/memory/constitution.md` | 全局原则（如 ABI 版本、模块边界）；契约不得违反宪法。 |
 
-每个 Agent 的工作范围通常对应一个 **T0-NNN-modulename** 分支；跨模块边界的接口以契约为准。
+每个 Agent 的工作范围通常对应一个 **T0-NNN-modulename** 分支；跨模块边界的接口**以从 T0-contracts 拉取后的契约为准**。
 
 ---
 
@@ -55,7 +57,7 @@ git pull origin T0-contracts
 1. **拉取最新契约**：在当前 T0-* 分支上执行 `git fetch origin T0-contracts` 后 `git merge origin/T0-contracts`（或 `git pull origin T0-contracts`），确保本地的 `specs/_contracts/` 与约束分支一致。
 2. 打开本模块对应的 `docs/module-specs/NNN-modulename.md`，查看 **Dependencies** 与上下游。
 3. 阅读 `specs/_contracts/000-module-dependency-map.md`，确认本模块的上游（依赖谁）和下游（被谁依赖）。
-4. 对每一个**上游依赖**，阅读其契约文件（如 `specs/_contracts/core-public-api.md`），在实现时只使用契约中已声明的类型与接口。
+4. 对每一个**上游依赖**，阅读其契约文件（如 `specs/_contracts/001-core-public-api.md`），在实现时只使用契约中已声明的类型与接口。
 
 ### 4.2 修改本模块对外接口时
 
@@ -74,7 +76,7 @@ git pull origin T0-contracts
 
 ## 5. 契约文件怎么写
 
-- **文件名**：以模块或边界命名，如 `core-public-api.md`、`rci-public-api.md`、`pipeline-to-rci.md`；T0 架构下可扩展 `object-public-api.md`、`rhi-public-api.md` 等。
+- **文件名**：统一为 `NNN-modulename-public-api.md`（如 `001-core-public-api.md`、`008-rhi-public-api.md`）；边界契约为 `pipeline-to-rci.md`。
 - **建议结构**（可随需要增删）：
   - **适用模块**：本契约由哪一模块（如 001-Core）实现并负责。
   - **消费者**：哪些模块依赖本契约（与 `000-module-dependency-map.md` 一致）。
@@ -92,8 +94,8 @@ git pull origin T0-contracts
 
 在各模块的 `docs/module-specs/NNN-modulename.md` 或对应 spec 中建议包含：
 
-- **本模块提供/实现的契约**：例如“本模块实现契约 `specs/_contracts/core-public-api.md`”。
-- **本模块依赖的契约**：在 **Dependencies** 或 **模块上下游** 中列出，例如“依赖 `specs/_contracts/core-public-api.md`、`specs/_contracts/rci-public-api.md`”。
+- **本模块提供/实现的契约**：例如“本模块实现契约 `specs/_contracts/001-core-public-api.md`”。
+- **本模块依赖的契约**：在 **Dependencies** 或 **模块上下游** 中列出，例如“依赖 `specs/_contracts/001-core-public-api.md`、`specs/_contracts/008-rhi-public-api.md`”。
 
 这样，任何 Agent 打开该规格时都能直接跳转到契约文件，保证实现与接口定义一致。
 
@@ -101,9 +103,10 @@ git pull origin T0-contracts
 
 ## 7. 小结
 
-- **T0-contracts** 是 T0 架构下契约文件的单一发布源；各 **T0-NNN-modulename** 分支工作前须从此分支拉取最新契约。
-- 接口的**单一事实来源**在 `specs/_contracts/`（以 `T0-contracts` 分支上的内容为准）。
-- 每个 Agent：**工作前**从 `T0-contracts` 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 `T0-contracts` 上更新），**改接口时**更新契约并通知下游。
+- **主分支（master/main）仅用于配置**，不作为契约来源；**契约必须从 T0-contracts 拉取**，不得以主分支上的 `_contracts/` 为依据。
+- **T0-contracts** 是 T0 架构下契约的**唯一权威发布源**；各 **T0-NNN-modulename** 分支工作前**必须**从此分支拉取最新契约（`git pull origin T0-contracts`）。
+- 接口的**单一事实来源**在 `specs/_contracts/`（**仅以 T0-contracts 分支上的内容为准**）。
+- 每个 Agent：**工作前**从 **T0-contracts** 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 **T0-contracts** 上更新），**改接口时**更新契约并通知下游。
 - 依赖图 `000-module-dependency-map.md` 与 `docs/dependency-graph-full.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”。
 
 **旧版说明**：原 `contracts` 分支与 001–006 旧 spec 对应；现以 **T0-contracts** 与 **T0-001-core … T0-027-xr** 为最新架构，旧分支与旧 spec 已弃用。
