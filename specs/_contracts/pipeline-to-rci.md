@@ -16,12 +16,12 @@ Scene/Entity → 场景收集 → 剔除 → DrawCall 批次 → PipelineCore Pa
 ## 抽象命令缓冲（Pipeline 产出 / RHI 消费）
 
 - **含义**：与具体图形 API 解耦的一帧渲染命令序列；RHI 负责将其转换为底层 Vulkan/D3D12/Metal 调用。
-- **内容**：至少包含与「绘制/计算调用」对应的信息（几何、材质/着色器、PSO、资源绑定、状态），以及资源屏障、同步点等；具体结构由 Pipeline 与 RHI 实现共同约定，并符合 `rci-public-api.md` 的提交接口。
+- **内容**：至少包含与「绘制/计算调用」对应的信息（几何、材质/着色器、PSO、资源绑定、状态），以及资源屏障、同步点等；具体结构由 Pipeline 与 RHI 实现共同约定，并符合 `008-rhi-public-api.md` 的提交接口。
 - **生命周期**：由 Pipeline 在每帧相应阶段创建/填充，提交给 RHI 后由 RHI 在本帧内消费；RHI 不假定命令缓冲在帧外有效。
 
 ## 资源创建与状态
 
-- Pipeline 负责「何时创建 DrawCall 相关资源、何时分配/写入命令缓冲」；RHI 仅约定：**接收到的命令缓冲在提交时已就绪**，且格式符合 `rci-public-api.md` 与本文约定。
+- Pipeline 负责「何时创建 DrawCall 相关资源、何时分配/写入命令缓冲」；RHI 仅约定：**接收到的命令缓冲在提交时已就绪**，且格式符合 `008-rhi-public-api.md` 与本文约定。
 - 资源状态机（未创建→就绪→使用中→可回收）由 Pipeline 与 PipelineCore 管理；跨边界时资源须处于 RHI 可安全使用的状态（屏障与过渡由 Pipeline 在命令缓冲中声明或由 RHI 推断）。
 
 ## 提交约定
