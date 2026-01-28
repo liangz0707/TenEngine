@@ -72,6 +72,8 @@
 | 022-2D | Editor |
 | 023-Terrain | Editor |
 
+**边界契约**：020-Pipeline ↔ 008-RHI 的命令缓冲与提交约定见 `pipeline-to-rci.md`，020、008 实现须遵循。
+
 **流程**：修改某模块的公开 API → 在 **T0-contracts** 分支更新对应契约 → 在 `000-module-dependency-map.md` 中确认下游 → 通知或创建下游适配任务。
 
 ---
