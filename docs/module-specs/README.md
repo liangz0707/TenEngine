@@ -61,4 +61,4 @@
 
 ---
 
-依赖关系总图见 [../dependency-graph-full.md](../dependency-graph-full.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。契约与 T0 约束分支见 [../contracts-and-specs-T0.md](../contracts-and-specs-T0.md)。
+依赖关系总图见 [../dependency-graph-full.md](../dependency-graph-full.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。契约与 T0 约束分支见 [../contracts-and-specs-T0.md](../contracts-and-specs-T0.md)。契约文件见 `specs/_contracts/`，统一命名 `NNN-modulename-public-api.md`（如 `001-core-public-api.md`），边界契约为 `pipeline-to-rci.md`。
