@@ -131,7 +131,7 @@
   - [Packages by keywords](https://docs.unity3d.com/Manual/pack-keys.html)
   - [Subsystems (com.unity.modules.subsystems)](https://docs.unity3d.com/Manual/com.unity.modules.subsystems.html)
 
-文档中未给出的具体模块/包列表以官方最新文档为准；TenEngine 的模块与契约以 `specs/_contracts/` 及各 spec 为准。
+文档中未给出的具体模块/包列表以官方最新文档为准。TenEngine 的模块与契约以 `specs/_contracts/`、`docs/module-specs/` 为准；契约命名为 `NNN-modulename-public-api`、边界 `pipeline-to-rci`。
 
 **详细对照与依赖图**：三引擎（TenEngine、Unreal、Unity）的模块详细列表、依赖表及 ASCII 依赖图见 **[three-engines-modules-and-dependencies.md](./three-engines-modules-and-dependencies.md)**。
 
