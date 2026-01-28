@@ -24,7 +24,7 @@ if ($OnlyModules.Count -gt 0) { $Modules = $OnlyModules }
 foreach ($m in $Modules) {
     $branch = "T0-$m"
     $wtPath = Join-Path $WorktreeBase "TenEngine-$m"
-    if (-not (Test-Path $wtPath)) { Write-Warning "Skip $branch: worktree not found $wtPath"; continue }
+    if (-not (Test-Path $wtPath)) { Write-Warning "Skip ${branch}: worktree not found $wtPath"; continue }
     Write-Host "=== $branch at $wtPath ==="
     Push-Location $wtPath
     try {
@@ -39,7 +39,7 @@ foreach ($m in $Modules) {
             git commit -m $MergeMsg 2>&1 | Out-Null
         }
         git push origin $branch 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) { Write-Host "Pushed $branch" } else { Write-Host "Fail $branch" }
+        if ($LASTEXITCODE -eq 0) { Write-Host "Pushed ${branch}" } else { Write-Host "Fail ${branch}" }
     } finally {
         Pop-Location
     }
