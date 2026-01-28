@@ -1,0 +1,13 @@
+---
+description: 多 Agent 协作时跨模块接口同步：契约分支 contracts 为单一发布源，工作前拉取契约、实现前读契约、改接口时在 contracts 上更新契约。
+globs: specs/**/*.md, docs/**/*.md, **/spec.md
+---
+
+# 接口同步（多 Agent 协作）
+
+- **契约分支**：契约文件的官方维护分支为 **`contracts`**（`origin/contracts`）。在任意特性分支上**开始工作前**，须先拉取最新契约：`git fetch origin contracts` 后 `git merge origin/contracts`（或 `git pull origin contracts`）。
+- **跨模块接口的单一事实来源**：`specs/_contracts/` 下的契约文件（以 `contracts` 分支为准）。各模块的 spec 只**引用**契约，不重复定义跨边界类型或调用约定。
+- **实现或改 spec 前**：确认已从 `contracts` 拉取最新契约；打开本特性的 `spec.md`，查看 **Dependencies** 与 **Interface Contracts**；对每个依赖的上游，阅读 `specs/_contracts/` 下对应契约，实现时只使用契约中已声明的类型与接口。
+- **修改本模块对外 API 时**：在 **`contracts` 分支**上更新 `specs/_contracts/` 下本模块对应的契约文件；在 `specs/_contracts/000-module-dependency-map.md` 中查看依赖本模块的下游，若有破坏性变更则在下游 spec 或 issue 中留下跟进说明或任务。
+- **依赖关系总览**：`specs/_contracts/000-module-dependency-map.md`。新增/修改依赖时请同步更新该文件与各 spec 的 Dependencies。
+- **策略说明**：`docs/multi-agent-interface-sync.md`。
