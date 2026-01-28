@@ -61,4 +61,4 @@
 
 ---
 
-依赖关系总图见 [../dependency-graph-full.md](../dependency-graph-full.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。
+依赖关系总图见 [../dependency-graph-full.md](../dependency-graph-full.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。契约与 T0 约束分支见 [../contracts-and-specs-T0.md](../contracts-and-specs-T0.md)。
