@@ -123,15 +123,15 @@
   详见 docs/multi-agent-interface-sync.md
 -->
 
-- **本模块实现的契约**（若有）: [例如 `specs/_contracts/core-public-api.md` 或 无]
+- **本模块实现的契约**（若有）: [例如 `specs/_contracts/001-core-public-api.md` 或 无]
 - **本模块依赖的契约**: [见下方 Dependencies]
 
 ## Dependencies
 
 <!--
   列出本特性依赖的上游模块及对应契约文件；实现或改 spec 前请先阅读契约。
-  依赖关系总览见 specs/_contracts/000-module-dependency-map.md
+  依赖关系总览见 specs/_contracts/000-module-dependency-map.md；契约为 NNN-modulename-public-api.md。
 -->
 
-- [上游模块名]: [契约文件路径，如 specs/_contracts/core-public-api.md]
+- [上游模块名]: [契约文件路径，如 specs/_contracts/001-core-public-api.md]
 - [其他依赖与假设]
