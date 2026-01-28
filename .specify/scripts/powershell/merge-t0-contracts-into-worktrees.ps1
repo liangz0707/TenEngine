@@ -32,10 +32,10 @@ foreach ($m in $Modules) {
         git merge origin/T0-contracts --allow-unrelated-histories -m $MergeMsg 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             git checkout --theirs specs/_contracts/000-module-dependency-map.md specs/_contracts/README.md specs/_contracts/pipeline-to-rci.md docs/module-specs/README.md 2>&1 | Out-Null
-            if (Test-Path docs/contracts-and-specs-T0.md) { git checkout --theirs docs/contracts-and-specs-T0.md 2>&1 | Out-Null }
-            if (Test-Path docs/multi-agent-interface-sync.md) { git checkout --theirs docs/multi-agent-interface-sync.md 2>&1 | Out-Null }
-            if (Test-Path .cursor/rules/interface-sync.mdc) { git checkout --theirs .cursor/rules/interface-sync.mdc 2>&1 | Out-Null }
-            git add specs/_contracts/ docs/module-specs/README.md docs/contracts-and-specs-T0.md docs/multi-agent-interface-sync.md .cursor/rules/interface-sync.mdc 2>&1 | Out-Null
+            foreach ($f in @("docs/contracts-and-specs-T0.md","docs/multi-agent-interface-sync.md","docs/tenengine-full-module-spec.md","docs/modules/README.md","docs/proposed-module-architecture.md","docs/three-engines-modules-and-dependencies.md","docs/reference-unity-unreal-modules.md",".cursor/rules/interface-sync.mdc",".specify/templates/spec-template.md")) {
+                if (Test-Path $f) { git checkout --theirs $f 2>&1 | Out-Null }
+            }
+            git add specs/_contracts/ docs/module-specs/ docs/modules/ docs/contracts-and-specs-T0.md docs/multi-agent-interface-sync.md docs/tenengine-full-module-spec.md docs/proposed-module-architecture.md docs/three-engines-modules-and-dependencies.md docs/reference-unity-unreal-modules.md .cursor/rules/ .specify/templates/ 2>&1 | Out-Null
             git commit -m $MergeMsg 2>&1 | Out-Null
         }
         git push origin $branch 2>&1 | Out-Null
