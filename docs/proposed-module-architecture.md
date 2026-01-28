@@ -2,6 +2,8 @@
 
 本提案在现有 TenEngine 规格基础上，整合 **Unreal Engine** 与 **Unity** 的模块划分与依赖思路，给出更清晰的分层与依赖关系，便于并行开发、测试与扩展。设计遵循 Constitution 的模块化、现代图形 API、数据驱动与版本化原则。
 
+**说明**：本文为备选/历史提案。**当前 T0 架构**为 27 模块（001–027），契约见 `specs/_contracts/`：`NNN-modulename-public-api.md`（如 `001-core-public-api.md`、`008-rhi-public-api.md`）、边界契约为 `pipeline-to-rci.md`；依赖表见 `000-module-dependency-map.md`。
+
 ---
 
 ## 一、设计原则（来自 UE / Unity）
