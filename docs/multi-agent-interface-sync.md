@@ -7,15 +7,36 @@
 ## 1. 原则
 
 - **单一事实来源**：跨模块的“谁提供什么、谁消费什么”写在 `specs/_contracts/` 的契约文件中；各模块的 spec 引用契约而非重复描述接口细节。
+- **契约分支**：契约文件的官方维护分支为 **`contracts`**；所有契约的更新都合并到该分支，其他分支的 Agent 从该分支拉取最新契约后再开始工作。
 - **契约先行**：下游模块（消费者）依赖的接口，由上游模块（提供方）的契约定义；Agent 在实现或改 spec 前先读契约。
-- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件，并检查依赖该契约的模块列表，必要时更新其 spec 或创建 follow-up 任务。
+- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件（并合并到 `contracts` 分支），并检查依赖该契约的模块列表，必要时更新其 spec 或创建 follow-up 任务。
 
 ---
 
-## 2. 目录与角色
+## 2. 契约分支（contracts）
+
+- **分支名**：`contracts`（远程：`origin/contracts`）
+- **用途**：专门维护 `specs/_contracts/` 下的契约文件及本文档（`docs/multi-agent-interface-sync.md`）；作为**契约的单一发布源**。
+- **各分支工作前**：在任意特性分支（如 `001-engine-core-module`）上开始工作前，必须先从 `contracts` 拉取最新契约，再基于最新契约实现或改 spec。
+
+```bash
+# 在本地特性分支上拉取最新契约（二选一即可）
+git fetch origin contracts
+git merge origin/contracts
+
+# 或
+git pull origin contracts
+```
+
+- **更新契约时**：在 `contracts` 分支上修改契约文件，或通过 PR 将契约变更合并到 `contracts`；其他分支通过上述拉取获得更新。
+
+---
+
+## 3. 目录与角色
 
 | 位置 | 用途 |
 |------|------|
+| **分支 `contracts`** | 契约文件的官方维护分支；各分支从此拉取最新契约。 |
 | `specs/_contracts/` | 存放**跨模块接口契约**：API 边界、数据类型、调用顺序、版本。 |
 | `specs/_contracts/000-module-dependency-map.md` | 模块依赖图：谁依赖谁、共享边界一览。 |
 | `specs/XXX/spec.md` | 各特性规格；必须声明「本模块遵守/提供的契约」及「依赖的契约」。 |
@@ -25,30 +46,31 @@
 
 ---
 
-## 3. 工作流
+## 4. 工作流
 
-### 3.1 开发/实现前
+### 4.1 开发/实现前
 
-1. 打开本特性对应的 `spec.md`，查看 **Dependencies** 与 **接口契约** 小节。
-2. 阅读 `specs/_contracts/000-module-dependency-map.md`，确认本模块的上游（依赖谁）和下游（被谁依赖）。
-3. 对每一个**上游依赖**，阅读其契约文件（如 `specs/_contracts/core-public-api.md`），在实现时只使用契约中已声明的类型与接口，不依赖“未写入契约”的行为。
+1. **拉取最新契约**：在当前特性分支上执行 `git fetch origin contracts` 后 `git merge origin/contracts`（或 `git pull origin contracts`），确保本地的 `specs/_contracts/` 与契约分支一致。
+2. 打开本特性对应的 `spec.md`，查看 **Dependencies** 与 **接口契约** 小节。
+3. 阅读 `specs/_contracts/000-module-dependency-map.md`，确认本模块的上游（依赖谁）和下游（被谁依赖）。
+4. 对每一个**上游依赖**，阅读其契约文件（如 `specs/_contracts/core-public-api.md`），在实现时只使用契约中已声明的类型与接口，不依赖“未写入契约”的行为。
 
-### 3.2 修改本模块对外接口时
+### 4.2 修改本模块对外接口时
 
-1. 更新本模块对应的契约文件（见 `_contracts/` 下以模块或边界命名的文件）。
+1. 在 **`contracts` 分支**上更新本模块对应的契约文件（见 `_contracts/` 下以模块或边界命名的文件），或通过 PR 将契约变更合并到 `contracts`。
 2. 在契约中注明**版本或变更说明**（与 Constitution 的版本/ABI 要求一致）。
 3. 在 `000-module-dependency-map.md` 中查看**依赖本模块**的下游列表；若接口有破坏性变更，则：
    - 在对应下游的 spec 或 checklist 中留下“需随 XXX 契约变更做适配”的待办，或
    - 创建明确的 follow-up 任务/issue 供负责下游模块的 Agent 处理。
 
-### 3.3 评审/合并前
+### 4.3 评审/合并前
 
 1. 检查：本 PR 是否改动某模块的**公开 API 或跨模块数据结构**？
 2. 若有，确认 `specs/_contracts/` 下对应契约已更新，且依赖图与下游说明已更新或已创建跟进任务。
 
 ---
 
-## 4. 契约文件怎么写
+## 5. 契约文件怎么写
 
 - **文件名**：以模块或边界命名，如 `core-public-api.md`、`rci-public-api.md`、`pipeline-to-rci.md`。
 - **建议结构**（可随需要增删）：
@@ -64,7 +86,7 @@
 
 ---
 
-## 5. 在 spec 中引用契约
+## 6. 在 spec 中引用契约
 
 在各特性的 `spec.md` 中建议包含：
 
@@ -75,8 +97,9 @@
 
 ---
 
-## 6. 小结
+## 7. 小结
 
-- 接口的**单一事实来源**在 `specs/_contracts/`。
-- 每个 Agent：**读**自己依赖的契约，**写/改**自己负责的契约，**改接口时**更新契约并通知下游。
+- **契约分支 `contracts`** 是契约文件的单一发布源；各特性分支工作前须从此分支拉取最新契约。
+- 接口的**单一事实来源**在 `specs/_contracts/`（以 `contracts` 分支上的内容为准）。
+- 每个 Agent：**工作前**从 `contracts` 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 `contracts` 上更新），**改接口时**更新契约并通知下游。
 - 依赖图 `000-module-dependency-map.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”，减少多 Agent 并行时的接口不同步问题。

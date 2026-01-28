@@ -2,10 +2,13 @@
 
 本目录存放 **TenEngine 各模块之间的接口契约**，供多 Agent 协作时作为接口的单一事实来源。
 
+**契约的官方维护分支**：**`contracts`**（`origin/contracts`）。所有契约更新合并到该分支；其他分支的 Agent 在工作前须从该分支拉取最新契约（`git pull origin contracts` 或 `git fetch origin contracts` + `git merge origin/contracts`）。
+
 ## 使用方式
 
+- **在任意特性分支上开始工作前**：先拉取最新契约：`git pull origin contracts`（或 `git fetch origin contracts` 后 `git merge origin/contracts`）。
 - **实现某模块前**：阅读本模块 **Dependencies** 中列出的契约文件，只使用契约中声明的类型与接口。
-- **修改某模块对外接口时**：更新本目录下该模块对应的契约，并在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。
+- **修改某模块对外接口时**：在 **`contracts` 分支**上更新本目录下该模块对应的契约，并在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。
 
 ## 契约列表与依赖关系
 
