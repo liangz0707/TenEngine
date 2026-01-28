@@ -1,0 +1,12 @@
+---
+description: 多 Agent 协作时跨模块接口同步：以契约为单一事实来源，实现前读契约、改接口时更新契约。
+globs: specs/**/*.md, docs/**/*.md, **/spec.md
+---
+
+# 接口同步（多 Agent 协作）
+
+- **跨模块接口的单一事实来源**：`specs/_contracts/` 下的契约文件。各模块的 spec 只**引用**契约，不重复定义跨边界类型或调用约定。
+- **实现或改 spec 前**：打开本特性的 `spec.md`，查看 **Dependencies** 与 **Interface Contracts**；对每个依赖的上游，阅读 `specs/_contracts/` 下对应契约，实现时只使用契约中已声明的类型与接口。
+- **修改本模块对外 API 时**：必须同步更新 `specs/_contracts/` 下本模块对应的契约文件；在 `specs/_contracts/000-module-dependency-map.md` 中查看依赖本模块的下游，若有破坏性变更则在下游 spec 或 issue 中留下跟进说明或任务。
+- **依赖关系总览**：`specs/_contracts/000-module-dependency-map.md`。新增/修改依赖时请同步更新该文件与各 spec 的 Dependencies。
+- **策略说明**：`docs/multi-agent-interface-sync.md`。
