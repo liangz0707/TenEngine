@@ -195,33 +195,33 @@ L0       │   ┌────┴────────┴────┐
 
 | 模块 | 建议契约 |
 |------|----------|
-| 001-Core | core-public-api |
-| 002-Object | object-public-api |
-| 003-Application | application-public-api |
-| 004-Scene | scene-public-api |
-| 005-Entity | entity-public-api |
-| 006-Input | input-public-api |
-| 007-Subsystems | subsystems-public-api |
-| 008-RHI | rhi-public-api |
-| 009-RenderCore | render-core-api |
-| 010-Shader | shader-public-api |
-| 011-Material | material-public-api |
-| 012-Mesh | mesh-public-api |
-| 013-Resource | resource-public-api |
-| 014-Physics | physics-public-api |
-| 015-Animation | animation-public-api |
-| 016-Audio | audio-public-api |
-| 017-UICore | ui-core-api |
-| 018-UI | ui-public-api |
-| 019-PipelineCore | pipeline-core-api, pipeline-to-rhi |
-| 020-Pipeline | pipeline-public-api |
-| 021-Effects | effects-public-api |
-| 022-2D | 2d-public-api |
-| 023-Terrain | terrain-public-api |
-| 024-Editor | editor-public-api |
-| 025-Tools | 按需 |
-| 026-Networking | networking-public-api |
-| 027-XR | xr-public-api |
+| 001-Core | 001-core-public-api |
+| 002-Object | 002-object-public-api |
+| 003-Application | 003-application-public-api |
+| 004-Scene | 004-scene-public-api |
+| 005-Entity | 005-entity-public-api |
+| 006-Input | 006-input-public-api |
+| 007-Subsystems | 007-subsystems-public-api |
+| 008-RHI | 008-rhi-public-api |
+| 009-RenderCore | 009-rendercore-public-api |
+| 010-Shader | 010-shader-public-api |
+| 011-Material | 011-material-public-api |
+| 012-Mesh | 012-mesh-public-api |
+| 013-Resource | 013-resource-public-api |
+| 014-Physics | 014-physics-public-api |
+| 015-Animation | 015-animation-public-api |
+| 016-Audio | 016-audio-public-api |
+| 017-UICore | 017-uicore-public-api |
+| 018-UI | 018-ui-public-api |
+| 019-PipelineCore | 019-pipelinecore-public-api |
+| 020-Pipeline | 020-pipeline-public-api；与 008 边界见 pipeline-to-rci |
+| 021-Effects | 021-effects-public-api |
+| 022-2D | 022-2d-public-api |
+| 023-Terrain | 023-terrain-public-api |
+| 024-Editor | 024-editor-public-api |
+| 025-Tools | 025-tools-public-api（按需） |
+| 026-Networking | 026-networking-public-api |
+| 027-XR | 027-xr-public-api |
 
 ---
 
