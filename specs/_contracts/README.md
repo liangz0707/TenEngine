@@ -20,10 +20,10 @@
 
 | 契约文件 | 说明 | 提供方模块 | 主要消费者 |
 |----------|------|------------|------------|
-| [core-public-api.md](./core-public-api.md) | Core 对外 API（内存、线程、平台、日志、数学、容器、模块加载） | 001-Core | Object, Application, Scene, Entity, RHI, Resource 等 |
-| [rci-public-api.md](./rci-public-api.md) | RHI 图形抽象层对外 API（沿用 RCI 命名） | 008-RHI | RenderCore, Shader, PipelineCore, Pipeline, Editor |
-| [pipeline-to-rci.md](./pipeline-to-rci.md) | 渲染管线 → RHI 的命令缓冲与提交约定 | 020-Pipeline ↔ 008-RHI | 008-RHI |
+| [core-public-api.md](./core-public-api.md) | 001-Core 对外 API（内存、线程、平台、日志、数学、容器、模块加载；无反射/ECS） | 001-Core | 002-Object, 003-Application, 004-Scene, 005-Entity, 006-Input, 007-Subsystems, 008-RHI, 009-RenderCore, 010-Shader, 012-Mesh, 013-Resource, 014-Physics, 015-Animation, 016-Audio, 017-UICore, 020-Pipeline, 022-2D, 023-Terrain, 024-Editor, 026-Networking, 027-XR 等 |
+| [rci-public-api.md](./rci-public-api.md) | 008-RHI 图形抽象层对外 API（RCI 即 RHI；设备、命令列表、资源、PSO、同步） | 008-RHI | 009-RenderCore, 010-Shader, 019-PipelineCore, 020-Pipeline, 024-Editor, 027-XR |
+| [pipeline-to-rci.md](./pipeline-to-rci.md) | 020-Pipeline → 008-RHI 的命令缓冲与提交约定（产出方 Pipeline，消费方 RHI） | 边界契约 | 020-Pipeline 与 008-RHI 对接 |
 
-**说明**：T0 架构下可按需在 `T0-contracts` 分支新增 object-public-api、application-public-api、scene-public-api、entity-public-api、input-public-api、render-core-api、shader-public-api、resource-public-api 等；当前仍以 core-public-api、rci-public-api、pipeline-to-rci 为最小契约集，与 001–006 旧 spec 兼容过渡。
+**说明**：以上三份契约已按 T0 架构（27 模块）更新，对应规格见 `docs/module-specs/001-core.md`、`008-rhi.md`、`020-pipeline.md`。T0 下可按需新增 object-public-api、application-public-api、render-core-api、shader-public-api、resource-public-api 等；当前以 core-public-api、rci-public-api、pipeline-to-rci 为最小契约集。
 
 新增契约时请在本 README 和 `000-module-dependency-map.md` 中同步更新。
