@@ -1,0 +1,29 @@
+﻿# TenEngine-001-core Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-01-29
+
+## Active Technologies
+
+- C++17 + 无（根模块）；可选 std 库：&lt;cstdlib&gt;, &lt;cstddef&gt;, &lt;mutex&gt;, &lt;atomic&gt;, &lt;cstdio&gt; 等 (001-core-minimal)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+# Add commands for C++17
+
+## Code Style
+
+C++17: Follow standard conventions
+
+## Recent Changes
+
+- 001-core-minimal: Added C++17 + 无（根模块）；可选 std 库：&lt;cstdlib&gt;, &lt;cstddef&gt;, &lt;mutex&gt;, &lt;atomic&gt;, &lt;cstdio&gt; 等
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
