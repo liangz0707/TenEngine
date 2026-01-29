@@ -71,12 +71,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] Declare in include/te/core/platform.h: FileRead/Write, DirectoryEnumerate, Time/HighResolutionTimer, GetEnv, PathNormalize, platform macros (Windows/Linux/macOS); only contract-declared API
-- [ ] T014 [US2] Implement in src/platform.cpp (or platform_win32.cpp/platform_posix.cpp): FileRead/Write, DirectoryEnumerate, Time, HighResolutionTimer, GetEnv, PathNormalize; platform abstraction per plan
-- [ ] T015 [US2] Add tests/unit/test_platform.cpp: file I/O, dir enumerate, time/timer, GetEnv, PathNormalize per contract
-- [ ] T016 [P] [US2] Declare in include/te/core/log.h: LogLevel (Debug/Info/Warn/Error), LogSink, Log(level, message), Assert, CrashHandler; only contract-declared API
-- [ ] T017 [US2] Implement in src/log.cpp: Log(LogLevel, char const*), thread-safe, single-message atomic; LogSink redirect/filter; Assert and CrashHandler per contract capability 4
-- [ ] T018 [US2] Add tests/unit/test_log.cpp: level filtering, stderr threshold, Assert/CrashHandler behavior per contract
+- [x] T013 [P] [US2] Declare in include/te/core/platform.h: FileRead/Write, DirectoryEnumerate, Time/HighResolutionTimer, GetEnv, PathNormalize, platform macros (Windows/Linux/macOS); only contract-declared API
+- [x] T014 [US2] Implement in src/platform.cpp (or platform_win32.cpp/platform_posix.cpp): FileRead/Write, DirectoryEnumerate, Time, HighResolutionTimer, GetEnv, PathNormalize; platform abstraction per plan
+- [x] T015 [US2] Add tests/unit/test_platform.cpp: file I/O, dir enumerate, time/timer, GetEnv, PathNormalize per contract
+- [x] T016 [P] [US2] Declare in include/te/core/log.h: LogLevel (Debug/Info/Warn/Error), LogSink, Log(level, message), Assert, CrashHandler; only contract-declared API
+- [x] T017 [US2] Implement in src/log.cpp: Log(LogLevel, char const*), thread-safe, single-message atomic; LogSink redirect/filter; Assert and CrashHandler per contract capability 4
+- [x] T018 [US2] Add tests/unit/test_log.cpp: level filtering, stderr threshold, Assert/CrashHandler behavior per contract
 
 **Checkpoint**: US2 complete; Platform + Log API available and testable independently
 

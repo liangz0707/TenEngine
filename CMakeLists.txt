@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 add_library(te_core
   src/alloc.cpp
   src/thread.cpp
+  src/platform.cpp
+  src/log.cpp
 )
 target_include_directories(te_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
