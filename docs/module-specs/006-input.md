@@ -81,3 +81,7 @@ flowchart TB
 | **跨平台（可选）** | SDL2 GameController、XInput（Windows）等，通过 Input 统一抽象 |
 | **配置** | 键位/手柄映射可序列化（Object）或从配置文件加载（Core.Platform） |
 | **协议** | 无 |
+
+## 待办
+
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

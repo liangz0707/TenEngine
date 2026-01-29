@@ -62,6 +62,55 @@
   - 写入为线程安全；单条消息原子输出。
 - 配置（示例，具体名由实现定）：设置级别过滤阈值、设置 stderr 阈值（≥ 该级别输出到 stderr），以便可配置通道与过滤。
 
+### 本 feature（001-core-fullversion-001）完整 API 雏形
+
+#### 1. 内存 (Memory)
+
+- **Allocator** 接口（抽象基类）：`void* Alloc(size_t size, size_t alignment);`、`void Free(void* ptr);`
+- `void* Alloc(size_t size, size_t alignment);` — 默认堆分配；失败返回 nullptr；size==0 或非法 alignment 返回 nullptr。
+- `void Free(void* ptr);` — Free(nullptr) 与 double-free 为 no-op。
+- **DefaultAllocator**、**AlignedAlloc**、**PoolAllocator**（可选）、**DebugAllocator/LeakTracker**（可选）：语义见契约能力 1。
+
+#### 2. 线程 (Thread)
+
+- **Thread**：创建/销毁、join/detach。
+- **TLS**：线程局部存储。
+- **Atomic&lt;T&gt;**：原子类型封装。
+- **Mutex**、**ConditionVariable**：同步原语。
+- **TaskQueue** 骨架：提交任务、执行与同步语义明确（见契约能力 2）。
+
+#### 3. 平台 (Platform)
+
+- **FileRead/Write**：文件读写接口。
+- **DirectoryEnumerate**：目录枚举。
+- **Time/HighResolutionTimer**：时间与高精度计时。
+- **GetEnv**、**PathNormalize**：环境变量、路径规范化。
+- 平台宏与检测（Windows/Linux/macOS）。
+
+#### 4. 日志 (Log)
+
+- **LogLevel** 枚举：Debug, Info, Warn, Error（及可扩展）。
+- **LogSink**：输出通道抽象；可重定向与过滤。
+- `void Log(LogLevel level, char const* message);` — 线程安全；单条消息原子。
+- **Assert**、**CrashHandler**：断言与崩溃报告钩子。
+
+#### 5. 数学 (Math)
+
+- **Vector2/3/4**、**Matrix3/4**、**Quaternion**、**AABB**、**Ray**；**Lerp** 等插值与常用数学函数；无 GPU 依赖（见契约能力 5）。
+
+#### 6. 容器 (Containers)
+
+- **Array**、**Map**、**String**、**UniquePtr**、**SharedPtr**；可与自定义分配器配合；无反射、无 ECS（见契约能力 6）。
+
+#### 7. 模块加载 (ModuleLoad)
+
+- **LoadLibrary**、**UnloadLibrary**、**GetSymbol**：动态库加载/卸载/符号解析。
+- 模块依赖顺序、**ModuleInit/Shutdown** 回调；与构建/插件系统配合（见契约能力 7）。
+
+#### 调用顺序与约束（完整版）
+
+- 主工程须先完成 Core 初始化，再调用各子能力；卸载前释放所有由 Core 分配的资源并停止使用句柄。具体初始化/卸载顺序与 ABI 由实现与主工程约定。
+
 ## 调用顺序与约束
 
 - 主工程或上层模块须先完成 Core 初始化（若以动态库形式则先加载并调用初始化接口），再调用各子能力；卸载前应释放所有由 Core 分配的资源并停止使用句柄。
@@ -74,3 +123,4 @@
 | （初始） | 从 001-engine-core-module spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 001-Core：移除 ECS/序列化（归 002-Object），保留内存、线程、平台、日志、数学、容器、模块加载；消费者改为 T0 模块列表 |
 | 2026-01-29 | API 雏形由 plan 001-core-minimal 同步 |
+| 2026-01-29 | API 雏形由 plan 001-core-fullversion-001 同步（完整 7 子模块声明） |
