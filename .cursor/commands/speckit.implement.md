@@ -104,6 +104,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
+   - **Build/CMake 前置澄清（TenEngine）**：若将要执行的任务涉及配置/构建（如 cmake、CMakeLists、配置工程、编译、build 目录），**必须先**确认 **构建方式**（各直接依赖：源码 / DLL / 不引入外部库）与 **根目录**（在哪个模块目录执行构建）。优先从 plan.md 的「依赖引入方式」小节读取；若 plan 未写明或与当前环境不符，**不得**直接执行 cmake，须先向用户询问，澄清规则见 `docs/build-module-convention.md` §1.1。
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
@@ -133,3 +134,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Report final status with summary of completed work
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
+
+## Key rules (TenEngine build)
+
+- **生成/构建工程**：执行任何涉及 cmake、配置工程或编译的任务前，**必须**已澄清 **构建方式**（各依赖 源码/DLL/不引入）与 **根目录**（在哪个模块目录执行构建）。可从 plan.md「依赖引入方式」获取；未澄清时**禁止**直接运行 cmake，须先向用户确认。规约见 `docs/build-module-convention.md` §1.1。
