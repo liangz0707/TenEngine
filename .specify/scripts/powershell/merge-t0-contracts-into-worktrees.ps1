@@ -26,21 +26,25 @@ foreach ($m in $Modules) {
     $wtPath = Join-Path $WorktreeBase "TenEngine-$m"
     if (-not (Test-Path $wtPath)) { Write-Warning "Skip ${branch}: worktree not found $wtPath"; continue }
     Write-Host "=== $branch at $wtPath ==="
+    $ea = $ErrorActionPreference
     Push-Location $wtPath
     try {
-        git fetch origin T0-contracts 2>$null
-        git merge origin/T0-contracts --allow-unrelated-histories -m $MergeMsg 2>$null
-        if ($LASTEXITCODE -ne 0) {
+        $ErrorActionPreference = 'Continue'
+        cmd /c "git fetch origin T0-contracts 2>nul"
+        cmd /c "git merge origin/T0-contracts --allow-unrelated-histories -m `"$MergeMsg`" 2>nul"
+        $mergeExit = $LASTEXITCODE
+        if ($mergeExit -ne 0) {
             git checkout --theirs specs/_contracts/000-module-dependency-map.md specs/_contracts/README.md specs/_contracts/pipeline-to-rci.md docs/module-specs/README.md 2>$null
             foreach ($f in @("docs/contracts-and-specs-T0.md","docs/multi-agent-interface-sync.md","docs/tenengine-full-module-spec.md","docs/modules/README.md","docs/proposed-module-architecture.md","docs/three-engines-modules-and-dependencies.md","docs/reference-unity-unreal-modules.md",".cursor/rules/interface-sync.mdc",".cursor/rules/git-commit-messages.mdc",".specify/templates/spec-template.md")) {
                 if (Test-Path $f) { git checkout --theirs $f 2>$null }
             }
             git add specs/_contracts/ docs/module-specs/ docs/modules/ docs/contracts-and-specs-T0.md docs/multi-agent-interface-sync.md docs/tenengine-full-module-spec.md docs/proposed-module-architecture.md docs/three-engines-modules-and-dependencies.md docs/reference-unity-unreal-modules.md .cursor/rules/ .specify/templates/ 2>$null
-            git commit -m $MergeMsg 2>$null
+            cmd /c "git commit -m `"$MergeMsg`" 2>nul"
         }
-        git push origin $branch 2>$null
+        cmd /c "git push origin $branch 2>nul"
         if ($LASTEXITCODE -eq 0) { Write-Host "Pushed ${branch}" } else { Write-Host "Fail ${branch}" }
     } finally {
+        $ErrorActionPreference = $ea
         Pop-Location
     }
 }
