@@ -41,6 +41,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
    - Correct feature name from plan.md
+   - **Build/CMake 任务（TenEngine）**：若任务包含「配置/构建工程」或执行 `cmake -B build`，该任务**必须**注明：执行前须已澄清 **构建方式**（各依赖 源码/DLL/不引入）与 **根目录**（构建所在模块路径）；未澄清时**禁止**直接执行 cmake，须先向用户询问。规约见 `docs/build-module-convention.md` §1.1。
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
    - Phase 3+: One phase per user story (in priority order from spec.md)
@@ -63,6 +64,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 Context for task generation: $ARGUMENTS
 
 The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
+
+**生成/构建工程**：若 tasks 中有配置或构建（如 cmake），执行该任务前**必须**已与用户确认 **构建方式** 和 **根目录**（见 `docs/build-module-convention.md` §1.1）；否则不得直接运行 cmake，应先询问用户。
 
 ## Task Generation Rules
 
