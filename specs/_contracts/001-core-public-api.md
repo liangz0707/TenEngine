@@ -44,7 +44,23 @@
 
 ## API 雏形（简化声明）
 
-（由 plan 产出后写回，或先手写最小声明如 Alloc/Free、Log。）
+### 本切片（001-core-minimal）产出
+
+#### 内存
+
+- `void* Alloc(size_t size, size_t alignment);`
+  - 分配至少 `size` 字节、按 `alignment` 对齐的块；失败返回 `nullptr`。
+  - `size == 0` 或 `alignment` 不合法（如非 2 的幂）时返回 `nullptr`。
+- `void Free(void* ptr);`
+  - 释放由 `Alloc` 返回的块；`ptr == nullptr` 或 double-free 为 no-op（安全忽略）。
+
+#### 日志
+
+- 枚举 `LogLevel`: `Debug`, `Info`, `Warn`, `Error`。
+- `void Log(LogLevel level, char const* message);`
+  - 按级别写入一条消息；输出仅 stdout/stderr，可配置「某级别及以上→stderr、其余→stdout」及级别过滤。
+  - 写入为线程安全；单条消息原子输出。
+- 配置（示例，具体名由实现定）：设置级别过滤阈值、设置 stderr 阈值（≥ 该级别输出到 stderr），以便可配置通道与过滤。
 
 ## 调用顺序与约束
 
@@ -57,3 +73,4 @@
 |------|----------|
 | （初始） | 从 001-engine-core-module spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 001-Core：移除 ECS/序列化（归 002-Object），保留内存、线程、平台、日志、数学、容器、模块加载；消费者改为 T0 模块列表 |
+| 2026-01-29 | API 雏形由 plan 001-core-minimal 同步 |

@@ -3,7 +3,19 @@
 **Feature Branch**: `[###-feature-name]`  
 **Created**: [DATE]  
 **Status**: Draft  
-**Input**: User description: "$ARGUMENTS"
+**Input**: [简短描述：本 feature 的规约与契约见下方引用；本 feature 仅实现其中最小子集时写「见下方显式枚举」。]
+
+<!-- 当本 feature 为「某模块规约的切片」时，必须包含下方「规约与契约引用」节，与 /speckit.specify 输出一致。 -->
+## 规约与契约引用 *(模块切片时必填)*
+
+- **完整模块规约**：`docs/module-specs/NNN-modulename.md`（一句话说明规约范围）。
+- **对外 API 契约**：`specs/_contracts/NNN-modulename-public-api.md`。
+- **本切片范围（显式枚举）**：
+  1. [能力一：如 TypeRegistry::RegisterType、与 Core 加载协调]
+  2. [能力二：如 Serializer 接口、最小序列化/反序列化]
+  3. （按需增加）
+
+实现时只使用 `specs/_contracts/001-core-public-api.md`（或本 feature 依赖的上游契约）中已声明的类型与 API；不实现本规约未列出的能力。
 
 ## User Scenarios & Testing *(mandatory)*
 
