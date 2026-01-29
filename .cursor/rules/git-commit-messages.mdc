@@ -1,0 +1,26 @@
+---
+description: Git commit messages must be written in English
+alwaysApply: true
+---
+
+# Git Commit Messages
+
+**All git commit messages must be written in English.**
+
+This avoids garbled characters (mojibake) when viewing `git log` on GitHub, in terminals with different encodings, or in CI/CD tools.
+
+## Rules
+
+- Use **English only** for commit subject and body.
+- Prefer clear, imperative style (e.g. "Add X", "Fix Y", "Update Z").
+- Optionally follow [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `feat:`, `fix:`, `docs:`).
+
+## Examples
+
+- ✅ `Add T0 contract for 001-core public API`
+- ✅ `Fix merge conflict in specs/_contracts/README.md`
+- ✅ `docs: sync interface-sync rule with T0-contracts`
+- ❌ `添加核心模块契约` (use English instead)
+- ❌ `修复合并冲突` (use English instead)
+
+When suggesting or writing commit messages (e.g. in agent workflows, PRs, or local commits), always use English.
