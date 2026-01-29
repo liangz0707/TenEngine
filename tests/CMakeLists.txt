@@ -14,3 +14,15 @@ add_test(NAME test_platform COMMAND test_platform)
 add_executable(test_log unit/test_log.cpp)
 target_link_libraries(test_log PRIVATE te_core)
 add_test(NAME test_log COMMAND test_log)
+
+add_executable(test_math unit/test_math.cpp)
+target_link_libraries(test_math PRIVATE te_core)
+add_test(NAME test_math COMMAND test_math)
+
+add_executable(test_containers unit/test_containers.cpp)
+target_link_libraries(test_containers PRIVATE te_core)
+add_test(NAME test_containers COMMAND test_containers)
+
+add_executable(test_module_load unit/test_module_load.cpp)
+target_link_libraries(test_module_load PRIVATE te_core)
+add_test(NAME test_module_load COMMAND test_module_load)
