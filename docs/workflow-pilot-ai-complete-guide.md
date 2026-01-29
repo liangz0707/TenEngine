@@ -131,6 +131,8 @@
 
 **下游发现方式**：见 `docs/multi-agent-interface-sync.md` §4.4（仅规约待办：在下游 `docs/module-specs/NNN-modulename.md` 中增加待办）与 §4.6（工作前/任务前拉取 T0-contracts、看到规约待办时先拉再适配）。
 
+**契约尚无 API 雏形时**：上游在 /speckit.plan 阶段产出「契约更新」并写回契约的「API 雏形」即可继续开发；下游可先依能力列表（及伪代码）理解意图、写假设签名或桩，待上游补全 API 雏形后拉取契约再做适配。详见 `docs/multi-agent-interface-sync.md` §4.5.6。
+
 ---
 
 ### 与 /speckit.specify 输出对齐（脚本或人工写 spec 时）

@@ -34,7 +34,74 @@
 
 ## API 雏形（简化声明）
 
-（由 plan 产出后写回，或先手写最小声明如 TypeRegistry::RegisterType、序列化接口。）
+**本切片（002-object-minimal）暴露**：类型注册 + 简单序列化。仅使用 001-Core 契约已声明的类型（分配器、容器、字符串等）。
+
+### 类型与句柄（本切片）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| TypeId | 类型唯一标识（如 uint32_t 或 opaque 句柄） | 注册后直至卸载 |
+| TypeDescriptor | 类型描述：TypeId、名称、大小等（本切片不含属性/方法列表） | 与类型绑定 |
+| SerializedBuffer | 序列化字节流缓冲；由调用方分配与释放 | 调用方管理 |
+
+### 类型注册
+
+```cpp
+namespace te::object {
+
+using TypeId = uint32_t;   // 或 opaque 句柄
+
+struct TypeDescriptor {
+    TypeId       id;
+    char const*  name;     // 或使用 Core 契约中的 String 类型
+    size_t       size;    // 实例大小（本切片最小所需）
+    // 本切片不包含：属性列表、基类链、方法列表
+};
+
+class TypeRegistry {
+public:
+    // 注册类型；返回是否成功（如重复 id/name 可规定为覆盖或失败）
+    static bool RegisterType(TypeDescriptor const& desc);
+
+    // 按名/ID 查询；未找到返回 nullptr
+    static TypeDescriptor const* GetTypeByName(char const* name);
+    static TypeDescriptor const* GetTypeById(TypeId id);
+};
+
+}
+```
+
+### 简单序列化（本切片）
+
+```cpp
+namespace te::object {
+
+// 调用方提供的缓冲；生命周期由调用方管理
+struct SerializedBuffer {
+    void*  data;
+    size_t size;
+    size_t capacity;   // 可写容量（用于序列化时扩展）
+};
+
+// 序列化器抽象：将已注册类型实例写入缓冲 / 从缓冲读回
+class ISerializer {
+public:
+    virtual ~ISerializer() = default;
+    // 将 obj（类型已注册）序列化到 out；返回是否成功
+    virtual bool Serialize(SerializedBuffer& out, void const* obj, TypeId typeId) = 0;
+    // 从 buf 反序列化为 typeId 类型；obj 由调用方提供内存；返回是否成功
+    virtual bool Deserialize(SerializedBuffer const& buf, void* obj, TypeId typeId) = 0;
+};
+
+// 默认实现（如最小二进制格式）可由工厂或模块初始化返回
+// std::unique_ptr<ISerializer> CreateDefaultSerializer();
+}
+```
+
+### 调用顺序与约束（本切片）
+
+- 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
+- SerializedBuffer 的 data 可由调用方使用 Core 分配器（Alloc/Free）分配；本切片不规定缓冲格式的版本迁移与 GUID 解析。
 
 ## 调用顺序与约束
 
@@ -46,3 +113,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 002-Object 模块规格与依赖表新增契约 |
+| 2026-01-29 | API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化） |
