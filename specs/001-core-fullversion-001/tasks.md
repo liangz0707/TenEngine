@@ -90,15 +90,15 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [P] [US3] Declare in include/te/core/math.h: Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray; Lerp and common math functions; only contract-declared API, no GPU
-- [ ] T020 [US3] Implement in src/math.cpp: Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray, Lerp per contract capability 5
-- [ ] T021 [US3] Add tests/unit/test_math.cpp: vector/matrix/quaternion ops, AABB, Ray, Lerp per contract
-- [ ] T022 [P] [US3] Declare in include/te/core/containers.h: Array, Map, String, UniquePtr, SharedPtr; allocator support; only contract-declared API, no reflection/ECS
-- [ ] T023 [US3] Implement in src/containers.cpp: Array, Map, String, UniquePtr, SharedPtr; optional allocator parameter per contract capability 6
-- [ ] T024 [US3] Add tests/unit/test_containers.cpp: Array/Map/String and smart pointers with allocator per contract
-- [ ] T025 [US3] Declare in include/te/core/module_load.h: LoadLibrary, UnloadLibrary, GetSymbol, ModuleInit/Shutdown callbacks; only contract-declared API
-- [ ] T026 [US3] Implement in src/module_load.cpp: LoadLibrary/UnloadLibrary/GetSymbol (dlopen/LoadLibrary/dyld); module dependency order and Init/Shutdown callbacks per contract capability 7
-- [ ] T027 [US3] Add tests/unit/test_module_load.cpp: load/unload/symbol and init/shutdown order per contract
+- [x] T019 [P] [US3] Declare in include/te/core/math.h: Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray; Lerp and common math functions; only contract-declared API, no GPU
+- [x] T020 [US3] Implement in src/math.cpp: Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray, Lerp per contract capability 5
+- [x] T021 [US3] Add tests/unit/test_math.cpp: vector/matrix/quaternion ops, AABB, Ray, Lerp per contract
+- [x] T022 [P] [US3] Declare in include/te/core/containers.h: Array, Map, String, UniquePtr, SharedPtr; allocator support; only contract-declared API, no reflection/ECS
+- [x] T023 [US3] Implement in src/containers.cpp: Array, Map, String, UniquePtr, SharedPtr; optional allocator parameter per contract capability 6
+- [x] T024 [US3] Add tests/unit/test_containers.cpp: Array/Map/String and smart pointers with allocator per contract
+- [x] T025 [US3] Declare in include/te/core/module_load.h: LoadLibrary, UnloadLibrary, GetSymbol, ModuleInit/Shutdown callbacks; only contract-declared API
+- [x] T026 [US3] Implement in src/module_load.cpp: LoadLibrary/UnloadLibrary/GetSymbol (dlopen/LoadLibrary/dyld); module dependency order and Init/Shutdown callbacks per contract capability 7
+- [x] T027 [US3] Add tests/unit/test_module_load.cpp: load/unload/symbol and init/shutdown order per contract
 
 **Checkpoint**: US3 complete; Math, Containers, ModuleLoad API available and testable independently
 

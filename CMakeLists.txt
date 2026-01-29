@@ -9,6 +9,9 @@ add_library(te_core
   src/thread.cpp
   src/platform.cpp
   src/log.cpp
+  src/math.cpp
+  src/containers.cpp
+  src/module_load.cpp
 )
 target_include_directories(te_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
