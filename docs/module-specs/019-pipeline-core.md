@@ -84,3 +84,7 @@ flowchart TB
 | **RenderCore** | Pass 输入/输出声明、Uniform 与资源描述 |
 | **可选** | RDG 调试、Pass 图可视化、性能分析 |
 | **协议** | 无 |
+
+## 待办
+
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
