@@ -84,3 +84,7 @@ flowchart TB
 | **Input** | 鼠标/触摸/键盘事件 |
 | **可选** | 字体库（FreeType、HarfBuzz）、文本整形；与 Pipeline 的 2D/Overlay 绘制接口 |
 | **协议** | 无 |
+
+## 待办
+
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

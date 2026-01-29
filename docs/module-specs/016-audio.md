@@ -81,3 +81,7 @@ flowchart TB
 | **平台/第三方** | 平台音频 API（WASAPI/ALSA/CoreAudio）或 FMOD、Wwise、OpenAL 等，通过 Audio 抽象对外 |
 | **可选** | DSP 效果、编解码、空间音频中间件 |
 | **协议** | 无 |
+
+## 待办
+
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
