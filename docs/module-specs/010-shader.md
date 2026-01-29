@@ -83,3 +83,7 @@ flowchart TB
 | **中间格式** | SPIR-V、DXIL、MSL，与 RHI 后端一一对应 |
 | **可选** | Shader 反射（SPIR-V 解析）用于 Uniform 布局、RenderDoc 等调试工具 |
 | **协议** | 无 |
+
+## 待办
+
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
