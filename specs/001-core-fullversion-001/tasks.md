@@ -53,11 +53,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T008 [P] [US1] Declare in include/te/core/thread.h: Thread (create/join/detach), TLS, Atomic<T>, Mutex, ConditionVariable, TaskQueue skeleton; only contract-declared API
-- [ ] T009 [US1] Implement in src/thread.cpp (or thread_win32.cpp/thread_pthread.cpp): Thread create/destroy, join/detach; platform abstraction per plan
-- [ ] T010 [US1] Implement in src/thread.cpp: TLS, Atomic<T>, Mutex, ConditionVariable; semantics per contract capability 2
-- [ ] T011 [US1] Implement TaskQueue skeleton in src/thread.cpp: submit task, execution and sync semantics per contract
-- [ ] T012 [US1] Add tests/unit/test_thread.cpp: thread creation, Mutex/ConditionVariable, TaskQueue usage per contract
+- [x] T008 [P] [US1] Declare in include/te/core/thread.h: Thread (create/join/detach), TLS, Atomic<T>, Mutex, ConditionVariable, TaskQueue skeleton; only contract-declared API
+- [x] T009 [US1] Implement in src/thread.cpp (or thread_win32.cpp/thread_pthread.cpp): Thread create/destroy, join/detach; platform abstraction per plan
+- [x] T010 [US1] Implement in src/thread.cpp: TLS, Atomic<T>, Mutex, ConditionVariable; semantics per contract capability 2
+- [x] T011 [US1] Implement TaskQueue skeleton in src/thread.cpp: submit task, execution and sync semantics per contract
+- [x] T012 [US1] Add tests/unit/test_thread.cpp: thread creation, Mutex/ConditionVariable, TaskQueue usage per contract
 
 **Checkpoint**: US1 complete; Memory + Thread API available and testable independently
 
