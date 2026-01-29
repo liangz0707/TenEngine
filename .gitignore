@@ -1,0 +1,18 @@
+# C++ / CMake (per build-module-convention)
+build/
+bin/
+obj/
+out/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.log
+.env*
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
