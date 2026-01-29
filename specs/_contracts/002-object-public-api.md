@@ -240,3 +240,4 @@ public:
 | 2026-01-29 | API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化） |
 | 2026-01-29 | API 雏形由 plan 002-object-fullversion-001 同步（完整功能集：反射、序列化含版本迁移与 GUID、属性系统、类型工厂） |
 | 2026-01-29 | 按 workflow §4.2.5 自 002-object-minimal/plan.md 同步 API 雏形（类型注册 + 简单序列化）至契约 |
+| 2026-01-29 | 按 workflow §4.2.5 自 002-object-fullversion-001/plan.md 同步 API 雏形（完整功能集）至契约 |
