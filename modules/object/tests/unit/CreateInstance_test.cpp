@@ -1,10 +1,9 @@
-/** Unit test: CreateInstance and lifecycle (contract: 002-object-public-api.md US4) */
+/** Unit test: CreateInstance and lifecycle (contract: 002-object-public-api.md US4). Uses Core Alloc/Free per contract. */
 
 #include "te/object/TypeDescriptor.hpp"
 #include "te/object/TypeRegistry.hpp"
 #include "te/object/TypeId.hpp"
-#include <cassert>
-#include <cstdlib>
+#include "te/object/detail/CoreMemory.hpp"
 #include <cstring>
 #include <iostream>
 
@@ -26,7 +25,7 @@ int main() {
     void* p = TypeRegistry::CreateInstance(3u);
     if (!p) { std::cerr << "CreateInstance(3u) returned null\n"; return 1; }
     std::memset(p, 0, 16u);
-    std::free(p);
+    te::object::detail::Free(p);  // free with same allocator as CreateInstance (Core Alloc/Free per contract)
 
     if (TypeRegistry::CreateInstance(999u) != nullptr) { std::cerr << "CreateInstance(999u) should be null\n"; return 1; }
 

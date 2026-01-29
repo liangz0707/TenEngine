@@ -1,7 +1,8 @@
-/** TypeRegistry implementation (contract: 002-object-public-api.md fullversion-001) */
+/** TypeRegistry implementation (contract: 002-object-public-api.md fullversion-001). Uses 001-Core Alloc/Free per contract. */
 
 #include "te/object/TypeRegistry.hpp"
-#include <cstdlib>
+#include "te/object/detail/CoreMemory.hpp"
+#include <cstddef>
 #include <cstring>
 #include <map>
 #include <mutex>
@@ -56,7 +57,8 @@ TypeDescriptor const* TypeRegistry::GetTypeById(TypeId id) {
 void* TypeRegistry::CreateInstance(TypeId id) {
     TypeDescriptor const* desc = GetTypeById(id);
     if (!desc || desc->size == 0) return nullptr;
-    void* p = std::malloc(desc->size);
+    std::size_t align = alignof(std::max_align_t);
+    void* p = detail::Alloc(desc->size, align);
     if (!p) return nullptr;
     std::memset(p, 0, desc->size);
     return p;

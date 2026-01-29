@@ -5,21 +5,26 @@
 #include "te/object/TypeDescriptor.hpp"
 #include "te/object/TypeRegistry.hpp"
 #include "te/object/VersionMigration.hpp"
+#include "te/object/detail/CoreMemory.hpp"
 #include <cassert>
+#include <cstddef>
 #include <cstring>
 #include <iostream>
 
 namespace te::object {
 
-/** Minimal serializer for test: writes/reads raw bytes per type size. */
+/** Minimal serializer for test: uses Core Alloc/Free per contract. */
 class TestSerializer : public ISerializer {
 public:
     bool Serialize(SerializedBuffer& out, void const* obj, TypeId typeId) override {
         TypeDescriptor const* d = TypeRegistry::GetTypeById(typeId);
         if (!d || !obj || d->size == 0) return false;
         if (out.capacity < d->size) {
-            void* p = std::realloc(out.data, d->size);
+            std::size_t align = alignof(std::max_align_t);
+            void* p = detail::Alloc(d->size, align);
             if (!p) return false;
+            if (out.data && out.size) std::memcpy(p, out.data, out.size);
+            detail::Free(out.data);
             out.data = p;
             out.capacity = d->size;
         }
@@ -63,7 +68,7 @@ int main() {
     assert(ser.Deserialize(buf, &dst, 2u));
     assert(dst == src);
 
-    std::free(buf.data);
+    te::object::detail::Free(buf.data);  // buffer may be grown by serializer with Core Alloc
     std::cout << "Serializer_roundtrip_test passed.\n";
     return 0;
 }
