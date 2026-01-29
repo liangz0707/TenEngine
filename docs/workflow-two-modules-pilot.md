@@ -136,6 +136,13 @@
 4. **再跑 /speckit.tasks**
    - 此后 tasks 与 implement 都以**已更新契约**为准，实现时只暴露契约中的 API。
 
+5. **（必须）若契约变更影响下游，执行 Follow-up**
+   - 打开 `specs/_contracts/000-module-dependency-map.md`，在「谁被谁依赖」表中查出**依赖本模块**的下游列表。
+   - 若本次契约变更可能影响下游（如 API 签名变更、删除、行为变更），则对**每个下游**在其规约中增加待办：
+     - 在对应下游的 **`docs/module-specs/NNN-modulename.md`** 中增加一条待办，如：`- **待办**：需随 \`001-core\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。`
+   - **仅采用规约待办**：不直接修改下游的 feature 分支（如 checklist、tasks.md），以便多分支下通过规约文件同步即可；下游根据规约中的待办与契约变更记录，自行判断适配时间与修改内容。
+   - 若无下游或仅为新增、无破坏性变更，可跳过本步。
+
 **Prompt 约定**：在调用 /speckit.plan 时，在 prompt 末尾加上一句：**「Plan 结束时请产出一份「契约更新」：列出本 feature 对外暴露的函数签名与类型，格式可直接用于写入 specs/_contracts/NNN-*-public-api.md 的 API 雏形小节。」** 这样 Agent 会在 plan 输出中给出写回契约所需内容，便于执行步骤 1–2。
 
 ### 4.3 合并回模块分支并推送
@@ -191,7 +198,7 @@
 
 - 若在实现 **001-Core** 时**修改了对外 API**：
   1. 在 **T0-contracts** 上更新 `001-core-public-api.md`（能力列表 / API 雏形 / 变更记录），推送。
-  2. 在 `000-module-dependency-map.md` 中确认下游（含 002-Object）；若有破坏性变更，在 `docs/module-specs/002-object.md` 中增加**待办**或创建 follow-up（见 `docs/multi-agent-interface-sync.md` §4.4）。
+  2. 在 `000-module-dependency-map.md` 中确认下游（含 002-Object）；若有破坏性变更，在 `docs/module-specs/002-object.md` 中增加**待办**（仅规约待办，见 `docs/multi-agent-interface-sync.md` §4.4）。
   3. 002-Object 侧：拉取 T0-contracts，根据契约变更做适配（可再跑一轮 specify/plan/tasks 或直接改代码）。
 
 ---
