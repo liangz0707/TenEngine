@@ -103,6 +103,130 @@ public:
 - 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
 - SerializedBuffer 的 data 可由调用方使用 Core 分配器（Alloc/Free）分配；本切片不规定缓冲格式的版本迁移与 GUID 解析。
 
+### 本切片（002-object-fullversion-001）完整功能集
+
+#### 类型与句柄（跨边界）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| TypeId | 类型唯一标识（如 uint32_t 或 opaque 句柄） | 注册后直至卸载 |
+| TypeDescriptor | 类型描述：TypeId、名称、大小、属性/方法列表、基类链 | 与类型绑定 |
+| SerializedBuffer | 序列化字节流缓冲；由调用方分配与释放 | 调用方管理 |
+| ObjectRef | 对象引用；与资源 GUID 对应，序列化/反序列化中解析 | 由调用方或实现管理 |
+| GUID | 全局唯一标识，用于资源引用与解析 | 与资源/对象绑定 |
+| PropertyDescriptor | 属性描述：名称、类型、元数据、默认值、范围/枚举 | 与类型或实例绑定 |
+| PropertyBag | 属性集合；可序列化字段、元数据、约束 | 与类型或实例绑定 |
+
+#### 反射与类型注册
+
+```cpp
+namespace te::object {
+
+using TypeId = uint32_t;   // 或 opaque 句柄
+
+struct PropertyDescriptor;  // 属性描述：name, type, metadata, default, range/enum
+struct MethodDescriptor;    // 方法描述（本切片内可为占位或最小集）
+
+struct TypeDescriptor {
+    TypeId    id;
+    char const* name;
+    size_t    size;
+    // 完整功能集：属性/方法列表、基类链
+    PropertyDescriptor const* properties;
+    size_t    propertyCount;
+    MethodDescriptor const* methods;
+    size_t    methodCount;
+    TypeId    baseTypeId;   // 基类 TypeId，无则为 0 或无效值
+};
+
+class TypeRegistry {
+public:
+    // 注册类型；重复 TypeId 拒绝，重复 name 由实现约定；返回是否成功
+    static bool RegisterType(TypeDescriptor const& desc);
+
+    static TypeDescriptor const* GetTypeByName(char const* name);
+    static TypeDescriptor const* GetTypeById(TypeId id);
+
+    // 按 TypeId 创建实例；分配语义按调用约定（调用方或实现方分配）
+    static void* CreateInstance(TypeId id);
+};
+
+}
+```
+
+#### 序列化（含版本迁移与 ObjectRef/GUID）
+
+```cpp
+namespace te::object {
+
+struct SerializedBuffer {
+    void*  data;
+    size_t size;
+    size_t capacity;
+};
+
+struct ObjectRef {
+    uint8_t guid[16];   // 或 GUID 类型；与资源/对象绑定
+    // 解析语义与 013-Resource 等约定在集成阶段
+};
+
+struct GUID {
+    uint8_t data[16];
+};
+
+// 版本迁移：旧格式升级到当前格式；本切片必选
+class IVersionMigration {
+public:
+    virtual ~IVersionMigration() = default;
+    virtual bool Migrate(SerializedBuffer& buf, uint32_t fromVersion, uint32_t toVersion) = 0;
+};
+
+class ISerializer {
+public:
+    virtual ~ISerializer() = default;
+    // 序列化；支持 ObjectRef/GUID 解析；二进制或文本由实现/工厂选择
+    virtual bool Serialize(SerializedBuffer& out, void const* obj, TypeId typeId) = 0;
+    virtual bool Deserialize(SerializedBuffer const& buf, void* obj, TypeId typeId) = 0;
+    // 版本迁移接口（必选）
+    virtual uint32_t GetCurrentVersion() const = 0;
+    virtual void SetVersionMigration(IVersionMigration* migration) = 0;
+};
+
+}
+```
+
+#### 属性系统
+
+```cpp
+namespace te::object {
+
+struct PropertyDescriptor {
+    char const* name;
+    TypeId      valueTypeId;
+    void const* defaultValue;   // 可选
+    // 元数据、范围/枚举约束（可由扩展结构或后续接口提供）
+};
+
+class PropertyBag {
+public:
+    // 读写属性；与反射和序列化联动
+    virtual bool GetProperty(void* outValue, char const* name) const = 0;
+    virtual bool SetProperty(void const* value, char const* name) = 0;
+    virtual PropertyDescriptor const* FindProperty(char const* name) const = 0;
+    virtual ~PropertyBag() = default;
+};
+
+}
+```
+
+#### 调用顺序与约束（本切片 fullversion-001）
+
+- 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
+- 重复 TypeId 拒绝；重复类型名由实现约定（覆盖或拒绝），须在实现/契约中明确。
+- SerializedBuffer 的 data 可由调用方使用 Core 分配器（Alloc/Free）分配。
+- 版本迁移为本切片必选能力；序列化支持二进制与文本两种格式（或通过抽象可扩展）。
+- GUID 引用格式与 013-Resource 等消费者的约定留待集成阶段；本 feature 保证 GUID 可解析、可扩展。
+
 ## 调用顺序与约束
 
 - 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
@@ -114,3 +238,4 @@ public:
 |------|----------|
 | T0 新增 | 按 002-Object 模块规格与依赖表新增契约 |
 | 2026-01-29 | API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化） |
+| 2026-01-29 | API 雏形由 plan 002-object-fullversion-001 同步（完整功能集：反射、序列化含版本迁移与 GUID、属性系统、类型工厂） |
