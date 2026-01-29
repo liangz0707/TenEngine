@@ -67,6 +67,8 @@ git pull origin T0-contracts
    - 在对应下游的规格或 checklist 中留下“需随 XXX 契约变更做适配”的待办，或
    - 创建明确的 follow-up 任务/issue 供负责下游模块的 Agent 处理。
 
+**若使用 Spec Kit /speckit.plan**：plan 产出的对外接口设计（函数签名、类型）**必须写回契约**。在 plan 完成后、tasks 之前，将 plan.md 或 plan 产出的「契约更新」清单同步到 `specs/_contracts/NNN-*-public-api.md` 的「API 雏形」小节，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/workflow-two-modules-pilot.md` §4.2.5。
+
 ### 4.3 评审/合并前
 
 1. 检查：本 PR 是否改动某模块的**公开 API 或跨模块数据结构**？
