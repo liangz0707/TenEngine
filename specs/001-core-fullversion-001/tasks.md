@@ -108,10 +108,10 @@
 
 **Purpose**: Documentation, ABI versioning, and contract alignment
 
-- [ ] T028 [P] Update README or docs with build/run instructions per quickstart.md
-- [ ] T029 Ensure all public headers under include/te/core/ contain only types and APIs listed in specs/_contracts/001-core-public-api.md; remove any extra public API
-- [ ] T030 Add ABI version (MAJOR.MINOR.PATCH) and versioning note in public API per contract; document init/shutdown order per contract「调用顺序与约束」
-- [ ] T031 Run quickstart.md validation: configure, build, run unit tests for all 7 submodules
+- [x] T028 [P] Update README or docs with build/run instructions per quickstart.md
+- [x] T029 Ensure all public headers under include/te/core/ contain only types and APIs listed in specs/_contracts/001-core-public-api.md; remove any extra public API
+- [x] T030 Add ABI version (MAJOR.MINOR.PATCH) and versioning note in public API per contract; document init/shutdown order per contract「调用顺序与约束」
+- [x] T031 Run quickstart.md validation: configure, build, run unit tests for all 7 submodules
 
 ---
 
