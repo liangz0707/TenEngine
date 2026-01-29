@@ -1,40 +1,30 @@
-# Specification Quality Checklist: 001-Core 最小切片（Alloc/Free、Log）
+﻿# Specification Quality Checklist: 001-core minimal
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-01-29  
-**Feature**: [spec.md](../spec.md)  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-01-29
+**Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
-- [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
-- [x] All mandatory sections completed
+- [ ] No implementation details (languages, frameworks, APIs) in spec
+- [ ] Focused on user value and business needs (slice scope)
+- [ ] Written for non-technical stakeholders where applicable
+- [ ] All mandatory sections completed (User Scenarios, Requirements, Success Criteria, Interface Contracts, Dependencies)
 
 ## Requirement Completeness
 
-- [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous
-- [x] Success criteria are measurable
-- [x] Success criteria are technology-agnostic (no implementation details)
-- [x] All acceptance scenarios are defined
-- [x] Edge cases are identified
-- [x] Scope is clearly bounded (slice: Alloc/Free, Log only)
-- [x] Dependencies and assumptions identified (references 001-core.md + 001-core-public-api.md)
+- [ ] FR-001..FR-005 cover slice scope
+- [ ] User stories P1/P2 testable independently
+- [ ] Edge cases documented
+- [ ] Dependencies and interface contracts explicit
 
-## Feature Readiness
+## Multi-Agent / Contract Alignment
 
-- [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows (Alloc/Free, Log)
-- [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
-
-## Slice & Contract Alignment
-
-- [x] spec.md references [docs/module-specs/001-core.md](../../../docs/module-specs/001-core.md) for full module spec
-- [x] spec.md references [specs/_contracts/001-core-public-api.md](../../_contracts/001-core-public-api.md) for public API
-- [x] spec.md describes only this slice scope (no repeat of full module spec)
+- [ ] This module contract: `specs/_contracts/001-core-public-api.md` (subset)
+- [ ] Depends: none (root); implementation uses only declared types/APIs
+- [ ] Spec references `docs/module-specs/001-core.md` and contracts; slice scope only
 
 ## Notes
 
-- Spec is ready for `/speckit.clarify` or `/speckit.plan`. Implement only contract-declared types and interfaces.
+- Check items off as completed: `[x]`
+- Proceed to `/speckit.clarify` or `/speckit.plan` once checklist is satisfied
