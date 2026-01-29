@@ -72,6 +72,19 @@ git pull origin T0-contracts
 1. 检查：本 PR 是否改动某模块的**公开 API 或跨模块数据结构**？
 2. 若有，确认 `specs/_contracts/` 下对应契约已更新，且依赖图与下游说明已更新或已创建跟进任务。
 
+### 4.4 Follow-up 与 Issue 的具体操作
+
+当你在 4.2 中更新契约并需要通知下游时，“在规格或 checklist 中留下待办”或“创建 follow-up 任务/issue”对应下列**具体操作**（任选其一或组合使用）：
+
+| 方式 | 位置 | 操作 | 作用 |
+|------|------|------|------|
+| **规格待办** | 下游模块规格 `docs/module-specs/NNN-modulename.md` | 增加 **待办 / TODO** 条文，如：`- **待办**：需随 \`008-rhi\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。` | 负责该模块的 Agent 打开规格即可看到需适配的契约。 |
+| **Checklist 项** | 该模块对应 feature 的 checklist（如 `specs/<feature>/checklists/requirements.md`） | 增加未勾选项，如：`- [ ] 适配 008-rhi 契约变更（见 \`specs/_contracts/008-rhi-public-api.md\` 变更记录）。` | 以 checklist 形式跟踪，便于逐项完成。 |
+| **tasks.md 任务** | 该模块对应 feature 的 `tasks.md` | 按既有格式追加，如：`- [ ] T0XX Adapter 009-RenderCore to 008-rhi contract changes (see \`specs/_contracts/008-rhi-public-api.md\`)` | 任务可被 speckit 流程消费；配合 `speckit.taskstoissues` 可转为 GitHub Issue。 |
+| **GitHub Issue** | 本仓库对应的 GitHub（`git config --get remote.origin.url`） | 在 GitHub 新建 Issue：标题如 `Adapter 009-RenderCore to 008-rhi contract change`；描述中附契约链接、变更摘要、需适配模块。 | 可分配、讨论、关联 PR，适合多人/多 Agent 协作。 |
+
+**选用建议**：轻量变更可仅用**规格待办**；有 feature checklist 时可加 **Checklist 项** 或 **tasks.md 任务**；需分配、追踪或跨团队协作时用 **GitHub Issue**。
+
 ---
 
 ## 5. 契约文件怎么写
