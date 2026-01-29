@@ -1,0 +1,14 @@
+# Build outputs (C++)
+build/
+bin/
+obj/
+out/
+*.o
+*.a
+*.so
+*.lib
+*.dll
+*.exe
+.idea/
+*.log
+.env*
