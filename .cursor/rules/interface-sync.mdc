@@ -11,4 +11,6 @@ globs: specs/**/*.md, docs/**/*.md, **/spec.md
 - **实现或改 spec 前**：确认已从 **T0-contracts** 拉取最新契约；打开本模块的 `docs/module-specs/NNN-modulename.md` 或 `spec.md`，查看 **Dependencies** 与 **Interface Contracts**；对每个依赖的上游，阅读 `specs/_contracts/` 下对应契约，实现时只使用契约中已声明的类型与接口。
 - **修改本模块对外 API 时**：在 **`T0-contracts` 分支**上更新 `specs/_contracts/` 下本模块对应的契约文件；在 `specs/_contracts/000-module-dependency-map.md` 中查看依赖本模块的下游，若有破坏性变更则在下游 spec 或 issue 中留下跟进说明或任务。
 - **依赖关系总览**：`specs/_contracts/000-module-dependency-map.md`。新增/修改依赖时请同步更新该文件与各 spec 的 Dependencies。
+- **接口如何确定**：**伪代码**（意图）→ **API 雏形**（简化声明）→ **真实 API**（头文件）。L0/L1 契约先行：实现前写 API 雏形到契约，实现严格按契约；下游基于 API 雏形或真实头文件。真实 API 变更时需同步更新契约。详见 `docs/multi-agent-interface-sync.md` §4.5。
+- **发现依赖接口变化**：工作前、每个 task 开始前 `git pull origin T0-contracts`；收到 follow-up（规格待办、issue）时先拉契约再适配。详见 `docs/multi-agent-interface-sync.md` §4.6。
 - **策略说明**：`docs/multi-agent-interface-sync.md`。
