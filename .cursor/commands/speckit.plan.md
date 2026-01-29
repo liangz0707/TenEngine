@@ -27,6 +27,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
+   - **Build convention (TenEngine)**：若本 feature 涉及 CMake/构建，**必须**在 plan.md 中填写「依赖引入方式」小节（见 `.specify/templates/plan-template.md`）：每个直接依赖为 **源码** / **DLL** / **不引入外部库**，默认源码。规约见 `docs/build-module-convention.md`。
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
@@ -87,3 +88,4 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+- **生成/构建工程**：若用户或后续步骤会「生成工程」或执行 cmake，**不得**在未澄清前直接执行 cmake。须先向用户确认：**构建方式**（各依赖 源码/DLL/不引入）、**根目录**（在哪个模块目录执行构建）。澄清规则见 `docs/build-module-convention.md` §1.1。plan.md 中须写明依赖引入方式，以便 tasks/implement 使用。
