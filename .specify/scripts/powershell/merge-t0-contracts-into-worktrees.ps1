@@ -4,7 +4,7 @@
 param(
     [string]$WorktreeBase = "G:\AIHUMAN\WorkSpaceSDD",
     [string[]]$OnlyModules = @(),  # e.g. @("002-object","003-application") to run only those
-    [string]$MergeMsg = "Merge T0-contracts: 契约、docs、.cursor、.specify 更新"
+    [string]$MergeMsg = "Merge T0-contracts: contracts, docs, .cursor, .specify updates"
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,7 +32,7 @@ foreach ($m in $Modules) {
         git merge origin/T0-contracts --allow-unrelated-histories -m $MergeMsg 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             git checkout --theirs specs/_contracts/000-module-dependency-map.md specs/_contracts/README.md specs/_contracts/pipeline-to-rci.md docs/module-specs/README.md 2>&1 | Out-Null
-            foreach ($f in @("docs/contracts-and-specs-T0.md","docs/multi-agent-interface-sync.md","docs/tenengine-full-module-spec.md","docs/modules/README.md","docs/proposed-module-architecture.md","docs/three-engines-modules-and-dependencies.md","docs/reference-unity-unreal-modules.md",".cursor/rules/interface-sync.mdc",".specify/templates/spec-template.md")) {
+            foreach ($f in @("docs/contracts-and-specs-T0.md","docs/multi-agent-interface-sync.md","docs/tenengine-full-module-spec.md","docs/modules/README.md","docs/proposed-module-architecture.md","docs/three-engines-modules-and-dependencies.md","docs/reference-unity-unreal-modules.md",".cursor/rules/interface-sync.mdc",".cursor/rules/git-commit-messages.mdc",".specify/templates/spec-template.md")) {
                 if (Test-Path $f) { git checkout --theirs $f 2>&1 | Out-Null }
             }
             git add specs/_contracts/ docs/module-specs/ docs/modules/ docs/contracts-and-specs-T0.md docs/multi-agent-interface-sync.md docs/tenengine-full-module-spec.md docs/proposed-module-architecture.md docs/three-engines-modules-and-dependencies.md docs/reference-unity-unreal-modules.md .cursor/rules/ .specify/templates/ 2>&1 | Out-Null
