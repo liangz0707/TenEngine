@@ -110,13 +110,45 @@
 
 ## 三、与 TenEngine 的对照（简要）
 
-| 维度 | Unreal | Unity | TenEngine（当前/目标） |
+| 维度 | Unreal | Unity | TenEngine（T0 / 目标） |
 |------|--------|-------|-------------------------|
 | 模块单元 | Module（.Build.cs） | Package + Subsystems | specs/00X-xxx + 契约 |
 | 依赖声明 | Build.cs 列表 | 包依赖 + 子系统描述符 | specs/_contracts/ + Dependencies |
-| 渲染抽象 | RHI → RenderCore → Renderer，RDG | SRP（HDRP/URP）包 | RCI → Pipeline → CommandBuffer |
-| 核心/平台 | Core, CoreUObject, Engine | Native + C#，内置模块 | Core（内存/线程/ECS/平台/序列化） |
+| 渲染抽象 | RHI → RenderCore → Renderer，RDG | SRP（HDRP/URP）包 | RHI → RenderCore → PipelineCore → Pipeline |
+| 核心/平台 | Core, CoreUObject, Engine | Native + C#，内置模块 | Core, Object, Application（见 engine-modules-and-architecture） |
 | 加载与生命周期 | .uproject LoadingPhase / Type | Subsystem Start/Stop | 契约中的调用顺序与约束 |
+
+### 3.1 三引擎按功能域对照（T0 模块）
+
+| 功能域 | TenEngine（T0） | Unreal Engine | Unity |
+|--------|-----------------|---------------|-------|
+| **核心/基础** | 001-Core, 002-Object, 003-Application | Core, CoreUObject, ApplicationCore | Engine Core, com.unity.modules.* |
+| **对象/实体** | 004-Scene, 005-Entity | Engine, CoreUObject | GameObject/Component, com.unity.entities |
+| **图形 API 抽象** | 008-RHI | RHI, RHICore | SRP Core 与底层封装 |
+| **渲染管线** | 019-PipelineCore, 020-Pipeline | RenderCore, Renderer, RDG | render-pipelines.core, URP/HDRP |
+| **Shader/材质** | 010-Shader, 011-Material | RenderCore/Renderer + 材质 | Shader Graph, 内置 Shader 库 |
+| **资源** | 013-Resource | Engine 内资源 + 插件 | Addressables, Asset Bundle |
+| **编辑器/UI** | 024-Editor, 017-UICore, 018-UI | UnrealEd, Slate, LevelEditor | com.unity.editor, 各工具包 |
+
+### 3.2 三引擎并排示意（简化）
+
+```
+TenEngine (T0)              Unreal                         Unity
+─────────────               ──────                         ─────
+Editor(024)                 UnrealEd / Slate               Editor / uGUI / Input
+  │  │   │                     │    │                           │
+  │  │   └─ Shader(010)         │    └─ Renderer                  ├─ URP/HDRP
+  │  │        │                 │         │                      │     │
+  │  └─ Resource(013)           │         └─ RenderCore           │     └─ SRP Core
+  │        │                    │              │                  │
+  └─ Pipeline(020)              └─ Engine      └─ RHI/RHICore     ├─ Entities.Graphics
+         │                         │                │             │     │
+         └─ RHI(008)               └─ CoreUObject   └─ Core       ├─ Entities
+                │                       │                          │     │
+                └─ Core(001)            └─ Core                    └─ Engine Core
+```
+
+完整 T0 模块与依赖见 **[../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)**。
 
 ---
 
@@ -133,8 +165,6 @@
 
 文档中未给出的具体模块/包列表以官方最新文档为准。TenEngine 的模块与契约以 `specs/_contracts/`、`docs/module-specs/` 为准；契约命名为 `NNN-modulename-public-api`、边界 `pipeline-to-rci`。
 
-**详细对照与依赖图**：三引擎（TenEngine、Unreal、Unity）的模块详细列表、依赖表及 ASCII 依赖图见 **[three-engines-modules-and-dependencies.md](./three-engines-modules-and-dependencies.md)**。
+**整合式模块划分提案**：基于 Unreal/Unity 设计的更合理模块划分与依赖关系（L0–L4 分层、RenderCore/PipelineCore 拆分、依赖规则与实施阶段）见 **[engine-proposed-module-architecture.md](./engine-proposed-module-architecture.md)**。
 
-**整合式模块划分提案**：基于 Unreal/Unity 设计的更合理模块划分与依赖关系（L0–L4 分层、RenderCore/PipelineCore 拆分、依赖规则与实施阶段）见 **[proposed-module-architecture.md](./proposed-module-architecture.md)**。
-
-**全功能模块规格**：覆盖 Unity + Unreal 全部功能域的完整模块划分（27 模块、功能域映射表、依赖表与依赖图）见 **[tenengine-full-module-spec.md](./tenengine-full-module-spec.md)**。
+**全功能模块规格与依赖图**：覆盖 Unity + Unreal 全部功能域的完整模块划分（27 模块、功能域映射、依赖表与图）见 **[../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)**。

@@ -10,6 +10,18 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## 构建方式澄清（CMake 任务必读）
+
+若本次 implement 涉及 **CMake 配置或生成**，在执行前**必须**澄清以下内容（详见 `docs/engine-build-module-convention.md §3`）：
+
+1. **构建根目录**：当前 worktree 路径与 CMakeLists.txt 位置。
+2. **依赖方式**：对上游模块采用源码（add_subdirectory / FetchContent）还是预编译库（find_package）。
+3. **平台与编译器**：目标平台、C++ 标准、构建类型。
+
+若上下文已明确或用户已说明，则无需重复询问。
+
+---
+
 ## Outline
 
 1. Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
