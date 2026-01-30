@@ -10,14 +10,14 @@
 - **契约必须从 T0-contracts 拉取**：契约的**唯一权威来源**是 **`T0-contracts`** 分支。所有 T0-* 模块分支的 Agent 必须且只能从 **`origin/T0-contracts`** 拉取契约（`git pull origin T0-contracts`），不得以主分支上的 `_contracts/` 作为契约依据。
 - **单一事实来源**：跨模块的“谁提供什么、谁消费什么”写在 `specs/_contracts/` 的契约文件中（以 **T0-contracts** 分支为准）；各模块的规格引用契约而非重复描述接口细节。
 - **契约先行**：下游模块（消费者）依赖的接口，由上游模块（提供方）的契约定义；Agent 在实现或改规格前先读契约（从 T0-contracts 拉取后的本地 `_contracts/`）。
-- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件（并合并到 `T0-contracts` 分支），并检查依赖该契约的模块列表，必要时在对应下游的 **`docs/module-specs/NNN-modulename.md`** 中增加待办（仅此一种策略，见 §4.4）。
+- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件（并合并到 `T0-contracts` 分支），并检查依赖该契约的模块列表，必要时更新其规格或创建 follow-up 任务。
 
 ---
 
 ## 2. T0 约束分支（T0-contracts）
 
 - **分支名**：`T0-contracts`（建议远程：`origin/T0-contracts`）
-- **用途**：专门维护 `specs/_contracts/` 下的契约文件、`docs/dependency-graph-full.md`（完整依赖图）及本文档；作为 **T0 架构下契约的单一发布源**。
+- **用途**：专门维护 `specs/_contracts/` 下的契约文件、`docs/engine-modules-and-architecture.md`（完整模块与依赖图）及本文档；作为 **T0 架构下契约的单一发布源**。
 - **各 T0-* 分支工作前**：在任意 T0-NNN-modulename 分支（如 `T0-001-core`、`T0-008-rhi`）上开始工作前，必须先从 `T0-contracts` 拉取最新契约，再基于最新契约实现或改规格。
 
 ```bash
@@ -42,7 +42,7 @@ git pull origin T0-contracts
 | **分支 `T0-NNN-modulename`** | 各模块的独立分支（如 T0-001-core … T0-027-xr），仅含约束 + 该模块描述 + 全局依赖；工作前须先 `git pull origin T0-contracts`。 |
 | `specs/_contracts/`（以 T0-contracts 为准） | 存放**跨模块接口契约**：API 边界、数据类型、调用顺序、版本；**仅以 T0-contracts 分支上的内容为准**。 |
 | `specs/_contracts/000-module-dependency-map.md` | T0 模块依赖图：27 模块谁依赖谁、契约一览。 |
-| `docs/dependency-graph-full.md` | 完整依赖图（Mermaid、矩阵、边列表）；可在 T0-contracts 或各 T0-* 分支上查阅。 |
+| `docs/engine-modules-and-architecture.md` | 完整模块与依赖图（Mermaid、矩阵、边列表）；可在 T0-contracts 或各 T0-* 分支上查阅。 |
 | `docs/module-specs/` | 各模块详细规格（001-core.md … 027-xr.md）；T0-contracts 或各 T0-NNN-* 分支可含对应内容。 |
 | `.specify/memory/constitution.md` | 全局原则（如 ABI 版本、模块边界）；契约不得违反宪法。 |
 
@@ -63,29 +63,29 @@ git pull origin T0-contracts
 
 1. 在 **`T0-contracts` 分支**上更新本模块对应的契约文件（见 `_contracts/` 下以模块或边界命名的文件），或通过 PR 将契约变更合并到 `T0-contracts`。
 2. 在契约中注明**版本或变更说明**（与 Constitution 的版本/ABI 要求一致）。
-3. **（必须）** 在 `000-module-dependency-map.md` 中查看**依赖本模块**的下游列表；若本次契约变更可能影响下游（如签名变更、删除、行为变更），则对每个下游**仅在其规约中增加待办**：
-   - 在对应下游的 **`docs/module-specs/NNN-modulename.md`** 中增加一条待办，如：`- **待办**：需随 \`001-core\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。`
-   - 不直接修改下游的 feature 分支（checklist、tasks.md 等），以便多分支下通过规约同步即可；**具体适配时间与修改内容由下游根据待办与契约变更记录自行判断**。
-   - **写回契约的流程中已包含本步**，见 `docs/workflow-two-modules-pilot.md` §4.2.5 步骤 5 与 `docs/workflow-pilot-ai-complete-guide.md` 步骤 1.4/2.5。
+3. 在 `000-module-dependency-map.md` 中查看**依赖本模块**的下游列表；若接口有破坏性变更，则：
+   - 在对应下游的规格或 checklist 中留下“需随 XXX 契约变更做适配”的待办，或
+   - 创建明确的 follow-up 任务/issue 供负责下游模块的 Agent 处理。
 
-**若使用 Spec Kit /speckit.plan**：plan 产出的对外接口设计（函数签名、类型）**必须写回契约**。在 plan 完成后、tasks 之前，将 plan.md 或 plan 产出的「契约更新」清单同步到 `specs/_contracts/NNN-*-public-api.md` 的「API 雏形」小节，在 T0-contracts 上提交并推送；**然后执行上述步骤 3（在下游规约中增加待办）**；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/workflow-two-modules-pilot.md` §4.2.5。
+**若使用 Spec Kit /speckit.plan**：plan 产出的对外接口设计（函数签名、类型）**必须写回契约**。在 plan 完成后、tasks 之前，将 plan.md 或 plan 产出的「契约更新」清单同步到 `specs/_contracts/NNN-*-public-api.md` 的「API 雏形」小节，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
 
 ### 4.3 评审/合并前
 
 1. 检查：本 PR 是否改动某模块的**公开 API 或跨模块数据结构**？
 2. 若有，确认 `specs/_contracts/` 下对应契约已更新，且依赖图与下游说明已更新或已创建跟进任务。
 
-### 4.4 写回契约后通知下游：仅规约待办
+### 4.4 Follow-up 与 Issue 的具体操作
 
-写回契约后、若契约变更可能影响下游时，**统一只采用一种策略**：在对应下游的 **`docs/module-specs/NNN-modulename.md`** 中增加待办。
+当你在 4.2 中更新契约并需要通知下游时，“在规格或 checklist 中留下待办”或“创建 follow-up 任务/issue”对应下列**具体操作**（任选其一或组合使用）：
 
-| 方式 | 位置 | 操作 |
-|------|------|------|
-| **规约待办（唯一策略）** | 下游模块规约 `docs/module-specs/NNN-modulename.md` | 增加一条待办，如：`- **待办**：需随 \`001-core\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。` |
+| 方式 | 位置 | 操作 | 作用 |
+|------|------|------|------|
+| **规格待办** | 下游模块规格 `docs/module-specs/NNN-modulename.md` | 增加 **待办 / TODO** 条文，如：`- **待办**：需随 \`008-rhi\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。` | 负责该模块的 Agent 打开规格即可看到需适配的契约。 |
+| **Checklist 项** | 该模块对应 feature 的 checklist（如 `specs/<feature>/checklists/requirements.md`） | 增加未勾选项，如：`- [ ] 适配 008-rhi 契约变更（见 \`specs/_contracts/008-rhi-public-api.md\` 变更记录）。` | 以 checklist 形式跟踪，便于逐项完成。 |
+| **tasks.md 任务** | 该模块对应 feature 的 `tasks.md` | 按既有格式追加，如：`- [ ] T0XX Adapter 009-RenderCore to 008-rhi contract changes (see \`specs/_contracts/008-rhi-public-api.md\`)` | 任务可被 speckit 流程消费；配合 `speckit.taskstoissues` 可转为 GitHub Issue。 |
+| **GitHub Issue** | 本仓库对应的 GitHub（`git config --get remote.origin.url`） | 在 GitHub 新建 Issue：标题如 `Adapter 009-RenderCore to 008-rhi contract change`；描述中附契约链接、变更摘要、需适配模块。 | 可分配、讨论、关联 PR，适合多人/多 Agent 协作。 |
 
-**原因**：多分支下不宜直接改下游的 feature 分支（如 `specs/<feature>/checklists/requirements.md`、`tasks.md`），否则需逐个 worktree/分支修改。仅改下游规约时，通过规约文件同步（如 T0-contracts 或主仓库拉取）即可让各下游 worktree 看到待办；**具体适配时间与修改内容由下游根据待办与契约变更记录自行判断**。
-
-**下游如何修改 plan**：下游打开本模块规约看到待办后，根据**最新上游契约**检查并更新本模块的 **plan.md**（或重新执行 `/speckit.plan`），确保 plan 只使用契约中已声明的类型与 API。具体提示词与步骤见 **`docs/workflow-pilot-ai-complete-guide.md`** 中「上游契约已更新时，下游如何修改 plan」一节。
+**选用建议**：轻量变更可仅用**规格待办**；有 feature checklist 时可加 **Checklist 项** 或 **tasks.md 任务**；需分配、追踪或跨团队协作时用 **GitHub Issue**。
 
 ### 4.5 接口如何确定（伪代码 → API 雏形 → 真实 API）
 
@@ -140,26 +140,15 @@ git pull origin T0-contracts
 
 **建议**：**L0 / L1 根模块**（001-Core、002-Object、003-Application、008-RHI 等）**契约先行**——在实现前把 API 雏形写进契约，再实现；下游实现时只依赖这些已定的接口。其他模块可按依赖顺序逐步补充契约中的 API 雏形。
 
-#### 4.5.6 开发流程如何继续（契约尚无 API 雏形时）
-
-当契约中**只有能力列表、尚无 API 雏形**（甚至没有伪代码）时，按以下方式确定接口并继续开发：
-
-| 情况 | 谁来做 | 何时 | 怎么做 |
-|------|--------|------|--------|
-| **本模块（上游）** 契约尚无 API 雏形 | 本模块负责人（或执行 plan 的 Agent） | 在 **/speckit.plan** 阶段 | plan 结束时产出一份「契约更新」：把对外函数签名与类型写成可粘贴到契约「API 雏形」小节的格式；按 §4.2 写回 T0-contracts 上本模块契约，再继续 tasks/implement。 |
-| **上游** 契约尚无 API 雏形，本模块是下游 | 下游实现方 | 下游 plan / 实现前 | 先看上游契约的**能力列表**（及若有**伪代码**）理解意图；在 plan 中按“假设的”签名写调用（或写桩/mock），并注明「依上游契约能力列表，具体签名以对方 API 雏形为准」；待上游补全 API 雏形后，按 §4.6 拉取契约并做一次适配。 |
-
-**结论**：接口的确定不要求“契约一开始就有完整 API 雏形”。**上游**在 plan 阶段即可产出并写回 API 雏形；**下游**可先基于能力列表（及伪代码）开发，接受上游补全 API 雏形后的小幅适配。L0/L1 仍建议**契约先行**，优先把 API 雏形写进契约再实现，以减少下游返工。
-
 ### 4.6 Agent 何时、如何发现依赖接口变化
 
 | 时机 | 操作 | 说明 |
 |------|------|------|
 | **开始工作前** | `git pull origin T0-contracts`，阅读本模块依赖的契约及**变更记录** | 确保本地契约最新；若有变更，根据变更记录判断是否影响本模块。 |
 | **每个 task / 每次会话开始前** | 再次 `git pull origin T0-contracts`（可选但推荐） | 若任务执行较长时间，上游可能已更新契约；任务开始前拉取可减少“做到一半才发现接口变了”的情况。 |
-| **看到规约中的待办时** | 先拉 T0-contracts，再打开该契约的**变更记录**，做适配 | 本模块规约 `docs/module-specs/NNN-modulename.md` 中若有「需随 XXX 契约变更做适配」的待办，执行前**必须先**拉取最新契约，阅读该契约的变更说明，再根据待办与变更记录自行判断适配时间与修改内容。 |
+| **收到 follow-up 时** | 先拉 T0-contracts，再打开该契约的**变更记录**，做适配 | 规格待办、checklist、GitHub Issue 中若写明「需随 XXX 契约变更做适配」，执行前**必须先**拉取最新契约，阅读该契约的变更说明，再实现适配。 |
 
-**总结**：Agent **不会自动**发现“拉取之后”发生的契约变更；依赖**拉取时机**（工作前、任务前）与 **规约中的待办**来获知变化。因此务必**按任务粒度或会话开始时拉取 T0-contracts**，并**定期查看本模块规约**；若规约中有上游契约变更的待办，**先拉再适配**。
+**总结**：Agent **不会自动**发现“拉取之后”发生的契约变更；依赖**拉取时机**（工作前、任务前）与 **follow-up 通知**（规格待办、issue）来获知变化。因此务必**按任务粒度或会话开始时拉取 T0-contracts**，并在处理跟进任务时**先拉再适配**。
 
 ---
 
@@ -197,8 +186,8 @@ git pull origin T0-contracts
 - **T0-contracts** 是 T0 架构下契约的**唯一权威发布源**；各 **T0-NNN-modulename** 分支工作前**必须**从此分支拉取最新契约（`git pull origin T0-contracts`）。
 - 接口的**单一事实来源**在 `specs/_contracts/`（**仅以 T0-contracts 分支上的内容为准**）。
 - 每个 Agent：**工作前**从 **T0-contracts** 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 **T0-contracts** 上更新），**改接口时**更新契约并通知下游。
-- **接口如何确定**：**伪代码**（意图）→ **API 雏形**（简化声明）→ **真实 API**（头文件）；详见 **4.5**。L0/L1 建议**契约先行**：实现前把 API 雏形写进契约，实现严格按契约，下游基于 API 雏形或真实头文件。**契约尚无 API 雏形时如何继续**：上游在 plan 阶段产出并写回 API 雏形；下游可先依能力列表/伪代码开发，待上游补全后再适配；详见 **4.5.6**。
-- **Agent 何时发现依赖接口变化**：工作前、**每个 task 开始前**拉取 T0-contracts；看到本模块规约中的待办时先拉再适配。详见 **4.6**。
-- 依赖图 `000-module-dependency-map.md` 与 `docs/dependency-graph-full.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”。
+- **接口如何确定**：**伪代码**（意图）→ **API 雏形**（简化声明）→ **真实 API**（头文件）；详见 **4.5**。L0/L1 建议**契约先行**：实现前把 API 雏形写进契约，实现严格按契约，下游基于 API 雏形或真实头文件。
+- **Agent 何时发现依赖接口变化**：工作前、**每个 task 开始前**拉取 T0-contracts；收到 follow-up 时先拉再适配。详见 **4.6**。
+- 依赖图 `000-module-dependency-map.md` 与 `docs/engine-modules-and-architecture.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”。
 
 **旧版说明**：原 `contracts` 分支与 001–006 旧 spec 对应；现以 **T0-contracts** 与 **T0-001-core … T0-027-xr** 为最新架构，旧分支与旧 spec 已弃用。

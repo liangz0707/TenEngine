@@ -1,6 +1,6 @@
 # Create T0-NNN-modulename branches (constraints + module doc + global dependency only)
 # and add worktrees under G:\AIHUMAN\WorkSpaceSDD\TenEngine-NNN-modulename
-# Run from repo root (TenEngine). Requires: specs/_contracts/, docs/dependency-graph-full.md, docs/module-specs/*.md exist.
+# Run from repo root (TenEngine). Requires: specs/_contracts/, docs/engine-modules-and-architecture.md, docs/module-specs/*.md exist.
 
 param(
     [switch]$BranchesOnly,
@@ -38,13 +38,13 @@ This branch contains only **constraint files**, **module description**, and **gl
 
 - **Constraints**: ``specs/_contracts/``
 - **Module description**: ``docs/module-specs/$m.md``
-- **Global dependency**: ``docs/dependency-graph-full.md``, ``specs/_contracts/000-module-dependency-map.md``
+- **Global dependency**: ``docs/engine-modules-and-architecture.md``, ``specs/_contracts/000-module-dependency-map.md``
 
 "@ | Set-Content -Path "README.md" -Encoding UTF8 -NoNewline
 
         git add README.md
         git add specs/_contracts/
-        git add docs/dependency-graph-full.md
+        git add docs/engine-modules-and-architecture.md
         git add docs/module-specs/README.md
         git add $docFile
         cmd /c "git commit -m ""T0-$m constraints, module spec, global dependency"" 2>nul"
