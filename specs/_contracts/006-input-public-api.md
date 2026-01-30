@@ -91,7 +91,7 @@
 - 从内存加载：`bool load_config_from_memory(void const* data, size_t size);` 或等价  
 - 配置格式由实现定义并文档化。
 
-**动作/轴查询**（Abstraction）
+**动作/轴查询**（`include/te_input/Abstraction.hpp`）
 
 - `bool get_action_state(ActionId action) const;` — 返回当前帧 ActionState（true=按下）。
 - `float get_axis_value(AxisId axis) const;` — 返回当前帧 AxisValue。
@@ -129,3 +129,4 @@
 | T0 新增 | 按 006-Input 模块规格与依赖表新增契约 |
 | 2026-01-29 | API 雏形：由 plan 006-input-abstraction-001 同步（ActionId、AxisId、BindingTable、DeviceKind、KeyCode、BindingEntry） |
 | 2026-01-29 | API 雏形：由 plan 006-input-fullversion-001 同步（完整模块：Abstraction、KeyboardMouse、Gamepad、Touch、MapDevice、LoadConfig） |
+| 2026-01-29 | API 雏形：动作/轴查询 头文件明确为 include/te_input/Abstraction.hpp（与 plan/tasks 一致） |
