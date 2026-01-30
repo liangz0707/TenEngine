@@ -44,3 +44,4 @@
 |------|----------|
 | T0 新增 | 按 004-Scene 模块规格与依赖表新增契约 |
 | 2026-01-29 | 契约更新由 plan 004-scene-fullversion-001 同步 |
+| 2026-01-28 | 004-scene-ABI 补全：参考 Unity SceneManager/Transform、UE UWorld/Level 流式，补全 LoadScene/LoadSceneAsync/UnloadScene、GetActiveScene/SetActiveScene、ISceneWorld（CreateEntity/DestroyEntity/GetEntities/GetRootNodes/UpdateTransforms/FindNodeByName/FindNodeById/CreateNode）、ISceneNode（GetParent/SetParent/GetChildren、GetLocalTransform/SetLocalTransform、GetWorldTransform/GetWorldMatrix、GetNodeId/GetPath、SetActive/IsActive）、LoadSceneMode、SceneRef、NodeId |

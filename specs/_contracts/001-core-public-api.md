@@ -44,6 +44,14 @@
 6. **容器**：动态数组、哈希表、字符串、智能指针；无反射、无 ECS，可与自定义分配器配合。
 7. **模块加载**：动态库 Load/Unload/GetSymbol、模块依赖顺序、初始化与关闭回调；与构建/插件系统配合。
 
+## API 雏形（简化声明）
+
+对外接口的**命名空间、头文件、符号与完整签名**以 **ABI 文件** [001-core-ABI.md](./001-core-ABI.md) 为准；本小节为概要。
+
+- **命名空间**：TenEngine::core（实现可用 te::core；头文件路径 te/core/ = TenEngine/core/）。
+- **头文件**：alloc.h（Memory）、engine.h（Init/Shutdown/InitParams）、thread.h（Thread/TLS/Atomic/Mutex/LockGuard/ConditionVariable/TaskQueue/IThreadPool/GetThreadPool/TaskCallback）、platform.h（TE_PLATFORM_*、FileRead/Write、DirectoryEnumerate、Time、HighResolutionTimer、GetEnv、PathNormalize）、log.h（LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler）、check.h（CheckWarning、CheckError）、math.h（Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize）、containers.h（Array、Map、String、UniquePtr、SharedPtr）、module_load.h（ModuleHandle、LoadLibrary、UnloadLibrary、GetSymbol、ModuleInitFn/ModuleShutdownFn、RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown）。
+- **符号与签名**：见 [001-core-ABI.md](./001-core-ABI.md) ABI 表；下游 include 与 link 以 ABI 为准。
+
 ## 调用顺序与约束
 
 - 主工程或上层模块须先完成 Core 初始化（若以动态库形式则先加载并调用初始化接口），再调用各子能力；卸载前应释放所有由 Core 分配的资源并停止使用句柄。
@@ -56,3 +64,4 @@
 | （初始） | 从 001-engine-core-module spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 001-Core：移除 ECS/序列化（归 002-Object），保留内存、线程、平台、日志、数学、容器、模块加载；消费者改为 T0 模块列表 |
 | 2026-01-29 | 契约更新由 plan 001-core-minimal / fullversion-001 同步 |
+| 2026-01-30 | 契约与 ABI 由 plan 001-core-fullversion-002 同步：补全 7 子模块 + Engine/ThreadPool/Check 的完整 ABI 表与 API 雏形（参考 Unity/UE Core） |
