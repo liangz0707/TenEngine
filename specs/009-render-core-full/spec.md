@@ -15,6 +15,18 @@ Implement using only types/APIs from upstream contracts. Upstream: `specs/_contr
 
 ---
 
+## Clarifications
+
+### Session 2026-01-29
+
+- Q: When ring-buffer slots are exhausted, which behavior does the system use (grow, block, or error)? → A: Block (block or require caller to wait/retry until a slot is released).
+- Q: Does CreateLayout mean “create buffer from layout” or “define layout only”? → A: Create buffer from layout (CreateLayout creates a Uniform buffer from a UniformLayout and returns a UniformBufferHandle).
+- Q: When a descriptor is requested with unsupported format/size, does the system reject at API call or only document constraints? → A: Reject at API call (return error or invalid handle; do not create resource; caller handles fallback).
+- Q: For the same resource declared both read and write in one pass, does RenderCore disallow, allow, or defer to PipelineCore? → A: Defined by PipelineCore (RenderCore does not add restriction; allowed patterns defined by PipelineCore and RHI only).
+- Q: When Uniform layout does not align with Shader convention, does the system require runtime validation, optional validation, or document only? → A: Optional validation (system MAY validate at CreateLayout/Bind; on mismatch, return error; validation behavior documented).
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Describe mesh geometry and textures/buffers for RHI (Priority: P1)
@@ -68,7 +80,7 @@ A pipeline author needs to declare which resources a pass reads from and writes 
 
 ### User Story 4 - Create, update, and bind Uniform buffers (Priority: P1)
 
-A shader or material consumer needs to create Uniform buffers from a layout, update them (including multi-frame ring-buffer strategy), and bind them to the RHI for drawing. The system provides CreateLayout, Update, RingBuffer, and Bind.
+A shader or material consumer needs to create Uniform buffers from a layout, update them (including multi-frame ring-buffer strategy), and bind them to the RHI for drawing. The system provides CreateLayout (create a Uniform buffer from a UniformLayout and return a UniformBufferHandle), Update, RingBuffer, and Bind.
 
 **Why this priority**: UniformBuffer is required for Shader/Material and multi-Pass rendering.
 
@@ -76,7 +88,7 @@ A shader or material consumer needs to create Uniform buffers from a layout, upd
 
 **Acceptance Scenarios**:
 
-1. **Given** a UniformLayout, **When** the consumer requests CreateLayout (or equivalent creation), **Then** the system provides a UniformBufferHandle usable for Update and Bind.
+1. **Given** a UniformLayout, **When** the consumer calls CreateLayout, **Then** the system creates a Uniform buffer from that layout and returns a UniformBufferHandle usable for Update and Bind.
 2. **Given** a UniformBufferHandle and updated data, **When** the consumer calls Update, **Then** the system updates the buffer content for use in draws.
 3. **Given** multi-frame or multi-Pass usage, **When** the consumer uses RingBuffer, **Then** the system supports ring-buffer update strategy without overwriting in-flight data.
 4. **Given** a UniformBufferHandle, **When** the consumer calls Bind, **Then** the buffer is bound to RHI for Shader access; binding aligns with Shader module and RHI contract.
@@ -85,11 +97,11 @@ A shader or material consumer needs to create Uniform buffers from a layout, upd
 
 ### Edge Cases
 
-- **Unsupported format or size**: When a descriptor is requested with unsupported format/size, the system MUST reject or document constraints per RHI contract; no undefined behavior.
-- **Same resource read and write in one pass**: Contract and PipelineCore protocol define allowed patterns; DeclareRead/DeclareWrite and ResourceLifetime MUST align with PipelineCore RDG and RHI constraints.
+- **Unsupported format or size**: When a descriptor is requested with unsupported format/size, the system MUST reject at API call (return error or invalid handle; do not create resource); caller handles fallback; constraints align with RHI contract.
+- **Same resource read and write in one pass**: RenderCore does not add restriction; whether the same resource may be both DeclareRead and DeclareWrite in one pass is defined by PipelineCore and RHI protocol only; DeclareRead/DeclareWrite and ResourceLifetime MUST align with PipelineCore RDG and RHI constraints.
 - **Core or RHI not initialized**: System MUST NOT be used before upstream (Core, RHI) is initialized (per contract).
-- **Uniform layout vs. Shader mismatch**: Layout MUST align with Shader reflection or hand-written convention; mismatches MUST be detectable (validation) or documented.
-- **RingBuffer exhaustion**: When ring-buffer slots are exhausted, behavior MUST be defined (e.g. grow, block, or error) and documented.
+- **Uniform layout vs. Shader mismatch**: Layout MUST align with Shader reflection or hand-written convention; the system MAY validate at CreateLayout or Bind; on mismatch, return error; validation behavior MUST be documented.
+- **RingBuffer exhaustion**: When ring-buffer slots are exhausted, the system MUST block or require the caller to wait/retry until a slot is released; no silent overwrite of in-flight data.
 
 ---
 
@@ -100,7 +112,7 @@ A shader or material consumer needs to create Uniform buffers from a layout, upd
 - **FR-001**: System MUST provide VertexFormat, IndexFormat, TextureDesc, and BufferDesc that align with RHI creation parameters (per `specs/_contracts/008-rhi-public-api.md`).
 - **FR-002**: System MUST provide DefineLayout and GetOffset; Uniform layout MUST align with Shader reflection or hand-written layout (per contract).
 - **FR-003**: System MUST provide DeclareRead, DeclareWrite, and ResourceLifetime; Pass declarations MUST align with PipelineCore RDG protocol and RHI constraints.
-- **FR-004**: System MUST provide CreateLayout, Update, RingBuffer, and Bind for Uniform buffers; binding MUST align with Shader module and RHI.
+- **FR-004**: System MUST provide CreateLayout (create Uniform buffer from UniformLayout, return UniformBufferHandle), Update, RingBuffer, and Bind for Uniform buffers; binding MUST align with Shader module and RHI.
 - **FR-005**: System MUST expose only contract types/handles (UniformLayout, VertexFormat, IndexFormat, PassResourceDecl, UniformBufferHandle, TextureDesc, BufferDesc); MUST NOT expose RHI internals.
 - **FR-006**: System MUST be used only after Core and RHI are initialized; MUST use only types/APIs declared in upstream contracts.
 
