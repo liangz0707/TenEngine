@@ -83,9 +83,9 @@ API 雏形涵盖：Backend, QueueType, DeviceFeatures, IDevice, IQueue, ICommand
 
 ### Implementation for User Story 2
 
-- [ ] T012 [P] [US2] Add `include/te/rhi/command_list.hpp` with `ICommandList`, `Begin`, `End`, `Draw`, `Dispatch`, `Copy`, `ResourceBarrier`, `Submit` — 仅契约 API 雏形 §4 已声明的接口。
-- [ ] T013 [US2] Implement `IDevice::CreateCommandList`, `DestroyCommandList`, `Begin`, `End`, `ICommandList::Draw`, `Dispatch`, `Copy`, `ResourceBarrier`, `Submit(ICommandList*, IQueue*)` in `src/command_list/` — 仅契约 API 雏形 §4；单次录制周期语义与 Submit 行为。
-- [ ] T014 [US2] Add `tests/command_list_submit.cpp` (and register in CMakeLists via `tenengine_add_module_test` or extend existing test target) to validate Begin/End, Draw/Dispatch/Copy, ResourceBarrier, Submit per spec Independent Test.
+- [x] T012 [P] [US2] Add `include/te/rhi/command_list.hpp` with `ICommandList`, `Begin`, `End`, `Draw`, `Dispatch`, `Copy`, `ResourceBarrier`, `Submit` — 仅契约 API 雏形 §4 已声明的接口。
+- [x] T013 [US2] Implement `IDevice::CreateCommandList`, `DestroyCommandList`, `Begin`, `End`, `ICommandList::Draw`, `Dispatch`, `Copy`, `ResourceBarrier`, `Submit(ICommandList*, IQueue*)` in `src/command_list/` — 仅契约 API 雏形 §4；单次录制周期语义与 Submit 行为。
+- [x] T014 [US2] Add `tests/command_list_submit.cpp` (and register in CMakeLists via `tenengine_add_module_test` or extend existing test target) to validate Begin/End, Draw/Dispatch/Copy, ResourceBarrier, Submit per spec Independent Test.
 
 **Checkpoint**: User Story 2 independently testable.
 
@@ -99,9 +99,9 @@ API 雏形涵盖：Backend, QueueType, DeviceFeatures, IDevice, IQueue, ICommand
 
 ### Implementation for User Story 3
 
-- [ ] T015 [P] [US3] Add `include/te/rhi/resources.hpp` with `IBuffer`, `ITexture`, `ISampler`, `CreateBuffer`, `CreateTexture`, `CreateSampler`, `CreateView`, `Destroy*`, `BufferDesc` / `TextureDesc` / `SamplerDesc` / `ViewDesc`, `ViewHandle` — 仅契约 API 雏形 §5 已声明的接口与类型。
-- [ ] T016 [US3] Implement `IDevice::CreateBuffer`, `CreateTexture`, `CreateSampler`, `CreateView`, `DestroyBuffer`, `DestroyTexture`, `DestroySampler` in `src/resources/` — 仅契约 API 雏形 §5；使用 001-core 契约 Alloc/Free；失败返回 `nullptr`。
-- [ ] T017 [US3] Add `tests/resources_create.cpp` to validate Create* and Destroy per spec Independent Test.
+- [x] T015 [P] [US3] Add `include/te/rhi/resources.hpp` with `IBuffer`, `ITexture`, `ISampler`, `CreateBuffer`, `CreateTexture`, `CreateSampler`, `CreateView`, `Destroy*`, `BufferDesc` / `TextureDesc` / `SamplerDesc` / `ViewDesc`, `ViewHandle` — 仅契约 API 雏形 §5 已声明的接口与类型。
+- [x] T016 [US3] Implement `IDevice::CreateBuffer`, `CreateTexture`, `CreateSampler`, `CreateView`, `DestroyBuffer`, `DestroyTexture`, `DestroySampler` in `src/resources/` — 仅契约 API 雏形 §5；使用 001-core 契约 Alloc/Free；失败返回 `nullptr`。
+- [x] T017 [US3] Add `tests/resources_create.cpp` to validate Create* and Destroy per spec Independent Test.
 
 **Checkpoint**: User Story 3 independently testable.
 
@@ -115,9 +115,9 @@ API 雏形涵盖：Backend, QueueType, DeviceFeatures, IDevice, IQueue, ICommand
 
 ### Implementation for User Story 4
 
-- [ ] T018 [P] [US4] Add `include/te/rhi/pso.hpp` with `IPSO`, `CreateGraphicsPSO`, `CreateComputePSO`, `SetShader`, `Cache`, `DestroyPSO`, `GraphicsPSODesc` / `ComputePSODesc` — 仅契约 API 雏形 §6 已声明的接口与类型。
-- [ ] T019 [US4] Implement `IDevice::CreateGraphicsPSO`, `CreateComputePSO`, `SetShader`, `Cache`, `DestroyPSO` in `src/pso/` — 仅契约 API 雏形 §6；描述符含 Shader 字节码或模块引用；失败返回 `nullptr`。
-- [ ] T020 [US4] Add `tests/pso_create.cpp` to validate PSO creation and binding per spec Independent Test.
+- [x] T018 [P] [US4] Add `include/te/rhi/pso.hpp` with `IPSO`, `CreateGraphicsPSO`, `CreateComputePSO`, `SetShader`, `Cache`, `DestroyPSO`, `GraphicsPSODesc` / `ComputePSODesc` — 仅契约 API 雏形 §6 已声明的接口与类型。
+- [x] T019 [US4] Implement `IDevice::CreateGraphicsPSO`, `CreateComputePSO`, `SetShader`, `Cache`, `DestroyPSO` in `src/pso/` — 仅契约 API 雏形 §6；描述符含 Shader 字节码或模块引用；失败返回 `nullptr`。
+- [x] T020 [US4] Add `tests/pso_create.cpp` to validate PSO creation and binding per spec Independent Test.
 
 **Checkpoint**: User Story 4 independently testable.
 
@@ -131,9 +131,9 @@ API 雏形涵盖：Backend, QueueType, DeviceFeatures, IDevice, IQueue, ICommand
 
 ### Implementation for User Story 5
 
-- [ ] T021 [P] [US5] Add `include/te/rhi/sync.hpp` with `IFence`, `ISemaphore`, `CreateFence`, `CreateSemaphore`, `Wait`, `Signal`, `DestroyFence`, `DestroySemaphore` — 仅契约 API 雏形 §7 已声明的接口与类型。
-- [ ] T022 [US5] Implement `IDevice::CreateFence`, `CreateSemaphore`, `Wait`, `Signal`, `DestroyFence`, `DestroySemaphore` in `src/sync/` — 仅契约 API 雏形 §7。
-- [ ] T023 [US5] Add `tests/sync_fence_semaphore.cpp` to validate Fence/Semaphore and multi-queue sync per spec Independent Test.
+- [x] T021 [P] [US5] Add `include/te/rhi/sync.hpp` with `IFence`, `ISemaphore`, `CreateFence`, `CreateSemaphore`, `Wait`, `Signal`, `DestroyFence`, `DestroySemaphore` — 仅契约 API 雏形 §7 已声明的接口与类型。
+- [x] T022 [US5] Implement `IDevice::CreateFence`, `CreateSemaphore`, `Wait`, `Signal`, `DestroyFence`, `DestroySemaphore` in `src/sync/` — 仅契约 API 雏形 §7。
+- [x] T023 [US5] Add `tests/sync_fence_semaphore.cpp` to validate Fence/Semaphore and multi-queue sync per spec Independent Test.
 
 **Checkpoint**: User Story 5 independently testable.
 
@@ -143,8 +143,8 @@ API 雏形涵盖：Backend, QueueType, DeviceFeatures, IDevice, IQueue, ICommand
 
 **Purpose**: Quickstart validation, cleanup, contract alignment.
 
-- [ ] T024 [P] Run `quickstart.md` validation (build, ctest); update `quickstart.md` if paths or steps differ.
-- [ ] T025 Review all Create*/Destroy* and error paths; ensure `nullptr` on failure, no auto-fallback; 仅使用 001-core 契约 API；对齐 `specs/_contracts/008-rhi-public-api.md` API 雏形 §8 与 clarifications。
+- [x] T024 [P] Run `quickstart.md` validation (build, ctest); update `quickstart.md` if paths or steps differ.
+- [x] T025 Review all Create*/Destroy* and error paths; ensure `nullptr` on failure, no auto-fallback; 仅使用 001-core 契约 API；对齐 `specs/_contracts/008-rhi-public-api.md` API 雏形 §8 与 clarifications。
 
 ---
 
