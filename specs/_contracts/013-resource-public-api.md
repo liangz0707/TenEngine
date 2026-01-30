@@ -38,6 +38,55 @@
 4. **Streaming**：RequestStreaming、SetPriority；与 LOD/Terrain 等按需加载对接。
 5. **Addressing**：ResourceId、GUID、Address、BundleMapping；可寻址路径与打包/Bundle 对应。
 
+## API 雏形（本切片：013-resource-fullversion-001）
+
+本切片暴露：ResourceId、LoadHandle、LoadResult、LoadSync、Release。
+
+### 类型与句柄（本切片暴露）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| ResourceId | 资源唯一标识；本切片支持可寻址路径与 GUID 两种形式，与 Object 引用解析对接 | 调用方管理 |
+| LoadHandle | 同步加载得到的句柄；不透明，由实现管理 | 请求发出至 Release 或进程结束 |
+| LoadResult | LoadSync 返回类型：成功带 LoadHandle，失败带错误码；不抛异常 | 栈或调用方管理 |
+
+### 函数签名（C++17）
+
+```cpp
+namespace te::resource {
+
+// ResourceId：支持可寻址路径或 GUID（与 Object 契约对接）
+struct ResourceId {
+    enum class Kind { Path, Guid };
+    Kind kind;
+    char const* value;   // path 或 guid 字符串；具体类型可与 Core/String 对齐
+};
+
+// LoadHandle：不透明句柄；每次 LoadSync 成功返回新句柄（显式引用）
+using LoadHandle = void*;  // 或 struct LoadHandle { void* impl; }; 由实现定义
+
+// LoadResult：成功时 success==true 且 handle 有效；失败时 success==false 且 error_code 有效
+struct LoadResult {
+    bool        success;    // true = 成功，false = 失败
+    LoadHandle  handle;     // success 时有效；失败时为 nullptr 或未定义
+    int         error_code; // 失败时错误码；0 表示无错误
+};
+
+// LoadSync：给定 ResourceId，同步加载；失败不抛异常，返回 LoadResult
+LoadResult LoadSync(ResourceId const& id);
+
+// Release：给定 LoadHandle，释放资源；对同一句柄多次调用为幂等（无操作/成功）
+void Release(LoadHandle handle);
+
+}
+```
+
+### 调用顺序与约束（本切片）
+
+- 须在 Core、Object 初始化之后调用 LoadSync/Release。
+- ResourceId 的 value 格式（路径/GUID 字符串）须与 Object 序列化约定一致。
+- 各模块资源句柄的释放顺序须与 Resource 卸载策略协调；对同一 LoadHandle 多次 Release 为幂等。
+
 ## 调用顺序与约束
 
 - 须在 Core、Object 初始化之后使用；资源引用（GUID/ObjectRef）格式须与 Object 序列化约定一致。
@@ -48,3 +97,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 013-Resource 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/013-resource.md 一致 |
+| 2026-01-29 | API 雏形：由 plan（feature 013-resource-fullversion-001）同步；本切片 ResourceId、LoadHandle、LoadResult、LoadSync、Release |
