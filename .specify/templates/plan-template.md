@@ -29,16 +29,16 @@
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
 **Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
 
-## 依赖引入方式（TenEngine 构建规约：必须澄清）
+## 依赖引入方式（TenEngine 构建规约）
 
-> **规约**：见 `docs/engine-build-module-convention.md`。对本 feature 的**每个直接依赖**必须明确写出引入方式之一；**未写明时默认使用源码引入**。
+> **规约**：见 `docs/engine-build-module-convention.md`。**当前所有子模块构建均使用源码方式**。对本 feature 的**每个直接依赖**列出模块 ID 即可；通过 TenEngineHelpers / `tenengine_resolve_my_dependencies` 以源码（add_subdirectory/FetchContent）引入。
 
 | 依赖模块（如 001-core） | 引入方式 | 说明 |
 |-------------------------|----------|------|
-| [e.g. 001-core] | **源码** / **DLL** / **不引入外部库** | 源码=通过 TenEngineHelpers 引入上游源码构建；DLL=使用预构建库（TENENGINE_xxx_USE_SOURCE=OFF、PREFIX）；不引入=不链接该依赖，可能编译报错，需在说明中写明原因。 |
-| … | （默认：源码） | |
+| [e.g. 001-core] | **源码** | 通过 TenEngineHelpers 引入上游源码构建（同级 worktree 或 TENENGINE_xxx_DIR）。 |
+| … | 源码 | 当前统一使用源码，无需标注 DLL/不引入。 |
 
-**说明**：若某依赖选择「不引入外部库」，须在本节说明原因与后续处理；其余依赖未写明时按**源码**处理。
+**说明**：当前仅支持源码引入；列出直接依赖后由 CMake 脚本统一解析。
 **Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  

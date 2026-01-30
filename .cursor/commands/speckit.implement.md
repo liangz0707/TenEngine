@@ -12,10 +12,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## 构建方式澄清（CMake 任务必读）
 
-若本次 implement 涉及 **CMake 配置或生成**，在执行前**必须**澄清以下内容（详见 `docs/engine-build-module-convention.md §3`）：
+若本次 implement 涉及 **CMake 配置或生成**，在执行前**必须**澄清以下内容（详见 `docs/engine-build-module-convention.md` §3）：
 
 1. **构建根目录**：当前 worktree 路径与 CMakeLists.txt 位置。
-2. **依赖方式**：对上游模块采用源码（add_subdirectory / FetchContent）还是预编译库（find_package）。
+2. **依赖方式**：**当前所有子模块均使用源码方式**（add_subdirectory / FetchContent）；仅需确认上游模块路径或 TENENGINE_xxx_DIR。
 3. **平台与编译器**：目标平台、C++ 标准、构建类型。
 
 若上下文已明确或用户已说明，则无需重复询问。
@@ -116,7 +116,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
-   - **Build/CMake 前置澄清（TenEngine）**：若将要执行的任务涉及配置/构建（如 cmake、CMakeLists、配置工程、编译、build 目录），**必须先**确认 **构建方式**（各直接依赖：源码 / DLL / 不引入外部库）与 **根目录**（在哪个模块目录执行构建）。优先从 plan.md 的「依赖引入方式」小节读取；若 plan 未写明或与当前环境不符，**不得**直接执行 cmake，须先向用户询问，澄清规则见 `docs/engine-build-module-convention.md` §1.1。
+   - **Build/CMake 前置澄清（TenEngine）**：若将要执行的任务涉及配置/构建（如 cmake、CMakeLists、配置工程、编译、build 目录），**必须先**确认 **根目录**（在哪个模块目录执行构建）；**各子模块均使用源码方式**引入依赖，优先从 plan.md 的「依赖引入方式」小节读取上游列表。若 plan 未写明或与当前环境不符，**不得**直接执行 cmake，须先向用户询问，澄清规则见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
@@ -149,4 +149,4 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
 
 ## Key rules (TenEngine build)
 
-- **生成/构建工程**：执行任何涉及 cmake、配置工程或编译的任务前，**必须**已澄清 **构建方式**（各依赖 源码/DLL/不引入）与 **根目录**（在哪个模块目录执行构建）。可从 plan.md「依赖引入方式」获取；未澄清时**禁止**直接运行 cmake，须先向用户确认。规约见 `docs/engine-build-module-convention.md` §1.1。
+- **生成/构建工程**：执行任何涉及 cmake、配置工程或编译的任务前，**必须**已澄清 **根目录**（在哪个模块目录执行构建）；**各子模块均使用源码方式**。可从 plan.md「依赖引入方式」获取上游列表；未澄清时**禁止**直接运行 cmake，须先向用户确认。规约见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。
