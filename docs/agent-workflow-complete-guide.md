@@ -104,7 +104,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 **说明**：将上述 `<上游 NNN-modulename>`、`<上游>-ABI.md`、`上游-modulename` 替换为实际上游模块 ID（如 001-core、008-rhi）；拟议签名由本模块设计或 plan 产出给出。
 
-**Prompt 约定**：plan 与 tasks 的约束与产出由 **.cursor/commands/speckit.plan.md**、**speckit.tasks.md** 定义；调用时无需在 prompt 中重复上述约束，按需引用规约与契约路径即可。可选 ABI 模式提示见下方 2.0.1。
+**Prompt 约定**：plan 与 tasks 的约束与产出由 **.cursor/commands/speckit.plan.md**、**.cursor/commands/speckit.tasks.md** 定义；调用时无需在 prompt 中重复上述约束，按需引用规约与契约路径即可。可选 ABI 模式提示见下方 2.0.1。
 
 #### 2.0.1 两种 Plan 的 ABI 产出与写回约定
 

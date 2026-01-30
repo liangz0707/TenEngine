@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. 执行流程见 `.cursor/commands/speckit.plan.md`。
 
 ## Summary
 
@@ -39,7 +39,8 @@
 | … | 源码 | 当前统一使用源码，无需标注 DLL/不引入。 |
 
 **说明**：当前仅支持源码引入；列出直接依赖后由 CMake 脚本统一解析。
-**Project Type**: [single/web/mobile - determines source structure]  
+
+**Technical Context（可选续）**：**Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]

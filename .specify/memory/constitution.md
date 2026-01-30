@@ -1,13 +1,6 @@
 <!--
-Sync Impact Report
-==================
-Version change: 1.0.0 → 1.1.0
-Modified principles: Added VI. Module Boundaries & Contract-First (T0); renamed Development Workflow → Code Quality & Testing
-Added sections: VI. Module Boundaries & Contract-First (T0); Code Quality & Testing (refined from Development Workflow)
-Removed sections: None
-Templates: unchanged; Constitution Check remains generic, aligned with contract-first and T0-contracts
+Sync Impact Report（历史）：Constitution 当前版本见文末 Version。
 Ref: docs/agent-interface-sync.md (T0 contract strategy)
-Follow-up TODOs: None.
 -->
 
 # TenEngine Constitution

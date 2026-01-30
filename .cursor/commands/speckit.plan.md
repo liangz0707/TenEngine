@@ -70,10 +70,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Validation rules from requirements
    - State transitions if applicable
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+2. **Generate API/ABI design artifacts** from functional requirements:
+   - For each user action or module boundary → interface/endpoint
+   - **TenEngine**：产出 ABI 相关设计或接口草图至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
+   - 其他项目：可按 REST/GraphQL 产出 OpenAPI/GraphQL schema 至 `/contracts/`
 
 3. **Agent context update**:
    - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType cursor-agent`
