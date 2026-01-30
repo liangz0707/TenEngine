@@ -6,9 +6,11 @@ Shader 提供**着色器编译、变体与预编译**（可选 Shader Graph 式�
 
 ## 2. 详细功能描述
 
-- **Shader 编译**：源码/HLSL 等编译、多后端（SPIR-V/DXIL/MSL）产出、编译选项与错误报告。
-- **变体**：关键字/宏变体、变体集合、按需或预编译。
+- **源码格式**：支持加载 **HLSL**、**GLSL** 两种源码格式；按扩展名或显式类型识别，统一编译为后端字节码（SPIR-V/DXIL/MSL）。
+- **Shader 编译**：源码（HLSL/GLSL）编译、多后端（SPIR-V/DXIL/MSL）产出、编译选项与错误报告。
+- **变体与宏**：支持**宏**切换代码路径；关键字/宏变体、变体集合、按需或预编译；**游戏中可动态切换宏**，按新宏组合重新选择或编译变体并生效。
 - **预编译**：离线编译、缓存、与资源管线集成。
+- **实时更新**：支持 **Shader 热重载**；源码或宏变更后可**实时更新** Shader（重新编译/变体切换），无需重启应用即可在运行中生效。
 - **Shader Graph 式编辑（可选）**：节点图编辑、导出为 Shader 源码或中间表示。
 
 ## 3. 实现难度
@@ -28,16 +30,18 @@ Shader 提供**着色器编译、变体与预编译**（可选 Shader Graph 式�
 
 | 子模块 | 职责 |
 |--------|------|
-| Compilation | 源码/HLSL 等编译、多后端目标、编译选项与错误报告 |
-| Variants | 关键字/宏、变体枚举、变体键与缓存 |
-| Cache | 预编译缓存、磁盘/资源管线、增量编译 |
+| Compilation | 源码（HLSL/GLSL）加载与编译、多后端目标、编译选项与错误报告 |
+| Variants | 关键字/宏、变体枚举、变体键与缓存；运行时动态切换宏并生效 |
+| Cache | 预编译缓存、磁盘/资源管线、增量编译；热重载时按需失效与重建 |
+| HotReload（可选） | 监听源码/宏变更、重新编译、实时更新 Shader 并通知下游（Material/Pipeline） |
 | Graph（可选） | 节点图、导出 Shader 或 IR、与 Material 联动 |
 
 ### 5.2 具体功能
 
-Compilation：Compile、GetBytecode、TargetBackend、ErrorReport。  
-Variants：DefineKeyword、GetVariantKey、EnumerateVariants、Precompile。  
+Compilation：LoadSource(HLSL/GLSL)、Compile、GetBytecode、TargetBackend、ErrorReport。  
+Variants：DefineKeyword、SetMacros、GetVariantKey、EnumerateVariants、Precompile；运行时 SetMacros/SelectVariant 动态切换宏。  
 Cache：LoadCache、SaveCache、Invalidate、与 Resource 集成。  
+HotReload：ReloadShader、OnSourceChanged、NotifyShaderUpdated；可选文件监听或编辑器触发。  
 Graph：NodeGraph、ExportSource/IR、与 Material 联动。
 
 ### 5.3 子模块依赖图
@@ -47,9 +51,12 @@ flowchart LR
   Compilation[Compilation]
   Variants[Variants]
   Cache[Cache]
+  HotReload[HotReload]
   Graph[Graph]
   Variants --> Compilation
   Cache --> Compilation
+  HotReload --> Compilation
+  HotReload --> Variants
   Graph --> Compilation
 ```
 
@@ -86,4 +93,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

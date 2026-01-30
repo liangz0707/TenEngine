@@ -4,7 +4,7 @@
 
 - **实现方**：**020-Pipeline**（渲染管线实现：场景到屏幕、剔除、DrawCall、命令缓冲与提交）
 - **对应规格**：`docs/module-specs/020-pipeline.md`
-- **依赖**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource（见 `000-module-dependency-map.md`）
+- **依赖**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource、**Effects**；Animation（可选，蒙皮/骨骼渲染时）（见 `000-module-dependency-map.md`）
 
 ## 消费者（T0 下游）
 
@@ -18,6 +18,14 @@
 
 - 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
 - 当前契约版本：（由实现或计划阶段填写）
+
+## 渲染模式（项目约定）
+
+渲染支持 **Debug**、**Hybrid**、**Resource** 三种模式（如 Debug=全量校验/调试绘制，Hybrid=部分校验，Resource=发布/最小校验）；可通过编译选项或运行时配置选择。容易错误处**不要使用异常捕获**，使用统一 **CheckWarning() / CheckError()** 宏（见 001-Core）进行校验。
+
+## 渲染资源显式控制位置
+
+渲染资源有**显式的控制位置**：**创建逻辑渲染资源**（CreateRenderItem）见 019-PipelineCore；**创建/收集逻辑 CommandBuffer**（CollectCommandBuffer，即 convertToLogicalCommandBuffer）见 019-PipelineCore；**提交到实际 GPU Command**（**SubmitCommandBuffer**）即本模块 **submitLogicalCommandBuffer** 与 008-RHI 的 executeLogicalCommandBuffer；**准备渲染资源**（PrepareRenderMaterial、PrepareRenderMesh、prepareRenderResources）见 019-PipelineCore；**创建/更新 GPU 资源**（CreateDeviceResource、UpdateDeviceResource）见 008-RHI。
 
 ## 类型与句柄（跨边界）
 

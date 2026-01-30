@@ -4,7 +4,7 @@
 
 - **实现方**：**008-RHI**（Render Hardware Interface，T0 图形 API 抽象层）
 - **对应规格**：`docs/module-specs/008-rhi.md`
-- **角色**：向上层提供统一渲染接口，向下对接 Vulkan/D3D12/Metal 等图形 API；RCI 与 RHI 同义，本契约即 RHI 对外 API。
+- **角色**：向上层提供统一渲染接口，向下对接 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口（及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口，与 010-Shader 对接）；RCI 与 RHI 同义，本契约即 RHI 对外 API。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端相关实现路径。
 
 ## 消费者（T0 下游）
 
@@ -32,13 +32,17 @@
 | Fence / Semaphore | 同步对象；多队列、跨帧同步 | 按实现约定 |
 | 资源视图句柄 | 描述符或视图 ID，用于绑定到 PSO | 与资源生命周期一致 |
 
-下游仅通过上述抽象类型与句柄访问，不暴露具体后端（Vulkan/D3D12/Metal）类型。
+下游仅通过上述抽象类型与句柄访问，不暴露具体后端（Vulkan/Metal/D3D12）类型。平台与后端**可通过宏选择执行哪一段代码**（001-Core 平台宏、本模块 TE_RHI_* 后端宏）。
+
+## 渲染资源显式控制位置
+
+**准备/创建/更新 GPU 资源**（**CreateDeviceResource**、**UpdateDeviceResource**）由本模块提供；**提交到实际 GPU Command**（**SubmitCommandBuffer**）即 **executeLogicalCommandBuffer**、**submitCommandList**。创建逻辑渲染资源（CreateRenderItem）、收集逻辑 CommandBuffer（CollectCommandBuffer）、准备渲染资源（PrepareRenderMaterial、PrepareRenderMesh）见 019-PipelineCore/020-Pipeline。
 
 ## 能力列表（提供方保证）
 
-1. **设备与队列**：创建设备、获取队列、特性检测、后端选择（Vulkan/D3D12/Metal）；多后端统一接口。
+1. **设备与队列**：创建设备、获取队列、特性检测、后端选择（**Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等）；多后端统一接口；**可通过宏判断执行哪一段代码**（编译时选择后端）。
 2. **命令列表**：录制绘制/计算/拷贝命令、资源屏障、提交到队列；Begin/End、Draw、Dispatch、Copy、ResourceBarrier、Submit 语义明确。
-3. **资源管理**：创建 Buffer、Texture、Sampler、视图；内存管理与生命周期明确；失败时有明确报告。
+3. **资源管理**：**CreateDeviceResource**（创建缓冲、纹理、PSO 等 GPU 资源）、**UpdateDeviceResource**（更新缓冲/纹理/描述符等）；创建 Buffer、Texture、Sampler、视图；内存管理与生命周期明确；失败时有明确报告。
 4. **PSO**：创建图形/计算管线状态对象、与 Shader 字节码/模块绑定、可选缓存与编译；与 RenderCore/Shader 模块对接。
 5. **同步**：Fence、Semaphore、资源屏障、多队列同步；提交顺序与等待语义明确。
 6. **错误与恢复**：设备丢失或运行时错误可上报；支持回退或重建，不导致引擎崩溃。
@@ -60,3 +64,4 @@
 |------|----------|
 | （初始） | 从 002-rendering-rci-interface spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 008-RHI：实现方改为 008-RHI，消费者改为 T0 模块列表；类型与能力与 docs/module-specs/008-rhi.md 一致 |
+| 2026-01-29 | 契约更新由 plan 008-rhi-fullversion-001 同步 |

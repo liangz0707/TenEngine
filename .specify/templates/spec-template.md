@@ -17,6 +17,8 @@
 
 实现时只使用 `specs/_contracts/001-core-public-api.md`（或本 feature 依赖的上游契约）中已声明的类型与 API；不实现本规约未列出的能力。
 
+- **ABI 与构建规约**（`.specify/memory/constitution.md` §VI）：本模块须实现其 **ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中的**全部**符号与能力；构建须通过**引入真实子模块源码**（如 CMake `add_subdirectory`）满足依赖，**禁止**使用 stub、mock 或与契约不一致的代替实现作为长期方案。**契约更新**：接口变更须在对应 **ABI 文件**中更新**完整 ABI 条目**；下游所需接口须在**上游模块的 ABI 文件**中以 **TODO** 登记。详见 `specs/_contracts/README.md`「契约更新流程」。
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -137,6 +139,7 @@
 
 - **本模块实现的契约**（若有）: [例如 `specs/_contracts/001-core-public-api.md` 或 无]
 - **本模块依赖的契约**: [见下方 Dependencies]
+- **ABI/构建**：须实现 ABI 中全部符号；构建须引入真实子模块代码，禁止长期使用 stub 或代替方案。接口变更须在 ABI 文件中更新完整条目；下游所需接口须在上游 ABI 中以 TODO 登记（constitution §VI、`specs/_contracts/README.md`）。
 
 ## Dependencies
 
