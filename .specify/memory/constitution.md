@@ -6,7 +6,7 @@ Modified principles: Added VI. Module Boundaries & Contract-First (T0); renamed 
 Added sections: VI. Module Boundaries & Contract-First (T0); Code Quality & Testing (refined from Development Workflow)
 Removed sections: None
 Templates: unchanged; Constitution Check remains generic, aligned with contract-first and T0-contracts
-Ref: docs/multi-agent-interface-sync.md (T0 contract strategy)
+Ref: docs/agent-interface-sync.md (T0 contract strategy)
 Follow-up TODOs: None.
 -->
 
@@ -52,7 +52,7 @@ Follow-up TODOs: None.
 - **Single source of truth for contracts**: The **authoritative** source for all contract files is the **`T0-contracts`** branch. Master/main is for repo and build configuration only; it MUST NOT be used as the source for contract content.
 - **Multi-Agent collaboration**: When working on any T0 module branch (e.g. `T0-001-core`, `T0-002-object`), agents MUST pull the latest contracts from **`origin/T0-contracts`** (e.g. `git fetch origin T0-contracts` then `git merge origin/T0-contracts`) before implementing or changing specs. Contract updates MUST be committed and pushed on the `T0-contracts` branch so other agents can pull them.
 - **Implementation constraint**: Implementations MUST use only **types and interfaces that are declared in the relevant contracts**. Downstream modules MUST depend only on what is declared in their upstream contracts (e.g. `specs/_contracts/001-core-public-api.md`). No reliance on internal or undocumented APIs.
-- **Rationale**: Ensures interface consistency across parallel work, avoids integration failures, and keeps a single place (T0-contracts) for cross-module API definitions. See `docs/multi-agent-interface-sync.md` for the full T0 contract workflow.
+- **Rationale**: Ensures interface consistency across parallel work, avoids integration failures, and keeps a single place (T0-contracts) for cross-module API definitions. See `docs/agent-interface-sync.md` for the full T0 contract workflow.
 
 ## Technology Stack & Performance Standards
 
