@@ -77,7 +77,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 **下游所需接口**：若下游模块需要某接口而本模块尚未实现，须在本模块的 **ABI 文件**中增加该接口的 **TODO** 条目（说明列标明「TODO：下游 NNN-xxx 需要」及拟议签名），待实现时转为正式 ABI 行。见 `specs/_contracts/README.md`「契约更新流程」。
 
-**Prompt 约定**：调用 /speckit.plan 时在 prompt 末尾加：**「Plan 结束时请产出一份「契约更新」：列出本 feature 对外暴露的命名空间、头文件、符号与完整签名，可直接用于更新 specs/_contracts/NNN-modulename-ABI.md（完整 ABI 表行）与 NNN-*-public-api.md。」**
+**Prompt 约定**：调用 /speckit.plan 时在 prompt 末尾加：**「设计时可参考 Unity、Unreal 的模块与 API 构造。若本 feature 对现存 ABI（specs/_contracts/NNN-modulename-ABI.md）有新增或变更，则计划结束时产出一份「契约更新」：列出新增/变更的命名空间、头文件、符号与完整签名，可直接用于更新 ABI 与 public-api。」**
 
 ---
 
@@ -133,20 +133,20 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 ```
 请从当前工作目录推断模块标识 NNN-modulename（如 TenEngine-001-core → 001-core）。规约见 docs/module-specs/NNN-modulename.md，契约见 specs/_contracts/NNN-modulename-public-api.md。
 
-执行 /speckit.specify，描述：本 feature 的完整模块规约见上述规约，对外 API 契约见上述契约；本 feature 仅实现其中最小子集：**<本切片范围>**（必须显式枚举，如 Alloc/Free、Log）。spec.md 中引用规约与契约，只描述本切片范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]）。
+执行 /speckit.specify，描述：本 feature 的完整模块规约见上述规约，契约见 specs/_contracts/NNN-modulename-public-api.md；**本 feature 实现完整模块内容**。spec.md 中引用规约与契约，描述本模块范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]）。
 
 若本模块有上游依赖：在 spec 中明确依赖的上游 API 见各上游契约；实现时只使用上游契约已声明的类型与 API。
 ```
 
 **方式 B：手动创建（可选）**  
-不运行 /speckit.specify 时：创建并切换到 feature 分支 `NNN-modulename-[feature]`，创建目录 `specs/NNN-modulename-[feature]/`，在 `spec.md` 中写明本 feature 实现 **<本切片范围>**；完整规约见 `docs/module-specs/NNN-modulename.md`，契约见 `specs/_contracts/NNN-modulename-public-api.md`，实现时只暴露契约已声明的类型与接口。
+不运行 /speckit.specify 时：创建并切换到 feature 分支 `NNN-modulename-[feature]`，创建目录 `specs/NNN-modulename-[feature]/`，在 `spec.md` 中写明**本 feature 实现完整模块内容**；完整规约见 `docs/module-specs/NNN-modulename.md`，契约见 `specs/_contracts/NNN-modulename-public-api.md`，实现时只暴露契约已声明的类型与接口。
 
 #### 步骤 2：澄清规格（可选）
 
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.clarify。以 docs/module-specs/NNN-modulename.md 与 specs/_contracts/NNN-modulename-public-api.md 为准（若有上游，亦考虑上游契约）；仅针对本 feature 切片 **<本切片范围>** 中不明确处澄清。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.clarify。以 docs/module-specs/NNN-modulename.md 与 specs/_contracts/NNN-modulename-public-api.md 为准（若有上游，亦考虑上游契约）；仅针对本 feature 实现完整模块内容中不明确处澄清。
 ```
 
 #### 步骤 3：生成计划（须产出契约更新）
@@ -154,7 +154,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；仅暴露/使用契约已声明的类型与 API；本切片实现 **<本切片范围>**。计划结束时产出一份「契约更新」：本 feature 对外暴露的命名空间、头文件、符号与签名，可直接用于更新契约与对应 NNN-modulename-ABI.md；写在 plan.md 末尾或单独一节。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；设计时可参考 **Unity、Unreal** 的模块与 API 构造；仅暴露/使用契约已声明的类型与 API；**本 feature 实现完整模块内容**。**若本 feature 对现存 ABI**（specs/_contracts/NNN-modulename-ABI.md）**有新增或变更**，则计划结束时产出一份「契约更新」：列出新增/变更的命名空间、头文件、符号与完整签名，可直接用于更新 ABI 与 public-api；写在 plan.md 末尾或单独一节。
 ```
 
 #### 步骤 4：写回契约（必须）
@@ -222,7 +222,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 ```
 请从当前 worktree 推断 NNN-modulename。本流程为**功能迭代**：在本模块既有契约与实现基础上，新增 **<本切片范围>**。
 
-执行 /speckit.specify，描述：规约见 docs/module-specs/NNN-modulename.md，契约见 specs/_contracts/NNN-modulename-public-api.md；本 feature **迭代**仅实现 **<本切片范围>**（必须显式枚举）。spec.md 引用规约与契约，只描述本迭代范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]）。若有上游依赖，实现只使用上游契约已声明的类型与 API。
+执行 /speckit.specify，描述：规约见 docs/module-specs/NNN-modulename.md，契约见 specs/_contracts/NNN-modulename-public-api.md；**本 feature 实现完整模块内容**。spec.md 引用规约与契约，描述本模块范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]）。若有上游依赖，实现只使用上游契约已声明的类型与 API。
 ```
 
 **可选：手动创建** — 不运行 specify 时，创建分支 `NNN-modulename-[feature]`、`specs/NNN-modulename-[feature]/spec.md`，写明本迭代 **<本切片范围>** 并引用规约与契约。
@@ -240,7 +240,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；本迭代实现 **<本切片范围>**，在既有 API 基础上**扩展**；仅暴露/使用契约已声明或本次拟新增的类型与 API。计划结束时产出一份「契约更新」：本迭代新增或变更的对外接口（命名空间、头文件、符号），可直接用于更新契约与 ABI 文件；写在 plan.md 末尾或单独一节。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；设计时可参考 **Unity、Unreal** 的模块与 API 构造；本迭代实现 **<本切片范围>**，在既有 API 基础上**扩展**；仅暴露/使用契约已声明或本次拟新增的类型与 API。**若本迭代对现存 ABI**（specs/_contracts/NNN-modulename-ABI.md）**有新增或变更**，则计划结束时产出一份「契约更新」：列出新增/变更的命名空间、头文件、符号与完整签名，可直接用于更新 ABI 与 public-api；写在 plan.md 末尾或单独一节。
 ```
 
 #### 步骤 4：写回契约（必须）
