@@ -11,7 +11,7 @@
 
 ## 实现范围（TenEngine：仅实现 ABI 内容）
 
-> **规约**：本 feature **只实现 ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。对外接口以 ABI 文件为准。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
+> **规约**：本 feature **只实现 ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。设计时可参考 **Unity、Unreal** 的模块与 API 构造。对外接口以 ABI 文件为准。**若对现存 ABI 有新增或变更**，则在本 plan 末尾产出一份「契约更新」（命名空间、头文件、符号与完整签名）。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
 
 [若本 feature 对应某模块，在此列出本切片要实现的 ABI 符号或引用 ABI 文件中的表行。]
 
