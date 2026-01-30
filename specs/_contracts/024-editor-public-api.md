@@ -53,3 +53,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：024-Editor 对应本契约；无下游；与 docs/module-specs/024-editor.md 一致 |
+| 2026-01-28 | 契约与 024-editor-ABI 对齐；能力与类型与 ABI 表一致；module-spec 补充对外接口以 ABI 为准引用 |

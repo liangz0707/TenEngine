@@ -6,10 +6,12 @@ Tools 提供**构建、批处理、CLI 与插件/包管理**：编译与打包�
 
 ## 2. 详细功能描述
 
-- **构建**：项目编译、依赖顺序、多目标（平台/配置）、与 CMake/MSBuild 等对接。
-- **批处理**：批量导入、批量处理资源、与 Resource 导入管线对接。
-- **CLI**：命令行入口、子命令、与各模块的离线 API 对接。
-- **插件/包管理**：插件发现、加载、版本与依赖、与 Subsystems/ModuleLoad 对接。
+对外接口以 **ABI** 为准：`specs/_contracts/025-tools-ABI.md`；契约：`specs/_contracts/025-tools-public-api.md`。
+
+- **构建**：IBuildSystem::Configure、Compile；BuildConfig；GetBuildSystem；与 CMake/MSBuild 等对接。
+- **批处理**：IBatchProcessor::BatchImport、BatchProcess；BatchJob；与 Resource 导入管线对接。
+- **CLI**：ParseArgs、RunCommand、InvokeOfflineAPI；CLIResult；与各模块的离线 API 对接。
+- **插件/包管理**：IPluginManager::DiscoverPlugins、ResolveDeps、LoadPlugin；PluginDescriptor；与 Subsystems/ModuleLoad 对接。
 
 ## 3. 实现难度
 
@@ -34,12 +36,12 @@ Tools 提供**构建、批处理、CLI 与插件/包管理**：编译与打包�
 | CLI | 命令行、子命令、离线 API |
 | PackageManager | 插件/包发现、版本、依赖、与 ModuleLoad 对接 |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-Build：Configure、Compile、Dependencies、TargetPlatform、与 CMake/MSBuild 对接。  
-Batch：BatchImport、BatchProcess、与 Resource 对接。  
-CLI：ParseArgs、RunCommand、OfflineAPI。  
-PackageManager：DiscoverPlugins、ResolveDeps、LoadPlugin、与 ModuleLoad 对接。
+Build：IBuildSystem::Configure、Compile；BuildConfig；GetBuildSystem；与 CMake/MSBuild 对接。  
+Batch：IBatchProcessor::BatchImport、BatchProcess；BatchJob；与 Resource 对接。  
+CLI：ParseArgs、RunCommand、InvokeOfflineAPI；CLIResult。  
+PackageManager：IPluginManager::DiscoverPlugins、ResolveDeps、LoadPlugin；PluginDescriptor；与 ModuleLoad 对接。
 
 ### 5.3 子模块依赖图
 

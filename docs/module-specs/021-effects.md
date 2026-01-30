@@ -6,10 +6,12 @@ Effects 提供**后处理、粒子与光照后处理**：Bloom、TAA、粒子/VF
 
 ## 2. 详细功能描述
 
-- **后处理**：Bloom、TAA、色调映射、景深、与 Pipeline 的 Fullscreen Pass 对接。
-- **粒子/VFX**：粒子系统、发射器、与 Pipeline 的粒子绘制、可选与 Niagara/VFX Graph 风格对接。
-- **光照后处理**：体积光、光晕等与光照管线配合的效果。
-- **VFX**：高级 VFX（可选）、与 Shader Graph 或自定义 Pass 对接。
+对外接口以 **ABI** 为准：`specs/_contracts/021-effects-ABI.md`；契约：`specs/_contracts/021-effects-public-api.md`。
+
+- **后处理**：IPostProcessStack::AddPass、SetIntensity；EffectParams、PostProcessPassType；Bloom、TAA、色调映射、景深；与 Pipeline Fullscreen Pass 对接；RenderingConfig 由 Pipeline 下发。
+- **粒子/VFX**：IParticleSystem::Emit、Update、GetParticleBuffer、GetAtlas；CreateParticleSystem；与 Pipeline 粒子绘制、RenderCore 对接。
+- **光照后处理**：体积光、光晕等与光照管线配合的效果（可选）。
+- **VFX**：IVFXGraph、RegisterCustomPass（可选）；与 Shader Graph 或自定义 Pass 对接。
 
 ## 3. 实现难度
 
@@ -33,11 +35,11 @@ Effects 提供**后处理、粒子与光照后处理**：Bloom、TAA、粒子/VF
 | VFX | 高级 VFX（可选）、与 Shader Graph 或自定义 Pass 对接 |
 | Lighting | 体积光、光晕等与光照管线配合的 Pass（可选） |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-PostProcess：AddPass、Bloom、TAA、ToneMapping、DOF、Intensity。  
-Particles：Emit、Update、ParticleBuffer、Atlas、与 RenderCore 对接。  
-VFX：VFXGraph、CustomPass、与 Shader 对接。  
+PostProcess：IPostProcessStack::AddPass、SetIntensity；EffectParams、PostProcessPassType；RenderingConfig 由 Pipeline 下发。  
+Particles：IParticleSystem::Emit、Update、GetParticleBuffer、GetAtlas；CreateParticleSystem；与 RenderCore 对接。  
+VFX：IVFXGraph、RegisterCustomPass；与 Shader 对接。  
 Lighting：VolumetricLight、Bloom、与 Pipeline 对接。
 
 ### 5.3 子模块依赖图
