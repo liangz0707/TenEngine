@@ -164,7 +164,19 @@ apps/
 
 ---
 
-## 8. 小结
+## 8. Agent 强制规约（TenEngineHelpers 实现）
+
+当使用 **TenEngineHelpers.cmake**、**TenEngineModuleDependencies.cmake** 时，须遵守以下强制约定：
+
+- **用户说「要构建工程」时**：若**构建方式**（各依赖 源码/DLL/不引入）或**根目录**（在哪个模块目录执行构建）不明确，**必须**先问用户，不得擅自假设。默认使用源码引入。
+- **plan.md**：须对每个**直接依赖**写明引入方式（源码 / DLL / 不引入）；建议设「依赖引入方式」小节。
+- **禁止**：在 CMakeLists.txt 中手写对上游的 `add_subdirectory` / `find_package` 分支；须通过 `tenengine_resolve_my_dependencies` 与 CMake 变量由脚本统一处理。**禁止**对测试/可执行 target 显式 link 上游；须只 link 本模块 target。
+
+通用说明与提示词见 **`docs/agent-build-guide.md`**。依赖图见 `specs/_contracts/000-module-dependency-map.md`。
+
+---
+
+## 9. 小结
 
 | 项目 | 说明 |
 |------|------|

@@ -19,6 +19,7 @@
 | [agent-interface-sync.md](agent-interface-sync.md) | 多 Agent 协作：接口同步策略与工作流。 |
 | [agent-workflow-complete-guide.md](agent-workflow-complete-guide.md) | AI 完整执行指南（Spec Kit 步骤与提示词）。 |
 | [agent-docs-as-assets-codegen.md](agent-docs-as-assets-codegen.md) | 文档作为资产、随时生成代码。 |
+| [agent-build-guide.md](agent-build-guide.md) | 子模块构建与自动测试：Agent 指南（通用说明与提示词）。 |
 | [module-specs/](module-specs/) | 各模块详细规格（001-core … 027-xr）。 |
 | [research/](research/) | 调研与对比类文档（Unity/Unreal 参考、历史提案等）。 |
 
