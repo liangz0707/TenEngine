@@ -13,6 +13,16 @@
 
 实现时只使用 `specs/_contracts/001-core-public-api.md`（或本 feature 依赖的上游契约）中已声明的类型与 API；不实现本规约未列出的能力。
 
+## Clarifications
+
+### Session 2026-01-29
+
+- Q: CreateDevice 是否依赖窗口/上下文？窗口/上下文是否仅用于 Present、XR 等后续路径？ → A: CreateDevice 不依赖窗口/上下文；窗口/上下文仅用于 Present、XR 交换链等后续路径。
+- Q: SelectBackend 与 CreateDevice 的调用关系？ → A: 两种均支持：可先 SelectBackend 再 CreateDevice，也可在 CreateDevice 时直接指定后端。
+- Q: 后端不可用时本 feature 要求的行为？ → A: 仅明确失败（错误码/返回值）；不自动回退；回退与重试由上层（如 Application）负责。
+- Q: 本 feature 是否要求 RHI 接口默认并发安全？ → A: 不要求；多线程行为由实现定义并文档化。
+- Q: GetFeatures 返回结构的定义责任？ → A: 由 plan 阶段定义具体字段与格式；本 spec 不约定，仅要求返回可读、可验证的特性信息。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 创建设备、队列与后端选择 (Priority: P1)
@@ -21,12 +31,12 @@
 
 **Why this priority**: 设备与队列是一切 RHI 能力的前提。
 
-**Independent Test**: 调用 CreateDevice、GetQueue、GetFeatures、SelectBackend；验证设备创建、队列获取与特性查询符合契约。
+**Independent Test**: 调用 CreateDevice、GetQueue、GetFeatures、SelectBackend；验证设备创建、队列获取与可读可验证的特性查询符合契约（GetFeatures 具体格式由 plan 定义）。
 
 **Acceptance Scenarios**:
 
-1. **Given** 支持的后端与环境，**When** 调用创建设备与获取队列接口，**Then** 返回有效 IDevice、队列句柄及可读特性信息。
-2. **Given** 不支持的后端或不可用环境，**When** 请求创建设备，**Then** 有明确失败报告，不崩溃。
+1. **Given** 支持的后端与环境，**When** 调用创建设备与获取队列接口，**Then** 返回有效 IDevice、队列句柄及可读、可验证的特性信息（GetFeatures 具体格式由 plan 定义）。
+2. **Given** 不支持的后端或不可用环境，**When** 请求创建设备，**Then** 明确失败（错误码/返回值），不自动回退；回退与重试由上层负责，不崩溃。
 
 ---
 
@@ -92,8 +102,8 @@
 
 ### Edge Cases
 
-- 多线程下 RHI 接口的并发行为（由契约/实现定义并文档化）。
-- 设备丢失、驱动升级或后端不可用时的错误路径与恢复策略。
+- 本 feature 不要求 RHI 接口默认并发安全；多线程行为由实现定义并文档化。
+- 设备丢失、驱动升级或后端不可用时的错误路径与恢复策略。后端不可用时仅明确失败，不自动回退；重试或回退由上层负责。
 - 资源销毁顺序违反底层 API 时的行为与报告。
 - 平台无可用图形 API 时的错误路径与用户可理解报告。
 
@@ -101,23 +111,23 @@
 
 ### Functional Requirements
 
-- **FR-001**: 系统必须提供创建设备、获取队列、特性检测、后端选择（Vulkan/D3D12/Metal）的能力；多后端统一接口（契约能力 1）。
+- **FR-001**: 系统必须提供创建设备、获取队列、特性检测、后端选择（Vulkan/D3D12/Metal）的能力；多后端统一接口（契约能力 1）。CreateDevice 不依赖窗口/上下文；窗口/上下文仅用于 Present、XR 交换链等后续路径。两种方式均支持：可先调用 SelectBackend 再 CreateDevice，也可在 CreateDevice 时直接指定后端。后端不可用时仅明确失败（错误码/返回值），不自动回退；回退与重试由上层负责。GetFeatures 返回可读、可验证的特性信息；具体字段与格式由 plan 阶段定义，本 spec 不约定。
 - **FR-002**: 系统必须提供命令列表的录制与提交：Begin/End、Draw、Dispatch、Copy、ResourceBarrier、Submit，语义明确（契约能力 2）。
 - **FR-003**: 系统必须提供 Buffer、Texture、Sampler、视图的创建与销毁；内存管理与生命周期明确，失败时有明确报告（契约能力 3）。
 - **FR-004**: 系统必须提供图形/计算 PSO 的创建、与 Shader 字节码/模块绑定、可选缓存与编译；与 RenderCore/Shader 对接（契约能力 4）。
 - **FR-005**: 系统必须提供 Fence、Semaphore、资源屏障及多队列同步；提交顺序与等待语义明确（契约能力 5）。
 - **FR-006**: 设备丢失或运行时错误可上报；支持回退或重建，不导致引擎崩溃（契约能力 6）。
-- **FR-007**: RHI 接口在多线程访问下的行为由实现定义并文档化（契约能力 7）。
+- **FR-007**: RHI 接口在多线程访问下的行为由实现定义并文档化（契约能力 7）。本 feature 不要求默认并发安全。
 - **FR-008**: 实现仅依赖 001-Core 契约已声明的类型与 API；不暴露契约未声明的类型或接口。
 
 ### Key Entities
 
-- **IDevice**：图形设备抽象；创建队列、资源、PSO；由 RHI 管理，创建后直至销毁（见契约）。
+- **IDevice**：图形设备抽象；创建队列、资源、PSO；由 RHI 管理，创建后直至销毁（见契约）。GetFeatures 具体格式由 plan 定义。
 - **ICommandList**：命令缓冲；Draw/Dispatch/Copy、ResourceBarrier、Submit；单次录制周期内有效。
 - **IBuffer / ITexture / ISampler**：缓冲、纹理、采样器；创建后直至显式销毁。
 - **资源视图句柄**：描述符或视图 ID，用于绑定到 PSO；与资源生命周期一致。
 - **IPSO**：管线状态对象（图形/计算）；与 Shader 字节码绑定；可缓存，创建后直至显式销毁。
-- **Fence / Semaphore**：同步对象；多队列、跨帧同步；按实现约定。
+- **IFence / ISemaphore**：同步对象；多队列、跨帧同步；按实现约定。
 
 ## Success Criteria *(mandatory)*
 
