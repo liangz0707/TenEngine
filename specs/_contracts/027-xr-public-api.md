@@ -25,14 +25,14 @@
 | XRFrameHandle | 帧句柄；视口、投影、与 Pipeline 提交、RHI XR 交换链对接 | 每帧 |
 | 提交接口 | 将 Pipeline 产出提交到 XR 交换链；与 pipeline-to-rci 及 RHI 约定一致 | 每帧 |
 
-与 007-Subsystems 对接（XR 可作为子系统挂接）；与 006-Input 对接（XR 输入）；与 020-Pipeline 对接（渲染产出提交）。
+与 007-Subsystems 对接（XR 可作为子系统挂接）；与 006-Input 对接（XR 输入）；与 020-Pipeline 对接（渲染产出提交）。**ABI 显式表**：[027-xr-ABI.md](./027-xr-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Session**：会话创建/结束、与 Subsystems、平台 XR 运行时对接。
-2. **Frame**：帧开始/结束、视口/投影、与 Pipeline/RHI 对接。
-3. **Submit**：提交到 XR 交换链；与 RHI、pipeline-to-rci 约定一致。
-4. **Input（可选）**：XR 控制器/头显输入、与 Input 模块扩展对接。
+1. **Session**：IXRSession::BeginSession、EndSession；CreateXRSession、XRSessionDesc；与 Subsystems、平台 XR 运行时对接。
+2. **Frame**：IXRSession::BeginFrame、EndFrame、GetViewCount、GetViewport、GetProjection；Viewport；与 Pipeline/RHI 对接。
+3. **Submit**：IXRSession::Submit、GetSwapChain；提交到 XR 交换链；与 RHI、pipeline-to-rci 约定一致。
+4. **Input（可选）**：IXRSession::GetControllerPose、GetHeadPose；XR 控制器/头显输入、与 Input 模块扩展对接。
 
 ## 调用顺序与约束
 
@@ -43,3 +43,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：027-XR 对应本契约；无下游；依赖表与 007/008/020 规格一致 |
+| 2026-01-28 | 根据 027-xr-ABI 反向更新：IXRSession、CreateXRSession、BeginSession、EndSession、BeginFrame、EndFrame、GetViewport、GetProjection、Submit、GetSwapChain、GetControllerPose、GetHeadPose；能力与类型与 ABI 表一致 |

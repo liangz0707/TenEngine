@@ -26,14 +26,14 @@
 | FocusChain | 焦点链；GetFocus、SetFocus、RouteEvent | 由 UICore 管理 |
 | FontHandle | 字体句柄；LoadFont、GetGlyph、Atlas、与 Resource 对接（可选） | 创建后直至显式释放 |
 
-下游仅通过上述类型与句柄访问；绘制命令由 Pipeline 的 2D 或 Overlay 层消费，本模块不直接持有 GPU 资源。
+下游仅通过上述类型与句柄访问；绘制命令由 Pipeline 的 2D 或 Overlay 层消费，本模块不直接持有 GPU 资源。**ABI 显式表**：[017-uicore-ABI.md](./017-uicore-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Layout**：Measure、Arrange、SetDirty、DPIScale；布局规则、脏标记、与 Application 窗口/DPI 适配。
-2. **Draw**：DrawRect、DrawTexture、DrawText、SubmitToPipeline；绘制列表与渲染后端接口对接。
-3. **HitTest**：HitTest、GetFocus、SetFocus、RouteEvent；命中检测、焦点与 Input 事件路由。
-4. **Font**：LoadFont、GetGlyph、Atlas；字体加载与图集，与 Resource 对接（可选）。
+1. **Layout**：ILayoutNode::Measure、Arrange、SetDirty、IsDirty；GetDPIScale；Size、Rect；布局规则、脏标记、与 Application 窗口/DPI 适配。
+2. **Draw**：IDrawCommandList::DrawRect、DrawTexture、DrawText、SubmitToPipeline；CreateDrawCommandList；与渲染后端接口对接。
+3. **HitTest**：HitTest、HitTestResult；IFocusChain::GetFocus、SetFocus、RouteEvent；GetFocusChain；命中检测、焦点与 Input 事件路由。
+4. **Font**：LoadFont、IFont::GetGlyph、GetAtlas；与 Resource 对接（可选）。
 
 ## 调用顺序与约束
 
@@ -45,3 +45,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 017-UICore 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/017-ui-core.md 一致 |
+| 2026-01-28 | 根据 017-uicore-ABI 反向更新：ILayoutNode、IDrawCommandList、HitTest、IFocusChain、LoadFont、CreateDrawCommandList；能力与类型与 ABI 表一致 |
