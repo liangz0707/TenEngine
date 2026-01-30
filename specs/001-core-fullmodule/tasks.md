@@ -58,9 +58,9 @@
 
 **Purpose**: Implement ABI 表 platform.h 全部符号；仅暴露契约/ABI 声明的 API。
 
-- [ ] T010 [P] [US3] Declare in include/te/core/platform.h: TE_PLATFORM_* 宏, FileRead, FileWrite(×2), DirEntry, DirectoryEnumerate, Time, HighResolutionTimer, GetEnv, PathNormalize（签名与 001-core-ABI.md 一致）
-- [ ] T011 [US3] Implement in src/platform.cpp: 上述 API 的实现
-- [ ] T012 [US3] Add or extend tests/unit/test_platform.cpp: 平台宏、FileWrite/FileRead、Time/HighResolutionTimer、PathNormalize 等契约行为
+- [x] T010 [P] [US3] Declare in include/te/core/platform.h: TE_PLATFORM_* 宏, FileRead, FileWrite(×2), DirEntry, DirectoryEnumerate, Time, HighResolutionTimer, GetEnv, PathNormalize（签名与 001-core-ABI.md 一致）
+- [x] T011 [US3] Implement in src/platform.cpp: 上述 API 的实现
+- [x] T012 [US3] Add or extend tests/unit/test_platform.cpp: 平台宏、FileWrite/FileRead、Time/HighResolutionTimer、PathNormalize 等契约行为
 
 ---
 
@@ -89,9 +89,9 @@
 
 **Purpose**: Implement ABI 表 math.h 全部符号；仅暴露契约/ABI 声明的 API。
 
-- [ ] T020 [P] [US6] Declare in include/te/core/math.h: Scalar, Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray, Lerp, Dot, Cross, Length, Normalize（签名与 001-core-ABI.md 一致）
-- [ ] T021 [US6] Implement in src/math.cpp（或仅头文件实现）: 上述类型与函数
-- [ ] T022 [US6] Add or extend tests/unit/test_math.cpp: Lerp、Dot、Length、Normalize 等契约行为
+- [x] T020 [P] [US6] Declare in include/te/core/math.h: Scalar, Vector2/3/4, Matrix3/4, Quaternion, AABB, Ray, Lerp, Dot, Cross, Length, Normalize（签名与 001-core-ABI.md 一致）
+- [x] T021 [US6] Implement in src/math.cpp（或仅头文件实现）: 上述类型与函数
+- [x] T022 [US6] Add or extend tests/unit/test_math.cpp: Lerp、Dot、Length、Normalize 等契约行为
 
 ---
 
@@ -99,9 +99,9 @@
 
 **Purpose**: Implement ABI 表 containers.h 全部符号；仅暴露契约/ABI 声明的 API。
 
-- [ ] T023 [P] [US6] Declare in include/te/core/containers.h: Array\<T, Allocator\>, Map\<K,V,...\>, String, UniquePtr\<T\>, SharedPtr\<T\>（与 001-core-ABI.md 一致，std 等价或类型别名）
-- [ ] T024 [US6] Implement in src/containers.cpp（或仅头文件）：若需实现则仅暴露契约类型
-- [ ] T025 [US6] Add or extend tests/unit/test_containers.cpp: Array/Map/String/UniquePtr/SharedPtr 契约行为
+- [x] T023 [P] [US6] Declare in include/te/core/containers.h: Array\<T, Allocator\>, Map\<K,V,...\>, String, UniquePtr\<T\>, SharedPtr\<T\>（与 001-core-ABI.md 一致，std 等价或类型别名）
+- [x] T024 [US6] Implement in src/containers.cpp（或仅头文件）：若需实现则仅暴露契约类型
+- [x] T025 [US6] Add or extend tests/unit/test_containers.cpp: Array/Map/String/UniquePtr/SharedPtr 契约行为
 
 ---
 
@@ -109,9 +109,9 @@
 
 **Purpose**: Implement ABI 表 module_load.h 全部符号；仅暴露契约/ABI 声明的 API。
 
-- [ ] T026 [P] [US7] Declare in include/te/core/module_load.h: ModuleHandle, LoadLibrary, UnloadLibrary, GetSymbol, ModuleInitFn, ModuleShutdownFn, RegisterModuleInit, RegisterModuleShutdown, RunModuleInit, RunModuleShutdown（签名与 001-core-ABI.md 一致）
-- [ ] T027 [US7] Implement in src/module_load.cpp: 上述 API
-- [ ] T028 [US7] Add or extend tests/unit/test_module_load.cpp: LoadLibrary/GetSymbol、RunModuleInit/RunModuleShutdown 顺序
+- [x] T026 [P] [US7] Declare in include/te/core/module_load.h: ModuleHandle, LoadLibrary, UnloadLibrary, GetSymbol, ModuleInitFn, ModuleShutdownFn, RegisterModuleInit, RegisterModuleShutdown, RunModuleInit, RunModuleShutdown（签名与 001-core-ABI.md 一致）
+- [x] T027 [US7] Implement in src/module_load.cpp: 上述 API
+- [x] T028 [US7] Add or extend tests/unit/test_module_load.cpp: LoadLibrary/GetSymbol、RunModuleInit/RunModuleShutdown 顺序
 
 ---
 
@@ -119,8 +119,8 @@
 
 **Purpose**: Ensure public API matches contract/ABI only; run all tests.
 
-- [ ] T029 Ensure include/te/core/*.h expose only types and APIs listed in specs/_contracts/001-core-ABI.md and 001-core-public-api.md; remove or hide any extra public API
-- [ ] T030 Update README or docs with build/run and init–shutdown order per quickstart.md and contract「调用顺序与约束」
+- [x] T029 Ensure include/te/core/*.h expose only types and APIs listed in specs/_contracts/001-core-ABI.md and 001-core-public-api.md; remove or hide any extra public API
+- [x] T030 Update README or docs with build/run and init–shutdown order per quickstart.md and contract「调用顺序与约束」
 - [ ] T031 Run quickstart validation: 构建（执行前须已澄清构建方式与根目录），运行全部单元测试（test_alloc, test_engine, test_thread, test_platform, test_log, test_check, test_math, test_containers, test_module_load）
 
 ---

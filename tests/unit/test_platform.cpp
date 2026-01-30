@@ -10,8 +10,9 @@
 using namespace te::core;
 
 int main() {
-  // Platform macros
-  assert(TE_PLATFORM_WINDOWS + TE_PLATFORM_LINUX + TE_PLATFORM_MACOS >= 1);
+  // Platform macros (exactly one of WINDOWS/LINUX/MACOS/ANDROID/IOS is 1)
+  assert(TE_PLATFORM_WINDOWS + TE_PLATFORM_LINUX + TE_PLATFORM_MACOS
+         + TE_PLATFORM_ANDROID + TE_PLATFORM_IOS >= 1);
 
   // FileWrite / FileRead
   std::string path = "test_platform_tmp_file.txt";
