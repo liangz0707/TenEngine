@@ -89,4 +89,8 @@ flowchart TB
 ## 待办
 
 - **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+<<<<<<< HEAD
 - **待办**：需随 `002-object` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化），及 plan 002-object-fullversion-001 同步（完整功能集））。
+=======
+- **待办**：需随 `004-scene` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 004-scene-fullversion-001 同步）。
+>>>>>>> origin/T0-contracts
