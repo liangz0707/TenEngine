@@ -1,7 +1,7 @@
 # T0 模块依赖图（27 模块）
 
 用于多 Agent 协作时快速查看：**谁依赖谁**、**改某个模块会影响谁**。接口边界以 `specs/_contracts/` 下契约为准。  
-**完整依赖图（Mermaid、矩阵、边列表）** 见 **`docs/dependency-graph-full.md`**。
+**完整依赖图（Mermaid、矩阵、边列表）** 见 **`docs/engine-modules-and-architecture.md`** §4。
 
 ## 层级与模块（T0 最新架构）
 
@@ -78,4 +78,4 @@
 
 ---
 
-*本文件与 `docs/dependency-graph-full.md`、`docs/tenengine-full-module-spec.md` 保持一致；任一 Agent 修改依赖关系时请同步更新。*
+*本文件与 `docs/engine-modules-and-architecture.md` 保持一致；任一 Agent 修改依赖关系时请同步更新。*
