@@ -35,10 +35,10 @@ foreach ($m in $Modules) {
         $mergeExit = $LASTEXITCODE
         if ($mergeExit -ne 0) {
             git checkout --theirs specs/_contracts/000-module-dependency-map.md specs/_contracts/README.md specs/_contracts/pipeline-to-rci.md docs/module-specs/README.md 2>$null
-            foreach ($f in @("docs/README.md","docs/agent-contracts-and-specs-T0.md","docs/agent-interface-sync.md","docs/engine-modules-and-architecture.md","docs/engine-build-module-convention.md","docs/agent-docs-as-assets-codegen.md","docs/research/README.md","docs/research/engine-reference-unity-unreal-modules.md","docs/research/engine-proposed-module-architecture.md","docs/agent-workflow-complete-guide.md",".cursor/commands/speckit.implement.md",".cursor/rules/interface-sync.mdc",".cursor/rules/git-commit-messages.mdc",".specify/templates/spec-template.md",".specify/memory/constitution.md")) {
+            foreach ($f in @("docs/README.md","docs/agent-contracts-and-specs-T0.md","docs/agent-interface-sync.md","docs/engine-modules-and-architecture.md","docs/engine-build-module-convention.md","docs/agent-docs-as-assets-codegen.md","docs/research/README.md","docs/research/engine-reference-unity-unreal-modules.md","docs/research/engine-proposed-module-architecture.md","docs/agent-workflow-complete-guide.md","docs/agent-build-guide.md",".cursor/commands/speckit.implement.md",".cursor/rules/interface-sync.mdc",".cursor/rules/git-commit-messages.mdc",".specify/templates/spec-template.md",".specify/memory/constitution.md")) {
                 if (Test-Path $f) { git checkout --theirs $f 2>$null }
             }
-            git add specs/_contracts/ docs/module-specs/ docs/research/ docs/README.md docs/agent-contracts-and-specs-T0.md docs/agent-interface-sync.md docs/engine-modules-and-architecture.md docs/engine-build-module-convention.md docs/agent-docs-as-assets-codegen.md docs/agent-workflow-complete-guide.md .cursor/commands/ .cursor/rules/ .specify/templates/ .specify/memory/ 2>$null
+            git add specs/_contracts/ docs/module-specs/ docs/research/ docs/README.md docs/agent-contracts-and-specs-T0.md docs/agent-interface-sync.md docs/engine-modules-and-architecture.md docs/engine-build-module-convention.md docs/agent-docs-as-assets-codegen.md docs/agent-workflow-complete-guide.md docs/agent-build-guide.md .cursor/commands/ .cursor/rules/ .specify/templates/ .specify/memory/ 2>$null
             cmd /c "git commit -m `"$MergeMsg`" 2>nul"
         }
         cmd /c "git push origin $branch 2>nul"
