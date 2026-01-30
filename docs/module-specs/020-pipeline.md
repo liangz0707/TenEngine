@@ -6,10 +6,11 @@ Pipeline 提供**渲染管线实现**（场景到屏幕）：场景收集、剔�
 
 ## 2. 详细功能描述
 
+- **渲染模式**：渲染支持 **Debug**、**Hybrid**、**Resource** 三种模式（如 Debug=全量校验/调试绘制，Hybrid=部分校验，Resource=发布/最小校验）；可通过编译选项或运行时配置选择，与统一 Check 宏的启用程度协同。
 - **场景收集**：可见实体/组件收集、与 Scene/Entity 对接。
 - **剔除**：视锥剔除、遮挡剔除（可选）、LOD 选择。
 - **DrawCall**：批次、材质/网格/变换、与 Material/Mesh/Shader 对接、实例化与合批。
-- **命令缓冲生成与提交**：按 PipelineCore 协议构建 Pass 图、提交到 RHI、与 SwapChain/XR 对接。
+- **命令缓冲生成与提交**：按 PipelineCore 协议构建 Pass 图、提交到 RHI、与 SwapChain/XR 对接。**渲染资源显式控制位置**：**创建逻辑渲染资源**（CreateRenderItem）见 019-PipelineCore；**收集逻辑 CommandBuffer**（CollectCommandBuffer）见 019-PipelineCore；**提交到实际 GPU Command**（**SubmitCommandBuffer**，即 submitLogicalCommandBuffer / executeLogicalCommandBuffer）；**准备渲染资源**（PrepareRenderMaterial、PrepareRenderMesh、prepareRenderResources）见 019-PipelineCore；**创建/更新 GPU 资源**（CreateDeviceResource、UpdateDeviceResource）见 008-RHI。
 
 ## 3. 实现难度
 

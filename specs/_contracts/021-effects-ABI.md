@@ -5,8 +5,10 @@
 
 ## ABI 表
 
-列定义：**模块名 | 命名空间 | 类名 | 接口说明 | 头文件 | 符号 | 说明**
+列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
 
-| 模块名 | 命名空间 | 类名 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|--------|------|------|
-| （待补充） | 见本模块契约 | — | — | — | — | 由本模块契约与实现填入 |
+| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
+|--------|----------|------|----------|----------|--------|------|------|
+| 021-Effects | TenEngine::effects | — | 配置来源 | 后处理与抗锯齿按 RenderingConfig 生效 | TenEngine/pipeline/RenderingConfig.h | 见 Pipeline RenderingConfig | DOF、抗锯齿等由 Pipeline 的 `void IRenderPipeline::SetRenderingConfig(RenderingConfig const&);` 下发；Effects 按配置启用/禁用 |
+
+*来源：用户故事 US-editor-001（编辑器内配置渲染设置并保存）；具体接口可由 Pipeline 转发或本模块提供 applyConfig，以实现为准。*

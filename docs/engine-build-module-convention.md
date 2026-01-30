@@ -10,6 +10,9 @@
 |------|------|
 | **单模块单 worktree** | 每个模块在独立的 worktree（如 `TenEngine-008-rhi`）中开发；worktree 根目录即构建根目录。 |
 | **依赖源码优先** | 模块间依赖**优先**以源码方式引入（`add_subdirectory` 或 `FetchContent`）；仅当有 ABI/二进制分发需求时使用 DLL/静态库。 |
+| **构建须引入子模块代码** | 构建过程**必须**通过引入**真实子模块源码**（`add_subdirectory` 或 `FetchContent` 拉取对应模块）来满足对上游模块的依赖；**不得**用本模块内的 stub、mock 或占位实现代替上游模块（见 `specs/_contracts/README.md` 与 `.specify/memory/constitution.md` §VI）。 |
+| **依赖子模块不存在时须直接报错** | 若依赖的**子模块**（上游 worktree 或指定目录）**不存在**或无法解析，构建**必须直接报错**（CMake 配置阶段报错并退出），**禁止**创建占位符、stub、空目标或静默跳过以“通过构建”。详见 `docs/agent-build-guide.md`「〇、强制规则」。 |
+| **完整 ABI 实现** | 各模块必须实现其 ABI 文件（`specs/_contracts/NNN-modulename-ABI.md`）中列出的**全部**符号与能力；禁止长期以 stub 或代替方案作为正式实现。 |
 | **契约约束接口** | 构建脚本只暴露契约（`specs/_contracts/`）中声明的头文件路径与目标；内部实现不对外导出。 |
 | **跨平台** | CMake 脚本须兼容 Windows、Linux、macOS；避免平台特定硬编码路径。 |
 

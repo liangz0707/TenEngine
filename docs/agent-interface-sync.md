@@ -10,7 +10,7 @@
 - **契约必须从 T0-contracts 拉取**：契约的**唯一权威来源**是 **`T0-contracts`** 分支。所有 T0-* 模块分支的 Agent 必须且只能从 **`origin/T0-contracts`** 拉取契约（`git pull origin T0-contracts`），不得以主分支上的 `_contracts/` 作为契约依据。
 - **单一事实来源**：跨模块的“谁提供什么、谁消费什么”写在 `specs/_contracts/` 的契约文件中（以 **T0-contracts** 分支为准）；各模块的规格引用契约而非重复描述接口细节。
 - **契约先行**：下游模块（消费者）依赖的接口，由上游模块（提供方）的契约定义；Agent 在实现或改规格前先读契约（从 T0-contracts 拉取后的本地 `_contracts/`）。
-- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约文件（并合并到 `T0-contracts` 分支），并检查依赖该契约的模块列表，必要时更新其规格或创建 follow-up 任务。
+- **变更即同步**：任何 Agent 修改某模块的**对外接口**时，必须更新对应契约与 ABI 文件（并合并到 `T0-contracts` 分支）；下游通过拉取 T0-contracts 与契约/ABI 变更记录获知变化（Follow-up 与 Issue 的具体操作已废弃）。
 
 ---
 
@@ -61,33 +61,19 @@ git pull origin T0-contracts
 
 ### 4.2 修改本模块对外接口时
 
-1. 在 **`T0-contracts` 分支**上更新本模块对应的契约文件（见 `_contracts/` 下以模块或边界命名的文件），或通过 PR 将契约变更合并到 `T0-contracts`。
-2. 在契约中注明**版本或变更说明**（与 Constitution 的版本/ABI 要求一致）。
-3. 在 `000-module-dependency-map.md` 中查看**依赖本模块**的下游列表；若接口有破坏性变更，则：
-   - 在对应下游的规格或 checklist 中留下“需随 XXX 契约变更做适配”的待办，或
-   - 创建明确的 follow-up 任务/issue 供负责下游模块的 Agent 处理。
+1. **须在 ABI 文件中更新完整 ABI 条目**：在 **`T0-contracts` 分支**上，**必须**在对应 **ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中更新**完整的 ABI 表行**（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）；不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。接口符号与签名的权威来源是 ABI 文件。
+2. 同步更新本模块对应的契约文件（`NNN-modulename-public-api.md`）：能力/类型与变更记录；在契约中注明**版本或变更说明**（与 Constitution 的版本/ABI 要求一致）。
+3. **下游所需接口在上游 ABI 中以 TODO 登记**：若**下游模块**需要某接口而本模块（上游）尚未提供，须在**本模块的 ABI 文件**中增加该接口的 **TODO** 条目（在说明列标明「TODO：下游 NNN-xxx 需要」及拟议签名），待实现时转为正式 ABI 行并移除 TODO。下游不得长期依赖未在上游 ABI 中登记（含 TODO）的接口。
+4. 在 `000-module-dependency-map.md` 中确认**依赖本模块**的下游列表。下游通过**拉取 T0-contracts** 与查阅上游 ABI/契约的**变更记录**获知变化；不再使用规格待办、checklist 或 GitHub Issue 的 follow-up 流程（已废弃）。
 
-**若使用 Spec Kit /speckit.plan**：plan 产出的对外接口设计（函数签名、类型、命名空间、头文件）**必须写回契约与 ABI**。在 plan 完成后、tasks 之前，将 plan 产出的「契约更新」同步到 `specs/_contracts/NNN-*-public-api.md` 的能力/类型与对应 `NNN-modulename-ABI.md`，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
+**若使用 Spec Kit /speckit.plan**：plan 产出的对外接口设计（函数签名、类型、命名空间、头文件）**必须写回契约与 ABI**；**ABI 须以完整表行更新**，不能只写 public-api。在 plan 完成后、tasks 之前，将 plan 产出的「契约更新」同步到 `specs/_contracts/NNN-modulename-ABI.md`（完整 ABI 条目）与 `specs/_contracts/NNN-*-public-api.md` 的能力/类型，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
 
 ### 4.3 评审/合并前
 
 1. 检查：本 PR 是否改动某模块的**公开 API 或跨模块数据结构**？
-2. 若有，确认 `specs/_contracts/` 下对应契约已更新，且依赖图与下游说明已更新或已创建跟进任务。
+2. 若有，确认 `specs/_contracts/` 下对应契约与 ABI 已更新并推送，且依赖图（`000-module-dependency-map.md`）已正确。下游通过拉取 T0-contracts 与契约/ABI 变更记录获知变化（**Follow-up 与 Issue 的具体操作已废弃**，不再使用规格待办、checklist 或 GitHub Issue 通知下游）。
 
-### 4.4 Follow-up 与 Issue 的具体操作
-
-当你在 4.2 中更新契约并需要通知下游时，“在规格或 checklist 中留下待办”或“创建 follow-up 任务/issue”对应下列**具体操作**（任选其一或组合使用）：
-
-| 方式 | 位置 | 操作 | 作用 |
-|------|------|------|------|
-| **规格待办** | 下游模块规格 `docs/module-specs/NNN-modulename.md` | 增加 **待办 / TODO** 条文，如：`- **待办**：需随 \`008-rhi\` 契约变更做适配（契约变更日期：YYYY-MM-DD；变更摘要：…）。` | 负责该模块的 Agent 打开规格即可看到需适配的契约。 |
-| **Checklist 项** | 该模块对应 feature 的 checklist（如 `specs/<feature>/checklists/requirements.md`） | 增加未勾选项，如：`- [ ] 适配 008-rhi 契约变更（见 \`specs/_contracts/008-rhi-public-api.md\` 变更记录）。` | 以 checklist 形式跟踪，便于逐项完成。 |
-| **tasks.md 任务** | 该模块对应 feature 的 `tasks.md` | 按既有格式追加，如：`- [ ] T0XX Adapter 009-RenderCore to 008-rhi contract changes (see \`specs/_contracts/008-rhi-public-api.md\`)` | 任务可被 speckit 流程消费；配合 `speckit.taskstoissues` 可转为 GitHub Issue。 |
-| **GitHub Issue** | 本仓库对应的 GitHub（`git config --get remote.origin.url`） | 在 GitHub 新建 Issue：标题如 `Adapter 009-RenderCore to 008-rhi contract change`；描述中附契约链接、变更摘要、需适配模块。 | 可分配、讨论、关联 PR，适合多人/多 Agent 协作。 |
-
-**选用建议**：轻量变更可仅用**规格待办**；有 feature checklist 时可加 **Checklist 项** 或 **tasks.md 任务**；需分配、追踪或跨团队协作时用 **GitHub Issue**。
-
-### 4.5 接口如何确定（契约 + ABI 文件 → 真实 API）
+### 4.4 接口如何确定（契约 + ABI 文件 → 真实 API）
 
 契约描述**能力列表**与**类型/句柄**（如 IDevice、ICommandList、分配器、数学类型等）及**调用顺序与约束**；**ABI 文件**（`NNN-modulename-ABI.md`）列出**命名空间、头文件、符号**，为下游 include 与 link 的唯一依据。真实 API 在模块头文件中实现；真实 API 变更时需同步更新契约与 ABI 文件。
 
@@ -99,28 +85,28 @@ git pull origin T0-contracts
 
 下游以 **ABI 文件** 为准确定命名空间与头文件；上游已实现时直接 include 真实头文件并按 ABI 符号调用。
 
-### 4.6 Agent 何时、如何发现依赖接口变化
+### 4.5 Agent 何时、如何发现依赖接口变化
 
 | 时机 | 操作 | 说明 |
 |------|------|------|
-| **开始工作前** | `git pull origin T0-contracts`，阅读本模块依赖的契约及**变更记录** | 确保本地契约最新；若有变更，根据变更记录判断是否影响本模块。 |
+| **开始工作前** | `git pull origin T0-contracts`，阅读本模块依赖的契约及**变更记录** | 确保本地契约最新；若有变更，根据变更记录与上游 ABI 判断是否影响本模块。 |
 | **每个 task / 每次会话开始前** | 再次 `git pull origin T0-contracts`（可选但推荐） | 若任务执行较长时间，上游可能已更新契约；任务开始前拉取可减少“做到一半才发现接口变了”的情况。 |
-| **收到 follow-up 时** | 先拉 T0-contracts，再打开该契约的**变更记录**，做适配 | 规格待办、checklist、GitHub Issue 中若写明「需随 XXX 契约变更做适配」，执行前**必须先**拉取最新契约，阅读该契约的变更说明，再实现适配。 |
 
-**总结**：Agent **不会自动**发现“拉取之后”发生的契约变更；依赖**拉取时机**（工作前、任务前）与 **follow-up 通知**（规格待办、issue）来获知变化。因此务必**按任务粒度或会话开始时拉取 T0-contracts**，并在处理跟进任务时**先拉再适配**。
+**总结**：Agent **不会自动**发现“拉取之后”发生的契约变更；依赖**拉取时机**（工作前、任务前）与**契约/ABI 变更记录**获知变化。**Follow-up 与 Issue 的具体操作已废弃**，不再通过规格待办、checklist 或 GitHub Issue 通知下游。务必**按任务粒度或会话开始时拉取 T0-contracts**，并查阅上游契约与 ABI 的变更说明后做适配。
 
 ---
 
 ## 5. 契约文件怎么写
 
 - **文件名**：统一为 `NNN-modulename-public-api.md`（如 `001-core-public-api.md`、`008-rhi-public-api.md`）；边界契约为 `pipeline-to-rci.md`。
+- **ABI 先行**：模块对外接口的**权威来源**是 **ABI 文件**（`NNN-modulename-ABI.md`）。契约更新时**必须**在 ABI 文件中更新**完整 ABI 条目**（表行含符号与说明/完整函数签名）；若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目，待实现时转为正式行。
 - **建议结构**（可随需要增删）：
   - **适用模块**：本契约由哪一模块（如 001-Core）实现并负责。
   - **消费者**：哪些模块依赖本契约（与 `000-module-dependency-map.md` 一致）。
   - **版本/ABI**：当前契约对应的版本或 ABI 承诺。
   - **类型与句柄**：跨边界使用的关键类型、句柄、枚举（名称、语义、生命周期）。
   - **接口/能力列表**：提供方保证提供的能力；用自然语言或**伪代码**简述意图（如 `Allocator.Alloc(size, alignment) → ptr or null`）。
-  - **ABI 引用**：契约引用本模块对应的 `NNN-modulename-ABI.md`；接口符号（命名空间、头文件、符号）以 ABI 文件为准。真实 API 变更时需同步更新契约与 ABI 文件。
+  - **ABI 引用**：契约引用本模块对应的 `NNN-modulename-ABI.md`；**接口符号与签名以 ABI 文件为准**。真实 API 或契约变更时**须同步在 ABI 文件中更新完整 ABI 条目**，不得仅改 public-api。
   - **调用顺序与约束**：如“必须先初始化再创建资源”“命令缓冲在帧末提交”。
   - **变更记录**：重要变更的日期与简要说明。
 
@@ -145,8 +131,8 @@ git pull origin T0-contracts
 - **T0-contracts** 是 T0 架构下契约的**唯一权威发布源**；各 **T0-NNN-modulename** 分支工作前**必须**从此分支拉取最新契约（`git pull origin T0-contracts`）。
 - 接口的**单一事实来源**在 `specs/_contracts/`（**仅以 T0-contracts 分支上的内容为准**）。
 - 每个 Agent：**工作前**从 **T0-contracts** 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 **T0-contracts** 上更新），**改接口时**更新契约并通知下游。
-- **接口如何确定**：契约（能力与类型）+ **ABI 文件**（命名空间、头文件、符号）→ **真实 API**（头文件）；详见 **4.5**。下游以 ABI 文件为准。
-- **Agent 何时发现依赖接口变化**：工作前、**每个 task 开始前**拉取 T0-contracts；收到 follow-up 时先拉再适配。详见 **4.6**。
+- **接口如何确定**：契约（能力与类型）+ **ABI 文件**（命名空间、头文件、符号、完整签名）→ **真实 API**（头文件）；详见 **4.4**。下游以 ABI 文件为准。**契约更新时须在 ABI 文件中更新完整 ABI 条目**；下游所需接口须在上游 ABI 中以 TODO 登记。
+- **Agent 何时发现依赖接口变化**：工作前、**每个 task 开始前**拉取 T0-contracts，并查阅契约/ABI 变更记录后做适配。**Follow-up 与 Issue 的具体操作已废弃**。详见 **4.5**。
 - 依赖图 `000-module-dependency-map.md` 与 `docs/engine-modules-and-architecture.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”。
 
 **旧版说明**：原 `contracts` 分支与 001–006 旧 spec 对应；现以 **T0-contracts** 与 **T0-001-core … T0-027-xr** 为最新架构，旧分支与旧 spec 已弃用。

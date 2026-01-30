@@ -13,11 +13,17 @@
 | **C++ 版本** | 以 C++14 或 C++17 为目标（指南允许项目选择）；TenEngine 建议 **C++17**。 |
 | **头文件** | 自包含、#include guard；仅暴露必要类型与函数；实现细节不进入公开头文件。 |
 | **可见性** | 仅契约声明的类型与函数放入公开头文件；内部实现不进入 ABI。 |
-| **错误处理** | 优先通过返回值表示错误（如 `bool`、`Status`、`optional`）；不用异常跨模块边界。 |
+| **错误处理** | 优先通过返回值表示错误（如 `bool`、`Status`、`optional`）；不用异常跨模块边界。**容易错误的地方不要使用异常捕获**（如渲染路径、资源加载、RHI 调用等），改用返回值或统一 **CheckWarning() / CheckError()** 宏进行校验。 |
 | **命名** | 见 §2，与 Google 命名规范一致。 |
 | **注释** | 见 §3，与 Google 注释规范一致。 |
 
 *详细规则（禁止的语言特性、继承与虚函数、智能指针等）以官方文档为准；生成 ABI 条目时以本节及 §2、§3 为准即可。*
+
+---
+
+## 1.1 统一 Check 宏与编译选项（项目约定）
+
+**容易错误的地方不要使用异常捕获**；可通过统一的 **CheckWarning()**、**CheckError()** 宏进行校验（如参数合法性、句柄非空、返回值检查）。**可通过编译选项设置启用的 Check**（如 `TENENGINE_CHECK_WARNING`、`TENENGINE_CHECK_ERROR`，或统一 `TENENGINE_CHECK_LEVEL` 为 0/1/2 控制关闭/Warning/Error）；发布构建可关闭或仅保留 Error，开发/调试构建可开启 Warning 与 Error。宏语义由 001-Core 或公共头文件提供；ABI 表见 001-core-ABI。
 
 ---
 
@@ -41,6 +47,8 @@
 *与 ABI 表对应*：符号列中自由函数写 `createDevice`；静态方法写 `TypeRegistry::registerType`；类型名写 `IDevice`、`LogLevel`；枚举值写 `LogLevel::Debug`。
 
 **项目例外**：① 命名空间以引擎全名 **TenEngine** 为根（如 `TenEngine::core`、`TenEngine::rhi`）；② 函数/方法采用**驼峰**（如 `createDevice()`、`getQueue()`）；③ 成员变量采用 m 前缀驼峰（如 `mDeviceHandle`）；④ 文件命名采用大写开头驼峰（如 `Alloc.h`）。以上与 Google 原规范不同，以本项目约定为准。
+
+**平台与后端代码路径**：引擎支持 **Android、iOS** 等平台；RHI 支持 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等接口（及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口）。**可以通过宏来判断执行哪一段代码**：平台相关代码使用平台宏（如 `TE_PLATFORM_ANDROID`、`TE_PLATFORM_IOS`、`TE_PLATFORM_WIN`）；图形后端相关代码使用后端宏（如 `TE_RHI_VULKAN`、`TE_RHI_METAL`、`TE_RHI_D3D12`），编译时选择对应实现路径。
 
 ---
 

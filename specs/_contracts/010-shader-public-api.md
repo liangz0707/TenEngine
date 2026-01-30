@@ -22,7 +22,8 @@
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
 | ShaderHandle | 着色器或 Shader 模块句柄；用于 PSO 创建与绑定 | 创建后直至显式释放 |
-| VariantKey | 变体键（关键字/宏组合）；变体枚举与预编译 | 由调用方管理 |
+| ShaderSourceFormat | 源码格式枚举；HLSL、GLSL；按扩展名或显式指定 | 编译时 |
+| VariantKey / MacroSet | 变体键（关键字/宏组合）；变体枚举与预编译；运行时可动态切换 | 由调用方管理 |
 | Bytecode | 编译产物（SPIR-V/DXIL/MSL）；提交给 RHI 创建 PSO/ShaderModule | 由调用方或缓存管理 |
 | Reflection（可选） | 反射信息；Uniform 布局、槽位、与 RenderCore 对接 | 与 Shader 或缓存绑定 |
 
@@ -30,10 +31,11 @@
 
 ## 能力列表（提供方保证）
 
-1. **Compilation**：Compile、GetBytecode、TargetBackend、ErrorReport；多后端编译与错误报告。
-2. **Variants**：DefineKeyword、GetVariantKey、EnumerateVariants、Precompile；变体管理与预编译。
-3. **Cache**：LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选）。
-4. **Graph（可选）**：NodeGraph、ExportSource/IR；与 Material 联动，导出 Shader 或中间表示。
+1. **Source & Compilation**：支持 **HLSL**、**GLSL** 两种源码格式加载；Compile、GetBytecode、TargetBackend、ErrorReport；多后端编译与错误报告。
+2. **Macros & Variants**：支持**宏**切换代码路径；DefineKeyword、SetMacros、GetVariantKey、EnumerateVariants、Precompile；**游戏中可动态切换宏**（SetMacros/SelectVariant），按新宏组合选择或编译变体并生效。
+3. **Cache**：LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选）；热重载时按需失效。
+4. **Hot Reload（可选）**：**实时更新 Shader**；ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游（Material/Pipeline），无需重启应用。
+5. **Graph（可选）**：NodeGraph、ExportSource/IR；与 Material 联动，导出 Shader 或中间表示。
 
 ## 调用顺序与约束
 

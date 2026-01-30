@@ -9,6 +9,12 @@
 
 [Extract from feature spec: primary requirement + technical approach from research]
 
+## 实现范围（TenEngine：仅实现 ABI 内容）
+
+> **规约**：本 feature **只实现 ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。对外接口以 ABI 文件为准。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
+
+[若本 feature 对应某模块，在此列出本切片要实现的 ABI 符号或引用 ABI 文件中的表行。]
+
 ## Technical Context
 
 <!--
