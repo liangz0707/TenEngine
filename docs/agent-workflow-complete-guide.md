@@ -35,19 +35,11 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 |------|------|------|--------|
 | **Constitution** | `.specify/memory/constitution.md` | 含：模块边界以 specs/_contracts 契约为准、多 Agent 从 T0-contracts 拉取契约、实现只使用契约中声明的类型与接口 | 见步骤 0.1 |
 | **模块规约** | `docs/module-specs/NNN-modulename.md` | 完整模块说明、功能、子模块、上下游；NNN-modulename 由 worktree 名推断 | 按 `docs/module-specs/README.md` 编写 |
-| **契约结构** | `specs/_contracts/NNN-modulename-public-api.md` | 至少含：适用模块、消费者、版本/ABI、能力列表、类型与句柄、调用顺序与约束、变更记录；**「API 雏形」**可先为空 | 见步骤 0.0 |
+| **契约结构** | `specs/_contracts/NNN-modulename-public-api.md` | 至少含：适用模块、消费者、版本/ABI、能力列表、类型与句柄、调用顺序与约束、变更记录；接口符号以对应 ABI 文件为准 | 见步骤 0.0 |
 | **依赖图** | `specs/_contracts/000-module-dependency-map.md` | T0 模块依赖表 | 当前仓库已有 |
 | **分支与 worktree** | 主仓库 + worktree | 主仓库有 T0-contracts 并已推送；**TenEngine-NNN-modulename** worktree 已创建并对应 **T0-NNN-modulename** | 需人工或脚本创建 |
 
-**API 雏形模板**（契约中若无，可先手写或由步骤 0.0 补充）：
-
-```markdown
-## API 雏形（简化声明）
-
-（由 plan 产出后写回，或先手写最小声明如 Alloc/Free、Log。）
-```
-
-保存后在主仓库 **T0-contracts** 上提交并推送。
+**契约与 ABI**：契约描述能力与类型；**接口须在 ABI 文件中以完整条目更新**。接口符号与签名写入对应 `NNN-modulename-ABI.md`（见 `specs/_contracts/000-module-ABI.md` 总索引）；若下游需要某接口而上游尚未实现，须在**上游 ABI 文件**中增加 **TODO** 条目。plan 产出后**先在 ABI 中更新完整表行**再同步契约，在主仓库 **T0-contracts** 上提交并推送。
 
 ---
 
@@ -61,7 +53,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 ### 2.0 写回契约（步骤 4 必做）
 
-**目的**：plan 生成的对外接口**必须**进入契约，下游与 tasks/implement 都以契约为准。
+**目的**：plan 生成的对外接口**必须**进入契约与 **ABI 文件**（完整 ABI 条目），下游与 tasks/implement 都以契约为准；接口符号与签名的权威来源是 ABI 文件。
 
 **何时**：**/speckit.plan 完成后、/speckit.tasks 之前**。
 
@@ -71,18 +63,21 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
    - 打开 `specs/<feature>/plan.md`（及同目录 plan 生成的 `contracts/`、data-model.md 等）。  
    - 提取本模块**对外**暴露的接口：函数签名、类型名、枚举等；若 plan 已产出「契约更新」清单，直接使用。
 
-2. **在主仓库 T0-contracts 上更新契约**  
+2. **在主仓库 T0-contracts 上更新契约与 ABI（ABI 须完整条目）**  
    - 主仓库 `git checkout T0-contracts`，`git pull origin T0-contracts`。  
-   - 编辑 `specs/_contracts/NNN-modulename-public-api.md`（如 001-core-public-api.md）：在「能力列表」后补充或更新 **「API 雏形」**，将 plan 产出的接口以简化声明写入；在「变更记录」加一行（如「API 雏形：由 plan（feature NNN-modulename-[feature]）同步」）。  
+   - **先在 ABI 文件中更新完整 ABI 条目**：编辑 `specs/_contracts/NNN-modulename-ABI.md`，按 plan 产出增加或修改**完整 ABI 表行**（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）；不得仅写占位或只改 public-api。  
+   - 再编辑 `specs/_contracts/NNN-modulename-public-api.md`：按 plan 产出更新能力/类型与变更记录。  
    - `git add`、`git commit -m "contract(NNN-modulename): sync API sketch from plan NNN-modulename-[feature]"`、`git push origin T0-contracts`。
 
 3. **在 worktree 拉取更新后的契约**  
-   - 在当前 worktree（当前 feature 分支）：`git fetch origin T0-contracts`，`git merge origin/T0-contracts`。确认契约已含刚写回的 API 雏形。
+   - 在当前 worktree（当前 feature 分支）：`git fetch origin T0-contracts`，`git merge origin/T0-contracts`。确认契约与 ABI 已更新。
 
 4. **再跑 /speckit.tasks**  
-   - 此后 tasks 与 implement 以**已更新契约**为准。
+   - 此后 tasks 与 implement 以**已更新契约与 ABI**为准。
 
-**Prompt 约定**：调用 /speckit.plan 时在 prompt 末尾加：**「Plan 结束时请产出一份「契约更新」：列出本 feature 对外暴露的函数签名与类型，格式可直接用于写入 specs/_contracts/NNN-*-public-api.md 的 API 雏形小节。」**
+**下游所需接口**：若下游模块需要某接口而本模块尚未实现，须在本模块的 **ABI 文件**中增加该接口的 **TODO** 条目（说明列标明「TODO：下游 NNN-xxx 需要」及拟议签名），待实现时转为正式 ABI 行。见 `specs/_contracts/README.md`「契约更新流程」。
+
+**Prompt 约定**：调用 /speckit.plan 时在 prompt 末尾加：**「Plan 结束时请产出一份「契约更新」：列出本 feature 对外暴露的命名空间、头文件、符号与完整签名，可直接用于更新 specs/_contracts/NNN-modulename-ABI.md（完整 ABI 表行）与 NNN-*-public-api.md。」**
 
 ---
 
@@ -100,13 +95,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 当前在主仓库 G:\AIHUMAN\WorkSpaceSDD\TenEngine，请切换到 T0-contracts 分支并拉取最新。
 
 检查 specs/_contracts/ 下即将使用的模块对应契约（文件名形如 NNN-modulename-public-api.md；模块由 worktree 名 TenEngine-NNN-modulename 推断）：
-- 若某契约没有「API 雏形」或「API 雏形（简化声明）」小节，则在「能力列表」与「调用顺序与约束」之间插入：
-
-  ## API 雏形（简化声明）
-
-  （由 plan 产出后写回，或先手写最小声明如 Alloc/Free、Log。）
-
-保存后提交并推送到 origin T0-contracts，提交信息英文，例如：contract(NNN-modulename): add empty API sketch section（可列出多个模块）。
+- 若某契约尚无对应 ABI 文件或 ABI 表为空，则按 `specs/_contracts/000-module-ABI.md` 格式在 `NNN-modulename-ABI.md` 中补全表头与完整 ABI 表行（或占位行）；契约引用该 ABI 文件。若下游模块需要某接口而上游尚未实现，在上游模块的 ABI 文件中增加该接口的 TODO 行。保存后提交并推送到 origin T0-contracts，提交信息英文，例如：contract(NNN-modulename): add ABI placeholder。
 ```
 
 #### 步骤 0.1：Constitution（若尚未含 T0 契约策略）
@@ -132,7 +121,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 若有冲突，对 specs/_contracts/ 和 docs 下的文件采纳 origin/T0-contracts 的版本。执行后简要确认对应 specs/_contracts/NNN-modulename-public-api.md 已存在（NNN-modulename 从 worktree 名推断）。
 
-若本模块有上游依赖：阅读 specs/_contracts/000-module-dependency-map.md 与 docs/module-specs/NNN-modulename.md 的 Dependencies，确定上游模块；阅读各上游的 specs/_contracts/*-public-api.md（能力列表、类型与句柄、API 雏形），确认本模块实现只使用其中已声明的类型与接口。
+若本模块有上游依赖：阅读 specs/_contracts/000-module-dependency-map.md 与 docs/module-specs/NNN-modulename.md 的 Dependencies，确定上游模块；阅读各上游的 specs/_contracts/*-public-api.md 与对应 *-ABI.md（能力列表、类型与句柄、命名空间与符号），确认本模块实现只使用其中已声明的类型与接口。
 ```
 
 #### 步骤 1：创建 feature 与 spec
@@ -165,7 +154,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；仅暴露/使用契约已声明的类型与 API；本切片实现 **<本切片范围>**。计划结束时产出一份「契约更新」：本 feature 对外暴露的函数签名与类型，格式可直接粘贴到上述契约的「API 雏形」小节；写在 plan.md 末尾或单独一节。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；仅暴露/使用契约已声明的类型与 API；本切片实现 **<本切片范围>**。计划结束时产出一份「契约更新」：本 feature 对外暴露的命名空间、头文件、符号与签名，可直接用于更新契约与对应 NNN-modulename-ABI.md；写在 plan.md 末尾或单独一节。
 ```
 
 #### 步骤 4：写回契约（必须）
@@ -173,7 +162,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename 及 feature 名（如 NNN-modulename-[feature]）。按本文档「2.0 写回契约」执行：1) 从 specs/NNN-modulename-[feature]/plan.md（及同目录 plan 产物）提取对外接口；若有「契约更新」清单则直接用。2) 在主仓库 G:\AIHUMAN\WorkSpaceSDD\TenEngine 的 T0-contracts 分支上编辑 specs/_contracts/NNN-modulename-public-api.md，更新「API 雏形」与变更记录，提交并推送，提交信息如 contract(NNN-modulename): sync API sketch from plan NNN-modulename-[feature]。3) 回到当前 worktree，git fetch origin T0-contracts，git merge origin/T0-contracts。4) 确认契约已更新后再继续 /speckit.tasks。
+请从当前 worktree 推断 NNN-modulename 及 feature 名（如 NNN-modulename-[feature]）。按本文档「2.0 写回契约」执行：1) 从 specs/NNN-modulename-[feature]/plan.md（及同目录 plan 产物）提取对外接口；若有「契约更新」清单则直接用。2) 在主仓库 G:\AIHUMAN\WorkSpaceSDD\TenEngine 的 T0-contracts 分支上**先在** specs/_contracts/NNN-modulename-ABI.md **中更新完整 ABI 表行**，再编辑 NNN-modulename-public-api.md 更新能力/类型与变更记录，提交并推送，提交信息如 contract(NNN-modulename): sync from plan NNN-modulename-[feature]。3) 回到当前 worktree，git fetch origin T0-contracts，git merge origin/T0-contracts。4) 确认契约已更新后再继续 /speckit.tasks。
 ```
 
 #### 步骤 5：生成任务列表
@@ -212,7 +201,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 ### 2.2 功能迭代流程
 
-**适用**：同模块**后续** feature 迭代；本模块契约（含 API 雏形）与已有实现已存在，在既有基础上**新增** `<本切片范围>`。0.0、0.1 可省略；0.2 必须（拉取契约，含上游/契约变更）；步骤 1～8 同通用模块流程，但提示词强调「功能迭代」「在既有契约与实现基础上扩展」。
+**适用**：同模块**后续** feature 迭代；本模块契约与 ABI 及已有实现已存在，在既有基础上**新增** `<本切片范围>`。0.0、0.1 可省略；0.2 必须（拉取契约，含上游/契约变更）；步骤 1～8 同通用模块流程，但提示词强调「功能迭代」「在既有契约与实现基础上扩展」。
 
 #### 步骤 0.2：worktree 拉取契约（必须）
 
@@ -251,7 +240,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；本迭代实现 **<本切片范围>**，在既有 API 基础上**扩展**；仅暴露/使用契约已声明或本次拟新增的类型与 API。计划结束时产出一份「契约更新」：本迭代新增或变更的对外接口，格式可写入契约「API 雏形」；写在 plan.md 末尾或单独一节。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；本迭代实现 **<本切片范围>**，在既有 API 基础上**扩展**；仅暴露/使用契约已声明或本次拟新增的类型与 API。计划结束时产出一份「契约更新」：本迭代新增或变更的对外接口（命名空间、头文件、符号），可直接用于更新契约与 ABI 文件；写在 plan.md 末尾或单独一节。
 ```
 
 #### 步骤 4：写回契约（必须）
@@ -259,7 +248,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename 及 feature 名（如 NNN-modulename-[feature]）。按本文档「2.0 写回契约」：1) 从 specs/NNN-modulename-[feature]/plan.md 及 plan 产物提取本迭代**新增/变更**的对外接口；若有「契约更新」清单则直接用。2) 在主仓库 G:\AIHUMAN\WorkSpaceSDD\TenEngine 的 T0-contracts 分支上编辑 specs/_contracts/NNN-modulename-public-api.md，**增补**「API 雏形」与变更记录，提交并推送，提交信息如 contract(NNN-modulename): sync API sketch from plan NNN-modulename-[feature]。3) 回到当前 worktree，git fetch origin T0-contracts，git merge origin/T0-contracts。4) 确认契约已更新后再继续 /speckit.tasks。
+请从当前 worktree 推断 NNN-modulename 及 feature 名（如 NNN-modulename-[feature]）。按本文档「2.0 写回契约」：1) 从 specs/NNN-modulename-[feature]/plan.md 及 plan 产物提取本迭代**新增/变更**的对外接口；若有「契约更新」清单则直接用。2) 在主仓库 G:\AIHUMAN\WorkSpaceSDD\TenEngine 的 T0-contracts 分支上**先在** specs/_contracts/NNN-modulename-ABI.md **中增补/更新完整 ABI 表行**，再编辑 NNN-modulename-public-api.md **增补**能力/类型与变更记录，提交并推送，提交信息如 contract(NNN-modulename): sync from plan NNN-modulename-[feature]。3) 回到当前 worktree，git fetch origin T0-contracts，git merge origin/T0-contracts。4) 确认契约已更新后再继续 /speckit.tasks。
 ```
 
 #### 步骤 5～8
@@ -282,10 +271,10 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 - [ ] `.specify/memory/constitution.md` 存在，且含「契约以 T0-contracts 为准」「实现只使用契约中声明的类型与接口」等表述（或执行步骤 0.1 补充）。
 - [ ] `docs/module-specs/NNN-modulename.md`、`specs/_contracts/NNN-modulename-public-api.md` 存在且完整（**NNN-modulename** 由当前 worktree 名 `TenEngine-NNN-modulename` 推断，如 001-core、002-object）。
-- [ ] 契约至少包含：适用模块、消费者、版本/ABI、能力列表、类型与句柄、调用顺序与约束、变更记录；并含有「API 雏形」小节（可先为空，或由步骤 0.0 补充）。
+- [ ] 契约至少包含：适用模块、消费者、版本/ABI、能力列表、类型与句柄、调用顺序与约束、变更记录；对应 ABI 文件存在且契约引用该 ABI（可先占位，或由步骤 0.0 补充）。
 - [ ] `specs/_contracts/000-module-dependency-map.md` 存在且为 T0 依赖表。
 - [ ] 主仓库已存在 **T0-contracts** 分支且已推送；当前使用的 **TenEngine-NNN-modulename** worktree 已创建并对应 **T0-NNN-modulename** 分支。
-- [ ] 当前 worktree 已执行 `git fetch origin T0-contracts` + `git merge origin/T0-contracts`；若有上游依赖，上游契约已含所需 **API 雏形**。
+- [ ] 当前 worktree 已执行 `git fetch origin T0-contracts` + `git merge origin/T0-contracts`；若有上游依赖，上游契约与 ABI 已含所需类型与符号。
 - [ ] Spec Kit 在 **feature 分支**（`NNN-modulename-[feature]`）上运行，plan/tasks/implement 使用 `specs/NNN-modulename-[feature]/`；plan 的 prompt 中写明**仅使用契约中已声明的类型与接口**。
 - [ ] 实现完成后将 feature 分支 **合并回 T0-NNN-modulename** 并推送；**修改对外 API 时**：先在 T0-contracts 更新契约并推送，再改代码或通知下游。
 
@@ -301,11 +290,11 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 |------|------|------|
 | 0 | 主仓库 | /speckit.constitution（一次性）；worktree 拉取 T0-contracts |
 | 规约来源 | — | **直接使用** `docs/module-specs/NNN-*.md` 与契约；spec.md 只写本切片并引用 |
-| 1 契约 | 主仓库 T0-contracts | 编辑 NNN-modulename-public-api 增加 API 雏形（可选），推送 |
+| 1 契约与 ABI | 主仓库 T0-contracts | 编辑 NNN-modulename-public-api 与对应 ABI 文件（可选），推送 |
 | 1 Spec Kit | TenEngine-NNN-modulename | feature + spec → clarify → plan → **写回契约（2.0）** → tasks → [analyze] → implement；合并到 T0-NNN-modulename，推送 |
 | 2+ | 按需 | 契约变更时在 T0-contracts 更新，下游拉取并适配 |
 
-**契约变更时的同步**：若某模块**修改了对外 API**，在 **T0-contracts** 更新对应 `NNN-modulename-public-api.md`（能力列表 / API 雏形 / 变更记录）并推送；在 `000-module-dependency-map.md` 确认下游；若有破坏性变更，在下游规格或 checklist 增加待办（见 `docs/agent-interface-sync.md` §4.4）。下游 worktree 拉取 T0-contracts 后根据契约变更做适配。
+**契约变更时的同步**：若某模块**修改了对外 API**，在 **T0-contracts** 上**须先在** `NNN-modulename-ABI.md` **中更新完整 ABI 条目**（表行含符号与完整函数签名），再更新 `NNN-modulename-public-api.md`（能力列表 / 类型与句柄 / 变更记录）并推送；若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目。在 `000-module-dependency-map.md` 确认下游。下游通过拉取 T0-contracts 与契约/ABI 变更记录获知变化（**Follow-up 与 Issue 的具体操作已废弃**，见 `docs/agent-interface-sync.md`）。
 
 ---
 

@@ -4,6 +4,15 @@
 
 ---
 
+## 〇、强制规则（不可违反）
+
+- **依赖子模块不存在时须直接报错**：若本模块依赖的**子模块**（上游 worktree 或 `TENENGINE_xxx_DIR` 指向的目录）**不存在**或无法解析，构建**必须直接报错**（例如 CMake 在 `tenengine_resolve_my_dependencies` 或 `add_subdirectory` 阶段报错并退出），**不得**静默跳过或继续构建。
+- **禁止创建占位符**：**禁止**为缺失的子模块创建占位符、stub、mock 或空目录/空目标以“通过构建”。缺失依赖只能通过**引入真实子模块源码**（克隆/拉取对应 worktree 或设置正确的 `TENENGINE_xxx_DIR`）解决。
+
+以上与 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI 及 `docs/engine-build-module-convention.md` 一致。
+
+---
+
 ## 一、通用前置条件
 
 | 项目 | 说明 |
@@ -33,17 +42,19 @@
 ```
 当前在 TenEngine-<NNN-modulename>（<NNN-modulename> 模块）根目录。请按以下要求配置 CMake，使「自动测试」时自动引入依赖库，并生成可用的工程。
 
-1) 阅读文档：docs/engine-build-module-convention.md、docs/agent-build-guide.md。构建脚本在**每个分支的 cmake/** 中；本模块构建时从**同级上游**的 cmake 引用，路径为：${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-<上游模块目录名>/cmake（无上游则用本目录 cmake）。
+1) 阅读文档：docs/engine-build-module-convention.md、docs/agent-build-guide.md（含「〇、强制规则」）。构建脚本在**每个分支的 cmake/** 中；本模块构建时从**同级上游**的 cmake 引用，路径为：${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-<上游模块目录名>/cmake（无上游则用本目录 cmake）。
 
-2) 在本模块根目录创建或修改 CMakeLists.txt，要求：
+2) **依赖子模块不存在时**：若某依赖的上游子模块目录不存在或无法解析，CMake 配置**必须直接报错并退出**；**禁止**创建占位符、stub 或空目标以绕过缺失依赖。
+
+3) 在本模块根目录创建或修改 CMakeLists.txt，要求：
    - 使用 cmake_minimum_required(VERSION 3.16)、project(TenEngine-<NNN-modulename> LANGUAGES CXX)、set(CMAKE_CXX_STANDARD 17)。
    - 设置 TENENGINE_CMAKE_DIR 并 include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)。
    - 调用 tenengine_resolve_my_dependencies("<NNN-modulename>" OUT_DEPS MY_DEPS)。
    - 声明本模块库：add_library(<te_模块名> STATIC ...)，target_include_directories(...)，target_link_libraries(<本模块> PRIVATE ${MY_DEPS})。
    - 使用 tenengine_add_module_test(NAME <测试名> MODULE_TARGET <本模块 target> SOURCES tests/<测试源文件> ENABLE_CTEST)。不要对测试可执行文件再写 target_link_libraries 依赖上游；只 link 本模块。
-   - 若测试源文件不存在，则创建最小可编译占位。
+   - 若测试源文件不存在，则创建最小可编译占位（**仅限测试源文件**；依赖的子模块缺失时仍须报错，不得占位）。
 
-3) 确认：测试可执行文件只 link 本模块 target，依赖通过本模块的 target_link_libraries 自动传递。
+4) 确认：测试可执行文件只 link 本模块 target，依赖通过本模块的 target_link_libraries 自动传递。
 
 请直接生成或修改 CMakeLists.txt 和（若需要）测试源文件，并简要说明配置后如何执行 cmake -B build 与 cmake --build build 以验证。
 ```

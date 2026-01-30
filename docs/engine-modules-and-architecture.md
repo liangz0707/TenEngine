@@ -98,7 +98,7 @@
 | 编号 | 模块名 | 功能（覆盖 UE/Unity） | 直接依赖 |
 |------|--------|------------------------|----------|
 | 019 | **PipelineCore** | 命令缓冲格式、Pass 图协议（RDG 风格）、与 RHI 提交约定（RDG 协议 / SRP Core 管线协议） | RHI, RenderCore |
-| 020 | **Pipeline** | 场景收集、剔除、DrawCall、命令缓冲生成、提交（Renderer / URP, HDRP） | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource |
+| 020 | **Pipeline** | 场景收集、剔除、DrawCall、命令缓冲生成、提交（Renderer / URP, HDRP） | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource, Effects；Animation（可选） |
 | 021 | **Effects** | 后处理、粒子/VFX、光照后处理（PostProcess, Niagara 部分 / Post Processing, VFX Graph） | PipelineCore, RenderCore, Shader |
 | 022 | **2D** | 精灵、Tilemap、2D 物理、2D 渲染（Paper2D / 2D Sprite, Tilemap） | Core, Resource, Physics, Pipeline, RenderCore |
 | 023 | **Terrain** | 地形数据、LOD、绘制/刷（Landscape / Terrain, Terrain Tools） | Core, Resource, Mesh, Pipeline, RenderCore |
@@ -139,7 +139,7 @@
 | 017-UICore | Core, Application, Input |
 | 018-UI | UICore |
 | 019-PipelineCore | RHI, RenderCore |
-| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource |
+| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource, Effects；Animation（可选） |
 | 021-Effects | PipelineCore, RenderCore, Shader |
 | 022-2D | Core, Resource, Physics, Pipeline, RenderCore |
 | 023-Terrain | Core, Resource, Mesh, Pipeline, RenderCore |
@@ -281,6 +281,7 @@ flowchart LR
   Pi --> Mt
   Pi --> Mh
   Pi --> Res
+  Pi --> Ef
   Ef --> PC
   Ef --> RC
   Ef --> Sh
@@ -398,6 +399,7 @@ flowchart TB
   Pi --> Mt
   Pi --> Mh
   Pi --> Res
+  Pi --> Ef
   Ef --> PC
   Ef --> RC
   Ef --> Sh
@@ -502,7 +504,7 @@ flowchart LR
 017-UICore       001-Core 003-Application 006-Input
 018-UI           017-UICore
 019-PipelineCore 008-RHI 009-RenderCore
-020-Pipeline     001-Core 004-Scene 005-Entity 019-PipelineCore 009-RenderCore 010-Shader 011-Material 012-Mesh 013-Resource
+020-Pipeline     001-Core 004-Scene 005-Entity 019-PipelineCore 009-RenderCore 010-Shader 011-Material 012-Mesh 013-Resource 021-Effects（015-Animation 可选）
 021-Effects      019-PipelineCore 009-RenderCore 010-Shader
 022-2D           001-Core 013-Resource 014-Physics 020-Pipeline 009-RenderCore
 023-Terrain      001-Core 013-Resource 012-Mesh 020-Pipeline 009-RenderCore
