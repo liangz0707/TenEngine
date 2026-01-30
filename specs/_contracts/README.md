@@ -17,7 +17,7 @@
 **本目录内容以 T0-contracts 分支为准**；主分支上的 `_contracts/` 仅作配置或镜像，不作为契约来源。
 
 - **依赖关系总览**：[000-module-dependency-map.md](./000-module-dependency-map.md)（27 模块依赖表与上下游）。
-- **完整依赖图（Mermaid、矩阵、边列表）**：**T0-contracts** 分支下的 **`docs/dependency-graph-full.md`**。
+- **完整依赖图（Mermaid、矩阵、边列表）**：**T0-contracts** 分支下的 **`docs/engine-modules-and-architecture.md`** §4。
 - **模块详细规格**：**T0-contracts** 或各 T0-NNN-modulename 分支下的 **`docs/module-specs/`**（001-core.md … 027-xr.md）；各 T0-NNN-modulename 分支仅含对应单模块描述 + 本目录 + 全局依赖图。
 
 ## 契约文件列表（T0 架构）

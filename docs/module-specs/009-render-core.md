@@ -58,7 +58,7 @@ flowchart LR
 ### 6.1 和上下游交互、传递的数据类型
 
 - **上游**：Core（内存、数学）、RHI（Buffer、Texture、PSO 句柄）。  
-- **下游**：Shader、Material、Mesh、PipelineCore、Pipeline、Effects、2D、Terrain。向下游提供：UniformLayout、VertexFormat、PassResourceDecl、UniformBufferHandle。
+- **下游**：Shader、Material、Mesh、PipelineCore、Pipeline、Effects、2D、Terrain。向下游提供：UniformLayout、VertexFormat、IndexFormat、TextureDesc、BufferDesc、PassResourceDecl、UniformBufferHandle。
 
 ### 6.2 上下游依赖图
 

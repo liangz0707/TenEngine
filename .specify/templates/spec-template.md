@@ -132,7 +132,7 @@
   多 Agent 协作时，跨模块接口以 specs/_contracts/ 为单一事实来源。
   - 若本特性**实现**某对外 API，填写「本模块实现的契约」并保持与对应契约文件一致。
   - 若本特性**依赖**其他模块的 API，在 Dependencies 中列出契约文件，实现时只使用契约中声明的类型与接口。
-  详见 docs/multi-agent-interface-sync.md
+  详见 docs/agent-interface-sync.md
 -->
 
 - **本模块实现的契约**（若有）: [例如 `specs/_contracts/001-core-public-api.md` 或 无]
