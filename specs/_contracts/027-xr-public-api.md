@@ -3,7 +3,7 @@
 ## 适用模块
 
 - **实现方**：**027-XR**（XR 会话、帧与提交；依赖 Core、Subsystems、Input、Pipeline）
-- **对应规格**：`docs/module-specs/` 下 027-xr.md（若存在）；否则以本契约与依赖表为准
+- **对应规格**：`docs/module-specs/027-xr.md`
 - **依赖**：001-Core、007-Subsystems、006-Input、020-Pipeline（见 `000-module-dependency-map.md`）
 
 ## 消费者（T0 下游）
