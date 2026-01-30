@@ -30,6 +30,8 @@
 | PassResourceDecl | Pass 输入/输出资源声明、与 PipelineCore RDG 对接 | 单次 Pass 图构建周期 |
 | UniformBufferHandle | Uniform 缓冲句柄；布局、更新、多帧环缓冲、与 RHI 绑定 | 创建后直至显式释放 |
 | TextureDesc / BufferDesc | 纹理/缓冲描述，与 RHI 资源创建桥接 | 由调用方管理 |
+| PassHandle | Pass 标识/句柄，用于 DeclareRead/DeclareWrite 声明所属 Pass | 单次 Pass 图构建周期或由 PipelineCore 管理 |
+| ResourceHandle | 资源句柄，用于声明 Pass 读/写资源 | 与资源生命周期一致或由调用方/PipelineCore 管理 |
 
 下游仅通过上述类型与句柄访问；不直接暴露 RHI 资源，由 RenderCore 与 RHI 桥接。
 
@@ -108,3 +110,4 @@
 |------|----------|
 | T0 新增 | 按 009-RenderCore 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/009-render-core.md 一致 |
 | 2026-01-29 | contract(009-rendercore): sync API sketch from plan 009-render-core-full |
+| 2026-01-29 | contract(009-rendercore): add PassHandle and ResourceHandle to types table |
