@@ -15,6 +15,7 @@
 |------|------|
 | [engine-modules-and-architecture.md](engine-modules-and-architecture.md) | 完整模块与基础架构（27 模块、依赖图）。 |
 | [engine-build-module-convention.md](engine-build-module-convention.md) | CMake 构建规约与目录约定。 |
+| [engine-abi-interface-generation-spec.md](engine-abi-interface-generation-spec.md) | ABI/接口生成规范：代码标准、命名规范、注释规范（§1–§3 由您提供）；用户故事派生接口按此规范写入 ABI。 |
 | [agent-contracts-and-specs-T0.md](agent-contracts-and-specs-T0.md) | T0 规约与契约快速索引。 |
 | [agent-interface-sync.md](agent-interface-sync.md) | 多 Agent 协作：接口同步策略与工作流。 |
 | [agent-workflow-complete-guide.md](agent-workflow-complete-guide.md) | AI 完整执行指南（Spec Kit 步骤与提示词）。 |
@@ -22,6 +23,7 @@
 | [agent-build-guide.md](agent-build-guide.md) | 子模块构建与自动测试：Agent 指南（通用说明与提示词）。 |
 | [module-specs/](module-specs/) | 各模块详细规格（001-core … 027-xr）。 |
 | [research/](research/) | 调研与对比类文档（Unity/Unreal 参考、历史提案等）。 |
+| **specs/user-stories/** | 用户故事（可交付端到端行为）；拆解到模块职责与 I/O，派生接口按 engine-abi-interface-generation-spec 写入 ABI。 |
 
 ---
 

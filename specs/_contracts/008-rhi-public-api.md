@@ -54,77 +54,10 @@
 
 - 渲染管线（020-Pipeline）按 PipelineCore（019）协议构建 Pass 图与命令缓冲，最终通过本契约的**提交接口**交给 RHI 执行；命令缓冲格式与资源状态约定见 `pipeline-to-rci.md`。
 
-## API 雏形（简化声明）
-
-### 本 feature（008-rhi-fullversion-001）产出
-
-#### 1. Device 与后端
-
-- 枚举 `Backend`: `Vulkan`, `D3D12`, `Metal`。
-- `void SelectBackend(Backend b);` — 设置默认后端；`CreateDevice()` 无参时使用。
-- `Backend GetSelectedBackend();`
-
-- `struct IDevice;` — 图形设备抽象；创建后直至 `DestroyDevice`，不暴露后端类型。
-- `IDevice* CreateDevice(Backend backend);` — 成功返回有效指针，失败 `nullptr`。不依赖窗口/上下文。
-- `IDevice* CreateDevice();` — 使用 `GetSelectedBackend()`。
-- `void DestroyDevice(IDevice* device);` — `nullptr` 为 no-op。
-
-#### 2. 队列
-
-- 枚举 `QueueType`: `Graphics`, `Compute`, `Copy`。
-- `struct IQueue;` — 队列句柄；由 `IDevice::GetQueue` 返回。
-- `IQueue* IDevice::GetQueue(QueueType type, uint32_t index);` — 无效或越界返回 `nullptr`。非拥有，生命周期与 `IDevice` 一致。
-
-#### 3. 特性查询
-
-- `struct DeviceFeatures` — 可读、可验证；至少 `maxTextureDimension2D`、`maxTextureDimension3D` 等，具体字段由实现定义。
-- `DeviceFeatures const& IDevice::GetFeatures() const;`
-
-#### 4. 命令列表
-
-- `struct ICommandList;` — 命令缓冲；单次录制周期内有效，由 IDevice 分配。
-- `ICommandList* IDevice::CreateCommandList();` — 失败返回 `nullptr`。调用方在 Submit 后不再使用，或按实现约定归还/复用。
-- `void IDevice::DestroyCommandList(ICommandList* cmd);` — `nullptr` 为 no-op。（若为池化复用，以实现为准。）
-
-- `void Begin(ICommandList* cmd);` / `void End(ICommandList* cmd);` — 录制开始/结束。
-- `void ICommandList::Draw(...);` / `void ICommandList::Dispatch(...);` / `void ICommandList::Copy(...);` — 具体签名见实现；语义与契约能力 2 一致。
-- `void ICommandList::ResourceBarrier(...);` — 资源屏障；参数见实现。
-- `void Submit(ICommandList* cmd, IQueue* queue);` — 将录制好的命令缓冲提交到队列执行。Pipeline 产出的抽象命令缓冲通过此接口或等价提交接口交给 RHI；格式见 `pipeline-to-rci.md`。
-
-#### 5. 资源与视图
-
-- `struct IBuffer;` / `struct ITexture;` / `struct ISampler;` — 创建后直至显式销毁。
-- `IBuffer* IDevice::CreateBuffer(BufferDesc const& desc);` — 失败返回 `nullptr`。描述符字段见实现。
-- `ITexture* IDevice::CreateTexture(TextureDesc const& desc);`
-- `ISampler* IDevice::CreateSampler(SamplerDesc const& desc);`
-- `ViewHandle IDevice::CreateView(ViewDesc const& desc);` — 资源视图句柄（SRV/UAV/RTV/DSV 等概念）；与资源生命周期一致。具体类型与描述符见实现。
-- `void IDevice::DestroyBuffer(IBuffer*);` / `DestroyTexture(...)` / `DestroySampler(...)`；销毁前须释放依赖该资源的命令与 PSO。
-
-#### 6. PSO
-
-- `struct IPSO;` — 管线状态对象（图形/计算）；与 Shader 字节码绑定；可缓存，创建后直至显式销毁。
-- `IPSO* IDevice::CreateGraphicsPSO(GraphicsPSODesc const& desc);` — 描述符含 Shader 字节码或模块引用等，见实现；与 RenderCore/Shader 对接。
-- `IPSO* IDevice::CreateComputePSO(ComputePSODesc const& desc);`
-- `void IDevice::SetShader(IPSO* pso, ...);` / `void Cache(IPSO* pso);` — 语义与契约能力 4 一致；具体签名见实现。
-- `void IDevice::DestroyPSO(IPSO* pso);`
-
-#### 7. 同步
-
-- `struct IFence;` / `struct ISemaphore;` — 多队列、跨帧同步；按实现约定生命周期。
-- `IFence* IDevice::CreateFence();` / `ISemaphore* IDevice::CreateSemaphore();`
-- `void Wait(IFence* f);` / `void Signal(IFence* f);` — 或由 IQueue 参与，具体见实现。Semaphore 同理。
-- `void IDevice::DestroyFence(IFence*);` / `DestroySemaphore(ISemaphore*);`
-
-#### 8. 错误与约束
-
-- 后端不可用时 `CreateDevice` 返回 `nullptr`，不自动回退；回退与重试由上层负责。
-- 多线程行为由实现定义并文档化；本 feature 不要求默认并发安全。
-- 实现仅使用 `001-core-public-api.md` 已声明的类型与 API。设备丢失或运行时错误可上报；支持回退或重建，不导致引擎崩溃。
-
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
 | （初始） | 从 002-rendering-rci-interface spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 008-RHI：实现方改为 008-RHI，消费者改为 T0 模块列表；类型与能力与 docs/module-specs/008-rhi.md 一致 |
-| 2026-01-29 | API 雏形由 plan 008-rhi-fullversion-001 同步 |
+| 2026-01-29 | 契约更新由 plan 008-rhi-fullversion-001 同步 |

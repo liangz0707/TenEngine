@@ -17,6 +17,7 @@
 **本目录内容以 T0-contracts 分支为准**；主分支上的 `_contracts/` 仅作配置或镜像，不作为契约来源。
 
 - **依赖关系总览**：[000-module-dependency-map.md](./000-module-dependency-map.md)（27 模块依赖表与上下游）。
+- **ABI 总索引**：[000-module-ABI.md](./000-module-ABI.md)（汇总各模块显式 ABI；引用全部 `NNN-modulename-ABI.md`）。各契约引用本模块对应的 ABI 文件（如 001-core-public-api 引用 [001-core-ABI.md](./001-core-ABI.md)）；接口符号以 ABI 文件为准。从用户故事派生的接口须按 **`docs/engine-abi-interface-generation-spec.md`** 的代码/命名/注释规范生成；用户故事见 **`specs/user-stories/`**。
 - **完整依赖图（Mermaid、矩阵、边列表）**：**T0-contracts** 分支下的 **`docs/engine-modules-and-architecture.md`** §4。
 - **模块详细规格**：**T0-contracts** 或各 T0-NNN-modulename 分支下的 **`docs/module-specs/`**（001-core.md … 027-xr.md）；各 T0-NNN-modulename 分支仅含对应单模块描述 + 本目录 + 全局依赖图。
 
