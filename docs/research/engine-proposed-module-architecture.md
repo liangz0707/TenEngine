@@ -44,7 +44,7 @@
 | **L4** | 008 | **Editor** | 面板、布局、文件管理、渲染视口、属性面板、场景树 | UE: UnrealEd + Slate；Unity: Editor + uGUI |
 | **L4** | 009 | **Tools** | 第三方集成、命令行/批处理工具 | 各引擎 Plugins/Programs |
 
-说明：当前 TenEngine 已有 001–006 及 006-thirdparty；本提案将 **RCI** 保留为对外名称、概念上对应 **RHI**；**RenderCore**、**PipelineCore** 为新增概念层，可与现有 002/006 通过“子模块”或“契约拆分”逐步对齐。
+说明：**当前 T0 架构**为 27 模块（见 [../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)）；本提案为**历史整合式设计**，将 **RCI** 保留为对外名称、概念上对应 **RHI**；**RenderCore**、**PipelineCore** 等概念已纳入 T0 模块划分，可与现有 008-RHI、019-PipelineCore、020-Pipeline 等对应理解。
 
 ---
 
@@ -147,7 +147,7 @@
 ## 六、实施建议（分阶段）
 
 1. **阶段 1（当前可做）**  
-   - 保持现有 001–006 编号与 spec。  
+   - 保持与 T0 27 模块编号、契约一致；本提案中的 001–009 编号为提案内逻辑编号，与 T0 的 001-Core … 027-XR 非一一对应。  
    - 在契约与文档中明确 **RenderCore**、**PipelineCore** 为“逻辑层”：002 的公开类型与 006 的“命令缓冲/Pass 协议”视为 RenderCore/PipelineCore 的契约内容。  
    - 依赖图按本节“提议依赖”在文档中标注为目标状态，现有 003/004/005/006 对 Core/RCI 的依赖保持不变。
 
@@ -170,6 +170,6 @@
 
 依赖规则：单向、无环；Editor 只依赖运行时；Resource 不依赖渲染；渲染链为 RHI ← RenderCore ← PipelineCore ← Pipeline。  
 
-本提案可与现有 `specs/_contracts/` 及 `000-module-dependency-map.md` 并行使用：契约与依赖图逐步向本节“提议依赖”靠拢，现有分支与 Agent 仍以当前 001–006 为准，待团队确认后再做目录/编号迁移。
+本提案为**可选参考**；**当前以 T0 27 模块**（[../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)、`specs/_contracts/`、`000-module-dependency-map.md`）**为准**。本节的“提议依赖”与层级思路已反映在 T0 架构中，实施时以 T0 契约与依赖表为权威。
 
-**全功能模块规格**：若要覆盖 Unity 与 Unreal 的**全部**功能域（场景、实体、输入、子系统、Shader、材质、网格、资源、物理、动画、音频、UI、管线、特效、2D、地形、编辑器、网络、XR 等），见 **[tenengine-full-module-spec.md](./tenengine-full-module-spec.md)**（27 模块、功能域映射、完整依赖表与图）。
+**全功能模块规格**：若要覆盖 Unity 与 Unreal 的**全部**功能域（场景、实体、输入、子系统、Shader、材质、网格、资源、物理、动画、音频、UI、管线、特效、2D、地形、编辑器、网络、XR 等），见 **[../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)**（27 模块、功能域映射、完整依赖表与图）。

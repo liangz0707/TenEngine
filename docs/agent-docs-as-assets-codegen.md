@@ -20,7 +20,7 @@
 | **Spec Kit**（specify / plan / tasks / implement） | 可产出 **spec、plan、tasks**，这些同样视为资产；**implement** 即一次「从文档生成代码」的执行。 |
 | **T0-contracts**、**Constitution** | 契约以 T0-contracts 为准；生成代码时**只使用契约中已声明的类型与接口**，符合 Constitution 的契约约束。 |
 
-**文档资产**与 **Spec Kit / T0 工作流**兼容：既可用 Spec Kit 迭代产出资产再生成，也可**仅**用已有规约+契约直接生成，无需先跑 specify/plan。
+**文档资产**与 **Spec Kit / T0 工作流**兼容：既可用 Spec Kit 迭代产出资产再生成，也可**仅**用已有规约+契约直接生成，无需先跑 specify/plan。完整执行流程见 **`docs/agent-workflow-complete-guide.md`**。
 
 ---
 
