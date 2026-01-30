@@ -139,6 +139,18 @@ class TaskQueue {
   std::unique_ptr<Impl> impl_;
 };
 
+/** Task callback type per ABI: executed on worker thread. */
+using TaskCallback = void (*)(void* user_data);
+
+/** Thread pool interface per ABI; SubmitTask is thread-safe. */
+struct IThreadPool {
+  virtual void SubmitTask(TaskCallback callback, void* user_data) = 0;
+  virtual ~IThreadPool() = default;
+};
+
+/** Return global thread pool; caller does not own the pointer. */
+IThreadPool* GetThreadPool();
+
 }  // namespace core
 }  // namespace te
 

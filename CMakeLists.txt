@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_library(te_core
   src/alloc.cpp
+  src/engine.cpp
   src/thread.cpp
   src/platform.cpp
   src/log.cpp

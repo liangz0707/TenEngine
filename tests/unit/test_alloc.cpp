@@ -40,5 +40,14 @@ int main() {
   alloc.Free(r);
   alloc.Free(nullptr);
 
+  // GetDefaultAllocator: non-null, Alloc/Free via returned allocator matches global semantics
+  Allocator* def = GetDefaultAllocator();
+  assert(def != nullptr);
+  void* s = def->Alloc(16, 8);
+  assert(s != nullptr);
+  def->Free(s);
+  def->Free(nullptr);
+  assert(def->Alloc(0, 8) == nullptr);
+
   return 0;
 }

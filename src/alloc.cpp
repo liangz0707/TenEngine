@@ -1,12 +1,14 @@
 /**
  * @file alloc.cpp
- * @brief Implementation of Alloc/Free and DefaultAllocator per contract (001-core-public-api.md).
- * Uses aligned_alloc (POSIX) or _aligned_malloc (Windows). Comments in English.
+ * @brief Implementation of Alloc/Free, DefaultAllocator, GetDefaultAllocator per contract (001-core-ABI.md).
+ * Double-free is no-op per contract.
  */
 
-#include "te/core/alloc.h"
+#include <mutex>
+#include <unordered_set>
 #include <cstdlib>
 #include <cstddef>
+#include "te/core/alloc.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <malloc.h>
@@ -17,7 +19,6 @@ namespace core {
 
 namespace {
 
-// Returns true if alignment is a power of two and valid for aligned allocation.
 bool IsValidAlignment(std::size_t alignment) {
   return alignment != 0 && (alignment & (alignment - 1)) == 0;
 }
@@ -31,8 +32,16 @@ void* AlignedAllocImpl(std::size_t size, std::size_t alignment) {
 #endif
 }
 
+static std::mutex g_freed_mutex;
+static std::unordered_set<void*> g_freed;
+
 void AlignedFreeImpl(void* ptr) {
   if (!ptr) return;
+  {
+    std::lock_guard<std::mutex> lock(g_freed_mutex);
+    if (g_freed.count(ptr) != 0) return;
+    g_freed.insert(ptr);
+  }
 #if defined(_WIN32) || defined(_WIN64)
   _aligned_free(ptr);
 #else
@@ -56,6 +65,11 @@ void* Alloc(std::size_t size, std::size_t alignment) {
 
 void Free(void* ptr) {
   AlignedFreeImpl(ptr);
+}
+
+Allocator* GetDefaultAllocator() {
+  static DefaultAllocator s_default;
+  return &s_default;
 }
 
 }  // namespace core

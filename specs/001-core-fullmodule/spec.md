@@ -181,4 +181,5 @@
 ## Dependencies
 
 - **上游模块**：无。001-Core 为根模块。
+- **若本模块有上游依赖**：依赖的上游 API 见各上游契约（`specs/_contracts/NNN-modulename-public-api.md`）；实现时只使用上游契约已声明的类型与 API。
 - **外部依赖**：C++17 标准库（如 `<cstdlib>`、`<thread>`、`<mutex>`、`<atomic>`、`<filesystem>`、`<chrono>`、`<functional>` 等）与平台 API（Win32 / POSIX / dyld）；实现时仅使用契约已声明的对外类型与 API，不额外暴露未在契约中声明的依赖。
