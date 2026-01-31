@@ -14,9 +14,11 @@
   2. [能力二：如 Serializer 接口、最小序列化/反序列化]
   3. （按需增加）
 
-实现时只使用 `specs/_contracts/001-core-public-api.md`（或本 feature 依赖的上游契约）中已声明的类型与 API；不实现本规约未列出的能力。
+实现时只使用**本 feature 依赖的上游契约**（如 `specs/_contracts/001-core-public-api.md`）中已声明的类型与 API；不实现本规约未列出的能力。
 
 - **ABI 与构建规约**（`.specify/memory/constitution.md` §VI）：本模块须实现其 **ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中的**全部**符号与能力；构建须通过**引入真实子模块源码**（如 CMake `add_subdirectory`）满足依赖，**禁止**使用 stub、mock 或与契约不一致的代替实现作为长期方案。**契约更新**：接口变更须在对应 **ABI 文件**中更新**完整 ABI 条目**；下游所需接口须在**上游模块的 ABI 文件**中以 **TODO** 登记。详见 `specs/_contracts/README.md`「契约更新流程」。
+
+- **第三方依赖**（可选）：若本模块需集成第三方库，在此列出 **ID**（与 `docs/third_party/README.md` 表一致），如 `第三方: gtest, spdlog, glm, stb`。Plan 将据此自动填入「第三方依赖」小节，Task 将生成版本选择、自动下载、配置、安装、编译测试、部署、配置实现等任务。详见 `docs/third_party-integration-workflow.md`。
 
 ## User Scenarios & Testing *(mandatory)*
 
