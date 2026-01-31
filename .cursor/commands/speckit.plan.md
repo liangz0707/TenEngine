@@ -73,7 +73,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 2. **Generate API/ABI design artifacts** from functional requirements:
    - For each user action or module boundary → interface/endpoint
-   - **TenEngine**：产出 ABI 相关设计或接口草图至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
+   - **TenEngine**：**plan 只保存相对于现有 ABI 的新增和修改部分**，不保存完整 ABI 表。依赖现有 `specs/_contracts/NNN-modulename-ABI.md`，按本 feature 的 spec 与规约产出**仅新增或修改**的 ABI 条目（命名空间、头文件、符号、完整函数签名）；若无新增/修改则产出空清单。计划结束时产出一份「契约更新」清单。写回契约时也仅将上述新增/修改部分增补或替换到现有 ABI 文件中。产出至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
    - 其他项目：可按 REST/GraphQL 产出 OpenAPI/GraphQL schema 至 `/contracts/`
 
 3. **Agent context update**:

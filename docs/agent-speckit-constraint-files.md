@@ -35,7 +35,7 @@
 | `docs/module-specs/NNN-modulename.md` | 模块规约 | 工作流中 specify/clarify/plan 的提示词 |
 | `docs/engine-build-module-convention.md` | CMake 构建规约、依赖方式、澄清要求（**构建方式澄清为 §3**；该文档无 §1.1） | plan, tasks, implement |
 | `docs/agent-build-guide.md` | 子模块构建与测试、强制规则、提示词 | 构建相关（与 engine-build-module-convention 一致） |
-| `docs/agent-workflow-complete-guide.md` | 完整工作流、写回契约（2.0）、两种 Plan ABI 模式、步骤提示词 | plan, 步骤 4 写回契约 |
+| `docs/agent-workflow-complete-guide.md` | 完整工作流、写回契约（2.0）、增量 ABI 模式（plan 只保存新增/修改，写回也仅写入该部分）、步骤提示词 | plan, 步骤 4 写回契约 |
 | `docs/third_party-integration-workflow.md` | 第三方库集成工作流：引入方式、Plan/Task 自动纳入、7 步必须步骤、CMake 对应、自动识别 | plan, tasks, implement |
 | `docs/agent-interface-sync.md` | 多 Agent 接口同步、T0 契约策略 | constitution 步骤 0.1 等 |
 
