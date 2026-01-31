@@ -1,5 +1,9 @@
 # nlohmann/json
 
+## 引入方式
+
+**header-only**（仅头文件，无 IMPLEMENTATION 宏）
+
 ## 名称与简介
 
 **nlohmann/json**：仅头文件的 C++ JSON 解析与序列化库。用于配置、元数据、Resource/Tools 等。

@@ -1,5 +1,9 @@
 # Zstandard（zstd）
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Zstandard**：高性能压缩/解压库。用于 Resource 资产压缩、网络包、管线中间数据等。

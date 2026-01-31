@@ -1,5 +1,9 @@
 # SPIRV-Cross
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **SPIRV-Cross**：将 SPIR-V 反编译/转译为 HLSL、MSL、GLSL 等。用于 010-Shader 跨后端（Vulkan/D3D12/Metal）的 shader 产出。

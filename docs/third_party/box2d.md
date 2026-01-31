@@ -1,5 +1,9 @@
 # Box2D
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Box2D**：2D 刚体物理引擎。用于 014-Physics 的 2D 部分、022-2D 模块。

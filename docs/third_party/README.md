@@ -2,9 +2,24 @@
 
 本目录描述 TenEngine 所依赖的**外部工程**及其集成方式。每个集成对应一个独立的 `.md` 文档；**需要该依赖的模块通过引用对应文档即可由构建系统自动完成集成**（如 CMake FetchContent / find_package 或统一脚本拉取）。
 
+**集成工作流**（Plan 自动纳入、Task 7 步、引入方式与 CMake 对应）：见 [third_party-integration-workflow.md](../third_party-integration-workflow.md)。
+
 ---
 
-## 一、用途与约定
+## 一、引入方式分类（必须明确）
+
+每个第三方库在对应 md 中**必须**标明 **引入方式**，且仅能属于以下四类之一；**自动识别**与 CMake 写法见 [third_party-integration-workflow.md](../third_party-integration-workflow.md) §一、§五。
+
+| 引入方式 | 含义 | CMake 典型写法 |
+|----------|------|----------------|
+| **header-only** | 仅头文件，无独立编译产物；可能需在某一 .cpp 中 `#define XXX_IMPLEMENTATION` 后 include | `add_library(xxx INTERFACE)` + `target_include_directories(xxx INTERFACE <path>)` |
+| **source** | 源码纳入工程，随主工程一起编译 | `add_subdirectory(third_party/xxx)` 或 `FetchContent_Declare` + `FetchContent_MakeAvailable(xxx)` |
+| **sdk** | 预编译库或官方 SDK，不随工程编译 | `find_package(xxx)` 或 `find_path`/`find_library` + `target_link_libraries` |
+| **system** | 系统/平台提供的库（如 Vulkan SDK、D3D12） | `find_package(Vulkan)` 等；文档说明安装方式 |
+
+---
+
+## 二、用途与约定
 
 | 项目 | 说明 |
 |------|------|
@@ -14,7 +29,7 @@
 
 ---
 
-## 二、如何引用并自动集成
+## 三、如何引用并自动集成
 
 1. **在模块或根 CMake 中声明依赖**  
    使用统一变量或清单列出本模块需要的第三方 ID（见下表「ID」列），例如：  
@@ -31,7 +46,7 @@
 
 ---
 
-## 三、外部工程一览（初版）
+## 四、外部工程一览（初版）
 
 下表列出当前规划需要依赖的**所有外部工程**；具体版本、许可证与 CMake 用法见对应 md。
 
@@ -71,21 +86,24 @@
 
 ---
 
-## 四、文档模板（每个集成 md 应含内容）
+## 五、文档模板（每个集成 md 应含内容）
 
-每个 `docs/third_party/<id>-<name>.md` 建议包含：
+每个 `docs/third_party/<id>-<name>.md` **必须**包含以下字段，以便 Plan/Task 自动纳入与**自动识别引入方式**：
 
-1. **名称与简介**：库名、一句话用途。  
-2. **仓库/来源**：官方仓库 URL、推荐版本/标签。  
-3. **许可证**：简短说明（如 MIT、BSD、Apache-2.0）。  
-4. **CMake 集成**：`FetchContent` 或 `find_package` 的推荐写法；如何暴露 target、include。  
-5. **引用方式**：本工程如何声明依赖该第三方（变量名或清单字段），以实现「引用即自动集成」。  
-6. **可选配置**：如编译选项、开关（如只头文件、静态库等）。  
-7. **使用模块**：TenEngine 中哪些模块会用到（与上表一致即可）。
+1. **引入方式**（**必须**）：`header-only` | `source` | `sdk` | `system` 四选一；用于 Task 生成 7 步与 CMake 配置。  
+2. **名称与简介**：库名、一句话用途。  
+3. **仓库/来源**：官方仓库 URL、推荐版本/标签（用于版本选择与自动下载）。  
+4. **许可证**：简短说明（如 MIT、BSD、Apache-2.0）。  
+5. **CMake 集成**：`FetchContent` 或 `find_package` / `add_subdirectory` 的推荐写法；如何暴露 target、include；对应「配置实现」步骤。  
+6. **引用方式**：本工程如何声明依赖该第三方（变量名或清单字段），以实现「引用即自动集成」。  
+7. **可选配置**：如编译选项、开关（如只头文件、静态库等）；对应「配置」步骤。  
+8. **使用模块**：TenEngine 中哪些模块会用到（与上表一致即可）。
+
+**Task 7 步与 CMake 对应**：版本选择 → 自动下载（必须）→ 配置 → 安装 → 编译测试 → 部署进工程 → 配置实现。详见 [third_party-integration-workflow.md](../third_party-integration-workflow.md) §四、§五。
 
 ---
 
-## 五、与构建规约的衔接
+## 六、与构建规约的衔接
 
 - **依赖子模块**（T0 模块）仍按 `docs/engine-build-module-convention.md` 与 `cmake/TenEngineModuleDependencies.cmake` 解析；**第三方**与本目录描述一致，由统一脚本或根 CMake 在配置阶段拉取，不改变「单模块 worktree、依赖源码优先」等原则。  
 - **测试**：build 测试时不引入子分支的测试工程（见 `docs/agent-build-guide.md`）；第三方测试工程（如 gtest）仅用于本模块 tests/，不向上游传递。

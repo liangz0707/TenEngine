@@ -1,5 +1,9 @@
 # miniaudio
 
+## 引入方式
+
+**header-only**（单头文件，需在某一 .c/.cpp 中 `#define MINIAUDIO_IMPLEMENTATION` 后 include）
+
 ## 名称与简介
 
 **miniaudio**：单文件、跨平台音频采集与播放库，无额外依赖。可作为 016-Audio 的后端实现之一。

@@ -1,5 +1,9 @@
 # Google Test（gtest）
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Google Test**：C++ 单元测试框架，与 Google Mock 同仓。用于 TenEngine 各模块 `tests/` 下的单元测试。

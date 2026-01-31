@@ -1,5 +1,9 @@
 # tinygltf
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译；依赖 nlohmann-json）
+
 ## 名称与简介
 
 **tinygltf**：Header-only C++ 库，加载 glTF 2.0（.gltf / .glb），含 JSON 解析、base64 解码、贴图/缓冲引用。依赖可选（可仅用 stb_image 加载贴图）。

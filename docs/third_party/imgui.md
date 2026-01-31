@@ -1,5 +1,9 @@
 # Dear ImGui（imgui）
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译；需后端实现）
+
 ## 名称与简介
 
 **Dear ImGui**：即时模式 GUI 库，用于编辑器、调试 UI、工具界面。024-Editor、025-Tools 及调试绘制可依赖。

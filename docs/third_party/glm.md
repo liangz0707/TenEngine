@@ -1,5 +1,9 @@
 # GLM（OpenGL Mathematics）
 
+## 引入方式
+
+**header-only**（仅头文件，无 IMPLEMENTATION 宏）
+
 ## 名称与简介
 
 **GLM**：仅头文件的 C++ 数学库，提供向量、矩阵、四元数、常用数学函数等。与渲染/物理无关的纯数学也可使用。

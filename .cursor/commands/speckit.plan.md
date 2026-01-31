@@ -28,6 +28,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
    - **Build convention (TenEngine)**：若本 feature 涉及 CMake/构建，**必须**在 plan.md 中填写「依赖引入方式」小节（见 `.specify/templates/plan-template.md`）：各直接依赖均按**源码**方式引入（无外部库则可不列）；当前所有子模块构建均使用源码方式，规约见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。
+   - **第三方依赖 (TenEngine)**：若本 feature 涉及的模块（spec/contracts 或依赖清单）中声明了第三方库，**必须**在 plan 的「第三方依赖」小节中列出每个第三方：ID、引入方式（header-only/source/sdk/system，从 `docs/third_party/<id>-<name>.md` 读取）、文档链接；无第三方时填「本 feature 无第三方依赖」。工作流与 7 步任务见 `docs/third_party-integration-workflow.md`。
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md

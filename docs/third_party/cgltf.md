@@ -1,5 +1,9 @@
 # cgltf
 
+## 引入方式
+
+**header-only**（单头文件 + 单实现，需在某一 .c 中 `#define CGLTF_IMPLEMENTATION` 后 include）
+
 ## 名称与简介
 
 **cgltf**：单头文件 C 库，用于解析 glTF 2.0（.gltf / .glb）。轻量、无额外依赖，适合运行时加载 glTF 模型与场景。

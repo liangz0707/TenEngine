@@ -24,6 +24,7 @@
 | [agent-speckit-constraint-files.md](agent-speckit-constraint-files.md) | Spec Kit 指令引用的约束文件一览：各 /speckit.* 指令所引用的 constitution、契约、规约、模板与脚本。 |
 | [module-specs/](module-specs/) | 各模块详细规格（001-core … 027-xr）。 |
 | [third_party/](third_party/README.md) | 第三方工具集成：每个集成一个 md；工程引用即自动集成；外部依赖一览与 CMake 用法。 |
+| [third_party-integration-workflow.md](third_party-integration-workflow.md) | 第三方库集成工作流：引入方式分类、Plan/Task 自动纳入、7 步必须步骤、CMake 对应、自动识别规则。 |
 | [research/](research/) | 调研与对比类文档（Unity/Unreal 参考、历史提案等）。 |
 | **specs/user-stories/** | 用户故事（可交付端到端行为）；拆解到模块职责与 I/O，派生接口按 engine-abi-interface-generation-spec 写入 ABI。 |
 

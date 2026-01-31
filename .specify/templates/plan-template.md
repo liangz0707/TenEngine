@@ -40,6 +40,14 @@
 
 **说明**：当前仅支持源码引入；列出直接依赖后由 CMake 脚本统一解析。
 
+### 第三方依赖（本 feature 涉及模块所需）
+
+> **规约**：若本 feature 涉及某模块，且该模块的 spec/contracts 或依赖清单中声明了第三方库，**必须**在本节列出；每个第三方对应 `docs/third_party/<id>-<name>.md`，引入方式见该文档或 [third_party-integration-workflow.md](../../docs/third_party-integration-workflow.md)。Plan 指令会据此自动加入；Task 阶段将生成「版本选择、自动下载、配置、安装、编译测试、部署进工程、配置实现」等任务。
+
+| 第三方 ID | 引入方式 | 文档 | 说明 |
+|-----------|----------|------|------|
+| （无则填「本 feature 无第三方依赖」） | — | — | — |
+
 **Technical Context（可选续）**：**Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  

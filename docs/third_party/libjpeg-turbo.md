@@ -1,5 +1,9 @@
 # libjpeg-turbo
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **libjpeg-turbo**：高性能 JPEG 编解码库（SIMD 加速）。用于贴图管线中 JPEG 的读取与写出、照片/缩略图等。

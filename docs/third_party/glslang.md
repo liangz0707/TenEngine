@@ -1,5 +1,9 @@
 # glslang
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **glslang**：将 GLSL/HLSL 编译为 SPIR-V，与 Shaderc 同生态。用于 010-Shader 的离线或运行时编译。

@@ -1,5 +1,9 @@
 # Bullet Physics（bullet）
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Bullet**：成熟的 3D（及部分 2D）物理引擎，广泛用于游戏与仿真。可作为 014-Physics 的实现后端之一。

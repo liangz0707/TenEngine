@@ -1,5 +1,9 @@
 # Assimp
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Assimp**：模型与场景导入库，支持多种格式（FBX、glTF、OBJ 等）。用于 012-Mesh、013-Resource、024-Editor 的资产导入（可选）。

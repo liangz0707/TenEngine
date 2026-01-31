@@ -1,5 +1,9 @@
 # fast_obj
 
+## 引入方式
+
+**header-only**（单头文件 + 单实现，需在某一 .c 中 `#define FAST_OBJ_IMPLEMENTATION` 后 include）
+
 ## 名称与简介
 
 **fast_obj**：单文件 C 库，快速解析 OBJ 模型（.obj）。轻量、无依赖，适合运行时或工具链中 OBJ 加载。

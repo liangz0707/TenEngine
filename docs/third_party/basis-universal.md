@@ -1,5 +1,9 @@
 # Basis Universal
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Basis Universal**：GPU 友好纹理压缩（UASTC/ETC1S），输出 .basis 或 KTX2。用于贴图管线中压缩纹理的生成与运行时解码、减少显存与带宽。

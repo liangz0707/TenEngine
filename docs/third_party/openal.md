@@ -1,5 +1,9 @@
 # OpenAL Soft（openal）
 
+## 引入方式
+
+**system** 或 **sdk**（系统包管理器或 find_package 预装；Windows 可下载预编译包）
+
 ## 名称与简介
 
 **OpenAL Soft**：跨平台 3D 音频 API 实现。可作为 016-Audio 的另一种后端（空间音效、多源混音等）。

@@ -1,5 +1,9 @@
 # stb（单头文件库）
 
+## 引入方式
+
+**header-only**（单头文件，需在某一 .cpp 中 `#define STB_*_IMPLEMENTATION` 后 include）
+
 ## 名称与简介
 
 **stb**：一系列单头文件 C 库的合集，常用有 `stb_image`、`stb_image_write`、`stb_image_resize` 等。用于图像加载/写入及工具。

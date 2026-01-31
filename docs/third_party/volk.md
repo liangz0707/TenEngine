@@ -1,5 +1,9 @@
 # Volk（Vulkan 加载器）
 
+## 引入方式
+
+**header-only**（单头文件，需在某一 .cpp 中 `#define VOLK_IMPLEMENTATION` 后 include）
+
 ## 名称与简介
 
 **Volk**：轻量级 Vulkan 加载器，在运行时加载 Vulkan 函数指针，可替代静态链接 Vulkan Loader。用于 008-RHI 的 Vulkan 后端。

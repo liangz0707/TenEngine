@@ -42,6 +42,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 4. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
    - Correct feature name from plan.md
    - **Build/CMake 任务（TenEngine）**：若任务包含「配置/构建工程」或执行 `cmake -B build`，该任务**必须**注明：执行前须已澄清 **根目录**（构建所在模块路径）；**各子模块均使用源码方式**引入依赖，未澄清根目录时**禁止**直接执行 cmake，须先向用户询问。**cmake 生成之后须检查**：引入的头文件/源文件是否完整、是否存在循环依赖或缺失依赖；发现问题须在任务中标注或先修复再继续。规约见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。
+   - **第三方库任务（TenEngine）**：若 plan 的「第三方依赖」小节列出第三方库，**必须**为每个第三方生成覆盖以下 7 步的任务（可合并为少量任务项）：① 版本适配/选择；② **自动下载（必须）**（FetchContent / git submodule / 脚本，禁止假设已存在）；③ 配置（CMake 选项）；④ 安装；⑤ 编译测试；⑥ 部署进工程；⑦ 配置实现（target_link_libraries、include、宏定义）。引入方式（header-only/source/sdk/system）与 CMake 写法从 `docs/third_party/<id>-<name>.md` 或 `docs/third_party-integration-workflow.md` 读取；详见该工作流文档 §四、§五。
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
    - Phase 3+: One phase per user story (in priority order from spec.md)
@@ -72,6 +73,8 @@ The tasks.md should be immediately executable - each task must be specific enoug
 **CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
 
 **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature specification or if user requests TDD approach.
+
+**测试逻辑（TenEngine）**：生成测试任务时，测试逻辑**须能覆盖**：① **上游模块能力**：不得仅测本模块孤立逻辑；应通过调用本模块对外接口（其内部使用上游依赖）或显式调用上游模块 API，验证依赖链正确；② **第三方库调用能力**：若本模块依赖第三方库，测试须包含对第三方库的实际调用（如 spdlog、glm、stb、assimp 等 API），以验证第三方集成有效。测试可执行文件仍只 link 本模块 target（依赖经 target_link_libraries 传递）；测试代码应主动调用上游与第三方 API。
 
 ### Checklist Format (REQUIRED)
 
@@ -129,6 +132,11 @@ Every task MUST strictly follow this format:
    - Shared infrastructure → Setup phase (Phase 1)
    - Foundational/blocking tasks → Foundational phase (Phase 2)
    - Story-specific setup → within that story's phase
+
+5. **From Third-Party Dependencies (plan 的「第三方依赖」)**:
+   - 对 plan 中列出的每个第三方，生成覆盖 7 步的任务：版本选择 → 自动下载（必须）→ 配置 → 安装 → 编译测试 → 部署进工程 → 配置实现。
+   - 从 `docs/third_party/<id>-<name>.md` 读取引入方式（header-only/source/sdk/system）与 CMake 写法，生成对应任务描述。
+   - 第三方任务通常放在 Setup 或 Foundational 阶段，优先于依赖该第三方的功能任务。
 
 ### Phase Structure
 

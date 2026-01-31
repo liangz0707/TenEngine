@@ -22,6 +22,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ---
 
+## 第三方库任务（TenEngine）
+
+若 tasks 中包含第三方库集成（plan 的「第三方依赖」列出），执行时**必须**遵循 `docs/third_party-integration-workflow.md` 的 7 步：① 版本选择 ② **自动下载（必须）** ③ 配置 ④ 安装 ⑤ 编译测试 ⑥ 部署进工程 ⑦ 配置实现。**禁止**假设第三方已存在，须显式执行下载（FetchContent / git submodule / 脚本）。引入方式（header-only/source/sdk/system）与 CMake 写法从 `docs/third_party/<id>-<name>.md` 读取。**测试逻辑**：若实现或修改测试，须覆盖上游模块能力与第三方库调用能力（主动调用上游/第三方 API），不得仅测本模块孤立逻辑；见 speckit.tasks「测试逻辑」与 `docs/agent-build-guide.md`。
+
+---
+
 ## Outline
 
 1. Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").

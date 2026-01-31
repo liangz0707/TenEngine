@@ -1,5 +1,9 @@
 # Jolt Physics（jolt）
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **Jolt Physics**：高性能 3D 物理引擎（原 Horizon Zero Dawn 所用）。可作为 014-Physics 的实现后端之一。

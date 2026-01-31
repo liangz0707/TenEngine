@@ -1,5 +1,9 @@
 # libwebp
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译）
+
 ## 名称与简介
 
 **libwebp**：Google WebP 图像编解码库（支持有损/无损、动图）。用于贴图管线、Web 资源与带宽敏感场景。

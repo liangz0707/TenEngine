@@ -1,5 +1,9 @@
 # libpng
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译；依赖 zlib）
+
 ## 名称与简介
 
 **libpng**：官方 PNG 图像编解码库。用于贴图管线中 PNG 的读取与写出、截图/导出等。

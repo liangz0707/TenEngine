@@ -1,5 +1,9 @@
 # spdlog
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译；或 header-only 模式）
+
 ## 名称与简介
 
 **spdlog**：高性能 C++ 日志库，支持多 sink、异步、格式化。用于 TenEngine 001-Core 及通用日志输出。

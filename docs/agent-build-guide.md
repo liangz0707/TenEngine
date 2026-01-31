@@ -30,9 +30,9 @@
 | 文件 | 作用 |
 |------|------|
 | **CMakeLists.txt**（模块根目录） | 设置 `TENENGINE_CMAKE_DIR`、`include(TenEngineHelpers.cmake)`、`tenengine_resolve_my_dependencies("<本模块 id>" ...)`、声明本模块库并 `target_link_libraries(本模块 PRIVATE ${MY_DEPS})`、用 **tenengine_add_module_test** 添加测试（只 link 本模块 target）。**不**引入子分支/上游的 tests 目录或测试工程。 |
-| **tests/test_xxx.cpp**（可选） | 测试源文件；若不存在则生成最小占位。 |
+| **tests/test_xxx.cpp**（可选） | 测试源文件；若不存在则生成最小占位。**测试逻辑须能覆盖**：① 上游模块能力（通过本模块接口间接调用或直接调用上游 API）；② 若依赖第三方库，须包含对第三方库的实际调用以验证集成有效。不得仅测本模块孤立逻辑。 |
 
-**禁止**手写 `add_subdirectory` / `find_package` 分支；**只**通过 `tenengine_resolve_my_dependencies` 与 CMake 变量引入依赖。测试只 link 本模块 target；**build 测试时不引入子分支的测试工程**（不 `add_subdirectory(上游/tests)`，不启用上游的测试 target）。
+**禁止**手写 `add_subdirectory` / `find_package` 分支；**只**通过 `tenengine_resolve_my_dependencies` 与 CMake 变量引入依赖。测试只 link 本模块 target；**build 测试时不引入子分支的测试工程**（不 `add_subdirectory(上游/tests)`，不启用上游的测试 target）。**测试内容**：须覆盖上游模块能力与第三方库调用能力，不限于本模块孤立逻辑。
 
 ---
 
@@ -55,8 +55,9 @@
    - 使用 tenengine_add_module_test(NAME <测试名> MODULE_TARGET <本模块 target> SOURCES tests/<测试源文件> ENABLE_CTEST)。不要对测试可执行文件再写 target_link_libraries 依赖上游；只 link 本模块。
    - **build 测试时不引入子分支的测试工程**：不 add_subdirectory 上游的 tests、不启用上游的 enable_testing/测试 target；仅构建本模块 tests/ 下的测试。
    - 若测试源文件不存在，则创建最小可编译占位（**仅限测试源文件**；依赖的子模块缺失时仍须报错，不得占位）。
+   - **测试逻辑须覆盖**：① 上游模块能力（调用本模块接口或直接调用上游 API）；② 若依赖第三方库，须包含对第三方库的实际调用（如 spdlog::info、glm::vec3、stb_image_load 等）以验证集成有效。不得仅测本模块孤立逻辑。
 
-4) 确认：测试可执行文件只 link 本模块 target，依赖通过本模块的 target_link_libraries 自动传递；不引入、不构建上游子模块的测试工程。
+4) 确认：测试可执行文件只 link 本模块 target，依赖通过本模块的 target_link_libraries 自动传递；不引入、不构建上游子模块的测试工程。测试代码应主动调用上游与第三方 API。
 
 请直接生成或修改 CMakeLists.txt 和（若需要）测试源文件，并简要说明配置后如何执行 cmake -B build 与 cmake --build build 以验证。
 ```

@@ -1,5 +1,9 @@
 # Vulkan Headers
 
+## 引入方式
+
+**header-only**（仅头文件，或配合 Vulkan SDK 的 system 安装）
+
 ## 名称与简介
 
 **Vulkan Headers**：Vulkan 官方头文件与注册表，被 Volk、glslang、SPIRV-Tools 等依赖。008-RHI（Vulkan 后端）及 Shader 工具链需要。

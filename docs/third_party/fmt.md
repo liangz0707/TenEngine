@@ -1,5 +1,9 @@
 # fmt
 
+## 引入方式
+
+**source**（源码纳入工程，FetchContent 或 add_subdirectory 拉取并随主工程编译；spdlog 依赖）
+
 ## 名称与简介
 
 **fmt**：C++ 格式化库，被 spdlog 等使用。可单独用于字符串格式化或与 spdlog 配套。
