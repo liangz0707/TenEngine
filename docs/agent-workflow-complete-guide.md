@@ -40,7 +40,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 | **依赖图** | `specs/_contracts/000-module-dependency-map.md` | T0 模块依赖表 | 当前仓库已有 |
 | **分支与 worktree** | 主仓库 + worktree | 主仓库有 T0-contracts 并已推送；**TenEngine-NNN-modulename** worktree 已创建并对应 **T0-NNN-modulename** | 需人工或脚本创建 |
 
-**契约与 ABI**：契约描述能力与类型；**接口须在 ABI 文件中以完整条目更新**。接口符号与签名写入对应 `NNN-modulename-ABI.md`（见 `specs/_contracts/000-module-ABI.md` 总索引）；若下游需要某接口而上游尚未实现，须在**上游 ABI 文件**中增加 **TODO** 条目。plan 只产出新增/修改部分，写回时**仅在 ABI 中增补或替换**对应条目再同步契约，在主仓库 **T0-contracts** 上提交并推送。
+**契约与 ABI**：契约描述能力与类型；**接口须在 ABI 文件中以完整条目更新**。接口符号与签名写入对应 `NNN-modulename-ABI.md`（见 `specs/_contracts/000-module-ABI.md` 总索引）；若下游需要某接口而上游尚未实现，须在**上游 ABI 文件**中增加 **TODO** 条目。plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时**仅在 ABI 中增补或替换**对应条目再同步契约，在主仓库 **T0-contracts** 上提交并推送。
 
 ---
 
@@ -54,7 +54,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 ### 2.0 写回契约（步骤 4 必做）
 
-**目的**：plan 生成的新增/修改接口**必须**进入契约与 **ABI 文件**；plan 只产出新增/修改部分，写回时也仅将这部分增补或替换到现有 ABI 中。下游与 tasks/implement 都以契约为准；接口符号与签名的权威来源是 ABI 文件。
+**目的**：plan 生成的新增/修改接口**必须**进入契约与 **ABI 文件**；plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅将这部分增补或替换到现有 ABI 中。tasks 和 implement 基于全量 ABI 内容进行实现。下游与 tasks/implement 都以契约为准；接口符号与签名的权威来源是 ABI 文件。
 
 **何时**：**/speckit.plan 完成后、/speckit.tasks 之前**。
 
@@ -106,19 +106,27 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 
 **Prompt 约定**：plan 与 tasks 的约束与产出由 **.cursor/commands/speckit.plan.md**、**.cursor/commands/speckit.tasks.md** 定义；调用时无需在 prompt 中重复上述约束，按需引用规约与契约路径即可。增量 ABI 模式约定见下方 2.0.1。
 
-#### 2.0.1 Plan 的 ABI 产出与写回约定（增量模式）
+#### 2.0.1 Plan 的 ABI 产出与写回约定（全量生成、增量保存）
 
-**统一约定**：plan **只保存相对于现有 ABI 的新增和修改部分**，不保存完整 ABI 表。写回契约时**也只写入这部分**（在现有 ABI 中增补新行或替换已有行），不覆盖整个 ABI 文件。
+**统一约定**：
+- **生成全量 ABI 内容**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**，包括：
+  - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
+  - **新增的 ABI**：本 feature 新增的接口条目
+  - **修改的 ABI**：对现有 ABI 条目的修改
+- **文档中只保存变化部分**：plan.md 文档的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；不保存完整 ABI 表。
+- **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
 
-- **Plan 产出**：依赖现有 `specs/_contracts/NNN-modulename-ABI.md`，按本 feature 的 spec 与规约产出**仅新增或修改**的 ABI 条目（命名空间、头文件、符号、完整函数签名）；若无新增/修改则产出空清单。计划结束时产出一份「契约更新」清单（即上述新增/修改条目）。
-- **写回 ABI 时**：在现有 `NNN-modulename-ABI.md` 中**增补**新行或**按符号/头文件匹配替换**已有行；不覆盖、不删除未涉及条目。再按「契约更新」同步 public-api 的变更记录。
+**Plan 产出流程**：
+1. **生成阶段**：依赖现有 `specs/_contracts/NNN-modulename-ABI.md`，参考 spec 与规约、Unity/Unreal 等文档，生成**全量 ABI 内容**（原始 + 新增 + 修改），用于实现参考。
+2. **保存阶段**：plan.md 的「契约更新」小节只保存**新增或修改**的 ABI 条目（命名空间、头文件、符号、完整函数签名）；若无新增/修改则产出空清单。
+3. **写回 ABI 时**：在现有 `NNN-modulename-ABI.md` 中**增补**新行或**按符号/头文件匹配替换**已有行；不覆盖、不删除未涉及条目。再按「契约更新」同步 public-api 的变更记录。
 
 **可直接使用的 Plan 提示词**（在步骤 3 调用 /speckit.plan 时使用或拼在既有 plan 提示词末尾）：
 
 ```
 请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。要求：技术栈 C++17、CMake；规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）；设计时可参考 Unity、Unreal 的模块与 API 构造。
 
-本 plan 只保存相对于现有 specs/_contracts/NNN-modulename-ABI.md 的新增和修改部分；不产出完整 ABI 表。按本 feature 的 spec 与规约，产出仅新增或修改的 ABI 条目（命名空间、头文件、符号、完整函数签名）；若无新增/修改则产出空清单。计划结束时产出一份「契约更新」清单。写回契约由步骤 4 单独执行，写回时也仅将上述新增/修改部分增补或替换到现有 ABI 文件中。
+plan 执行时需生成全量 ABI 内容（包括原始 ABI、新增、修改），用于实现参考。但 plan.md 的「契约更新」小节只保存相对于现有 specs/_contracts/NNN-modulename-ABI.md 的新增和修改部分；若无新增/修改则产出空清单。tasks 和 implement 阶段基于全量 ABI 内容进行实现。写回契约由步骤 4 单独执行，写回时也仅将上述新增/修改部分增补或替换到现有 ABI 文件中。
 ```
 
 ---
@@ -196,7 +204,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 **提示词**：
 
 ```
-请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）。约束与产出见 .cursor/commands/speckit.plan.md。按 2.0.1 采用增量 ABI 模式（plan 只保存新增/修改部分，写回也仅写入该部分；可拼在 prompt 末尾）。
+请从当前 worktree 推断 NNN-modulename。执行 /speckit.plan。规约与契约为 docs/module-specs/NNN-modulename.md、specs/_contracts/NNN-modulename-public-api.md（若有上游，加上游契约）。约束与产出见 .cursor/commands/speckit.plan.md。按 2.0.1 采用全量生成、增量保存模式（plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分用于写回；可拼在 prompt 末尾）。
 ```
 
 #### 步骤 4：写回契约（必须）
@@ -338,7 +346,7 @@ AI 或用户只需在**当前 worktree**（如 `TenEngine-001-core`）下操作�
 | 1 Spec Kit | TenEngine-NNN-modulename | feature + spec → clarify → plan → **写回契约（2.0）** → tasks → [analyze] → implement；合并到 T0-NNN-modulename，推送 |
 | 2+ | 按需 | 契约变更时在 T0-contracts 更新，下游拉取并适配 |
 
-**契约变更时的同步**：若某模块**修改了对外 API**，在 **T0-contracts** 上**须在** `NNN-modulename-ABI.md` **中增补或替换对应的 ABI 条目**（每行含符号与完整函数签名），再更新 `NNN-modulename-public-api.md`（能力列表 / 类型与句柄 / 变更记录）并推送；plan 只产出新增/修改部分，写回时也仅写入该部分。若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目。在 `000-module-dependency-map.md` 确认下游。下游通过拉取 T0-contracts 与契约/ABI 变更记录获知变化（**Follow-up 与 Issue 的具体操作已废弃**，见 `docs/agent-interface-sync.md`）。
+**契约变更时的同步**：若某模块**修改了对外 API**，在 **T0-contracts** 上**须在** `NNN-modulename-ABI.md` **中增补或替换对应的 ABI 条目**（每行含符号与完整函数签名），再更新 `NNN-modulename-public-api.md`（能力列表 / 类型与句柄 / 变更记录）并推送；plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅写入该部分。若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目。在 `000-module-dependency-map.md` 确认下游。下游通过拉取 T0-contracts 与契约/ABI 变更记录获知变化（**Follow-up 与 Issue 的具体操作已废弃**，见 `docs/agent-interface-sync.md`）。
 
 ---
 

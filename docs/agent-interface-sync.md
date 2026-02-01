@@ -61,12 +61,12 @@ git pull origin T0-contracts
 
 ### 4.2 修改本模块对外接口时
 
-1. **须在 ABI 文件中增补或替换对应 ABI 条目**：在 **`T0-contracts` 分支**上，**必须**在对应 **ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中**增补**新行或**按符号/头文件匹配替换**已有行；每行须为完整 ABI 表行（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）。不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。plan 只产出新增/修改部分，写回时也仅写入该部分。接口符号与签名的权威来源是 ABI 文件。
+1. **须在 ABI 文件中增补或替换对应 ABI 条目**：在 **`T0-contracts` 分支**上，**必须**在对应 **ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中**增补**新行或**按符号/头文件匹配替换**已有行；每行须为完整 ABI 表行（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）。不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅写入该部分。接口符号与签名的权威来源是 ABI 文件。
 2. 同步更新本模块对应的契约文件（`NNN-modulename-public-api.md`）：能力/类型与变更记录；在契约中注明**版本或变更说明**（与 Constitution 的版本/ABI 要求一致）。
 3. **下游所需接口在上游 ABI 中以 TODO 登记**：若**下游模块**需要某接口而本模块（上游）尚未提供，须在**本模块的 ABI 文件**中增加该接口的 **TODO** 条目（在说明列标明「TODO：下游 NNN-xxx 需要」及拟议签名），待实现时转为正式 ABI 行并移除 TODO。下游不得长期依赖未在上游 ABI 中登记（含 TODO）的接口。
 4. 在 `000-module-dependency-map.md` 中确认**依赖本模块**的下游列表。下游通过**拉取 T0-contracts** 与查阅上游 ABI/契约的**变更记录**获知变化；不再使用规格待办、checklist 或 GitHub Issue 的 follow-up 流程（已废弃）。
 
-**若使用 Spec Kit /speckit.plan**：plan **只产出新增/修改的 ABI 条目**，写回时**仅在** ABI 文件中**增补或替换**这些条目，不覆盖整个 ABI 表。在 plan 完成后、tasks 之前，将 plan 产出的「契约更新」清单（仅新增/修改部分）同步到 `specs/_contracts/NNN-modulename-ABI.md` 与 `specs/_contracts/NNN-*-public-api.md` 的能力/类型，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
+**若使用 Spec Kit /speckit.plan**：plan **生成全量 ABI 内容**（包括原始、新增、修改）用于实现参考，但文档中**只保存新增/修改的 ABI 条目**，写回时**仅在** ABI 文件中**增补或替换**这些条目，不覆盖整个 ABI 表。tasks 和 implement 阶段基于全量 ABI 内容进行实现。在 plan 完成后、tasks 之前，将 plan 产出的「契约更新」清单（仅新增/修改部分）同步到 `specs/_contracts/NNN-modulename-ABI.md` 与 `specs/_contracts/NNN-*-public-api.md` 的能力/类型，在 T0-contracts 上提交并推送；再在 worktree 拉取 T0-contracts 后继续 tasks/implement。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
 
 ### 4.3 评审/合并前
 
@@ -99,14 +99,14 @@ git pull origin T0-contracts
 ## 5. 契约文件怎么写
 
 - **文件名**：统一为 `NNN-modulename-public-api.md`（如 `001-core-public-api.md`、`008-rhi-public-api.md`）；边界契约为 `pipeline-to-rci.md`。
-- **ABI 先行**：模块对外接口的**权威来源**是 **ABI 文件**（`NNN-modulename-ABI.md`）。契约更新时**必须**在 ABI 文件中**增补或替换**对应的 ABI 条目（每行含符号与说明/完整函数签名）；plan 只产出新增/修改部分，写回时也仅写入该部分。若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目，待实现时转为正式行。
+- **ABI 先行**：模块对外接口的**权威来源**是 **ABI 文件**（`NNN-modulename-ABI.md`）。契约更新时**必须**在 ABI 文件中**增补或替换**对应的 ABI 条目（每行含符号与说明/完整函数签名）；plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅写入该部分。若下游需要某接口而上游尚未实现，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目，待实现时转为正式行。
 - **建议结构**（可随需要增删）：
   - **适用模块**：本契约由哪一模块（如 001-Core）实现并负责。
   - **消费者**：哪些模块依赖本契约（与 `000-module-dependency-map.md` 一致）。
   - **版本/ABI**：当前契约对应的版本或 ABI 承诺。
   - **类型与句柄**：跨边界使用的关键类型、句柄、枚举（名称、语义、生命周期）。
   - **接口/能力列表**：提供方保证提供的能力；用自然语言或**伪代码**简述意图（如 `Allocator.Alloc(size, alignment) → ptr or null`）。
-  - **ABI 引用**：契约引用本模块对应的 `NNN-modulename-ABI.md`；**接口符号与签名以 ABI 文件为准**。真实 API 或契约变更时**须在 ABI 文件中增补或替换对应的 ABI 条目**，不得仅改 public-api。plan 只产出新增/修改部分，写回时也仅写入该部分。
+  - **ABI 引用**：契约引用本模块对应的 `NNN-modulename-ABI.md`；**接口符号与签名以 ABI 文件为准**。真实 API 或契约变更时**须在 ABI 文件中增补或替换对应的 ABI 条目**，不得仅改 public-api。plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅写入该部分。
   - **调用顺序与约束**：如“必须先初始化再创建资源”“命令缓冲在帧末提交”。
   - **变更记录**：重要变更的日期与简要说明。
 
@@ -131,7 +131,7 @@ git pull origin T0-contracts
 - **T0-contracts** 是 T0 架构下契约的**唯一权威发布源**；各 **T0-NNN-modulename** 分支工作前**必须**从此分支拉取最新契约（`git pull origin T0-contracts`）。
 - 接口的**单一事实来源**在 `specs/_contracts/`（**仅以 T0-contracts 分支上的内容为准**）。
 - 每个 Agent：**工作前**从 **T0-contracts** 拉取契约，**读**自己依赖的契约，**写/改**自己负责的契约（在 **T0-contracts** 上更新），**改接口时**更新契约并通知下游。
-- **接口如何确定**：契约（能力与类型）+ **ABI 文件**（命名空间、头文件、符号、完整签名）→ **真实 API**（头文件）；详见 **4.4**。下游以 ABI 文件为准。**契约更新时须在 ABI 文件中增补或替换对应的 ABI 条目**；plan 只产出新增/修改部分，写回时也仅写入该部分。下游所需接口须在上游 ABI 中以 TODO 登记。
+- **接口如何确定**：契约（能力与类型）+ **ABI 文件**（命名空间、头文件、符号、完整签名）→ **真实 API**（头文件）；详见 **4.4**。下游以 ABI 文件为准。**契约更新时须在 ABI 文件中增补或替换对应的 ABI 条目**；plan 生成全量 ABI 内容用于实现，但文档中只保存新增/修改部分，写回时也仅写入该部分。下游所需接口须在上游 ABI 中以 TODO 登记。
 - **Agent 何时发现依赖接口变化**：工作前、**每个 task 开始前**拉取 T0-contracts，并查阅契约/ABI 变更记录后做适配。**Follow-up 与 Issue 的具体操作已废弃**。详见 **4.5**。
 - 依赖图 `000-module-dependency-map.md` 与 `docs/engine-modules-and-architecture.md` 用于快速查“谁依赖谁”和“改了这个会影响谁”。
 
