@@ -5,19 +5,76 @@ project(te_rhi LANGUAGES CXX)
 enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 
+# Backend and debug options (plan Phase 2: T004, T008)
+option(TE_RHI_VULKAN "Enable Vulkan backend" ON)
+option(TE_RHI_D3D12 "Enable D3D12 backend (Windows)" ON)
+option(TE_RHI_METAL "Enable Metal backend (macOS)" OFF)
+option(TE_RHI_VALIDATION "Enable Vulkan Validation Layer" OFF)
+option(TE_RHI_DEBUG_LAYER "Enable D3D12 Debug Layer" OFF)
+
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
 include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
 tenengine_resolve_my_dependencies("008-rhi" OUT_DEPS MY_DEPS)
 
-add_library(te_rhi STATIC
+# Third-party: volk + vulkan-headers when Vulkan backend enabled (T005)
+if(TE_RHI_VULKAN)
+  include(FetchContent)
+  FetchContent_Declare(volk
+    GIT_REPOSITORY https://github.com/zeux/volk.git
+    GIT_TAG        1.2.162
+  )
+  FetchContent_Declare(Vulkan-Headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+    GIT_TAG        v1.3.280
+  )
+  set(VOLK_INSTALL OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(volk Vulkan-Headers)
+endif()
+
+set(TE_RHI_SOURCES
   src/device/device.cpp
   src/command_list/command_list.cpp
   src/sync/sync.cpp
 )
+if(TE_RHI_VULKAN)
+  list(APPEND TE_RHI_SOURCES src/vulkan/device_vulkan.cpp)
+endif()
+if(TE_RHI_D3D12 AND WIN32)
+  list(APPEND TE_RHI_SOURCES src/d3d12/device_d3d12.cpp)
+endif()
+if(TE_RHI_METAL AND APPLE)
+  list(APPEND TE_RHI_SOURCES src/metal/device_metal.mm)
+endif()
+add_library(te_rhi STATIC ${TE_RHI_SOURCES})
 target_link_libraries(te_rhi PRIVATE ${MY_DEPS})
 target_include_directories(te_rhi PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+# Backend/validation compile definitions (T004, T006, T007, T008)
+if(TE_RHI_VULKAN)
+  target_compile_definitions(te_rhi PRIVATE TE_RHI_VULKAN=1)
+endif()
+if(TE_RHI_D3D12)
+  target_compile_definitions(te_rhi PRIVATE TE_RHI_D3D12=1)
+endif()
+if(TE_RHI_METAL)
+  target_compile_definitions(te_rhi PRIVATE TE_RHI_METAL=1)
+endif()
+if(TE_RHI_VALIDATION)
+  target_compile_definitions(te_rhi PRIVATE TE_RHI_VALIDATION=1)
+endif()
+if(TE_RHI_DEBUG_LAYER)
+  target_compile_definitions(te_rhi PRIVATE TE_RHI_DEBUG_LAYER=1)
+endif()
+if(TE_RHI_VULKAN AND TARGET volk)
+  target_link_libraries(te_rhi PRIVATE volk)
+endif()
+if(TE_RHI_D3D12 AND WIN32)
+  target_link_libraries(te_rhi PRIVATE d3d12 dxgi)
+endif()
+if(TE_RHI_METAL AND APPLE)
+  target_link_libraries(te_rhi PRIVATE "-framework Metal" "-framework QuartzCore" "-framework Foundation")
+endif()
 
 tenengine_add_module_test(
   NAME te_rhi_test
@@ -47,5 +104,11 @@ tenengine_add_module_test(
   NAME te_rhi_sync_test
   MODULE_TARGET te_rhi
   SOURCES tests/sync_fence_semaphore.cpp
+  ENABLE_CTEST
+)
+tenengine_add_module_test(
+  NAME te_rhi_swapchain_test
+  MODULE_TARGET te_rhi
+  SOURCES tests/swapchain_create.cpp
   ENABLE_CTEST
 )

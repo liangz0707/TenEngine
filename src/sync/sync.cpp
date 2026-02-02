@@ -7,8 +7,13 @@
 namespace te {
 namespace rhi {
 
-void Wait(IFence* f) { (void)f; }
-void Signal(IFence* f) { (void)f; }
+void Wait(IFence* f) {
+  if (f) f->Wait();
+}
+
+void Signal(IFence* f) {
+  if (f) f->Signal();
+}
 
 }  // namespace rhi
 }  // namespace te

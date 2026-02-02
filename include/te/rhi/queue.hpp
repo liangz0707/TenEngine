@@ -10,9 +10,16 @@
 namespace te {
 namespace rhi {
 
+struct ICommandList;
+struct IFence;
+struct ISemaphore;
+
 /** Queue handle; returned by IDevice::GetQueue. Non-owning, lifetime tied to IDevice. */
 struct IQueue {
   virtual ~IQueue() = default;
+  virtual void Submit(ICommandList* cmdList, IFence* signalFence = nullptr,
+                     ISemaphore* waitSemaphore = nullptr, ISemaphore* signalSemaphore = nullptr) = 0;
+  virtual void WaitIdle() = 0;
 };
 
 }  // namespace rhi

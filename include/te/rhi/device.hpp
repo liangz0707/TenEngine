@@ -10,6 +10,7 @@
 #include "te/rhi/resources.hpp"
 #include "te/rhi/pso.hpp"
 #include "te/rhi/sync.hpp"
+#include "te/rhi/swapchain.hpp"
 
 namespace te {
 namespace rhi {
@@ -20,6 +21,8 @@ struct ICommandList;
 struct IDevice {
   virtual ~IDevice() = default;
 
+  /** Backend this device was created with; used by DestroyDevice to dispatch. */
+  virtual Backend GetBackend() const = 0;
   virtual IQueue* GetQueue(QueueType type, uint32_t index) = 0;
   virtual DeviceFeatures const& GetFeatures() const = 0;
   virtual ICommandList* CreateCommandList() = 0;
@@ -43,6 +46,8 @@ struct IDevice {
   virtual ISemaphore* CreateSemaphore() = 0;
   virtual void DestroyFence(IFence* f) = 0;
   virtual void DestroySemaphore(ISemaphore* s) = 0;
+
+  virtual ISwapChain* CreateSwapChain(SwapChainDesc const& desc) = 0;
 };
 
 /** Set default backend; used when CreateDevice() is called with no args. */

@@ -1,29 +1,24 @@
 /**
  * @file command_list.cpp
- * @brief RHI command list implementation (stub).
+ * @brief RHI command list implementation.
  */
 #include "te/rhi/command_list.hpp"
+#include "te/rhi/queue.hpp"
 
 namespace te {
 namespace rhi {
 
-namespace {
-
-bool g_recording{false};
-
-}  // namespace
-
 void Begin(ICommandList* cmd) {
-  if (cmd) g_recording = true;
+  if (cmd) cmd->Begin();
 }
 
 void End(ICommandList* cmd) {
-  if (cmd) g_recording = false;
+  if (cmd) cmd->End();
 }
 
 void Submit(ICommandList* cmd, IQueue* queue) {
-  (void)cmd;
-  (void)queue;
+  if (cmd && queue)
+    queue->Submit(cmd, nullptr, nullptr, nullptr);
 }
 
 }  // namespace rhi

@@ -31,6 +31,41 @@ struct DeviceFeatures {
   uint32_t maxTextureDimension3D{0};
 };
 
+/** Resource state for barrier (fine-grained per spec clarification). */
+enum class ResourceState : uint32_t {
+  Common = 0,
+  VertexBuffer,
+  IndexBuffer,
+  RenderTarget,
+  DepthWrite,
+  ShaderResource,
+  CopySrc,
+  CopyDst,
+  Present,
+};
+
+// Forward declarations for barrier structs
+struct IBuffer;
+struct ITexture;
+
+/** Buffer barrier (fine-grained: per-resource + state transition). */
+struct BufferBarrier {
+  IBuffer* buffer{nullptr};
+  size_t offset{0};
+  size_t size{0};
+  ResourceState srcState{ResourceState::Common};
+  ResourceState dstState{ResourceState::Common};
+};
+
+/** Texture barrier (fine-grained: per-resource + state transition). */
+struct TextureBarrier {
+  ITexture* texture{nullptr};
+  uint32_t mipLevel{0};
+  uint32_t arrayLayer{0};
+  ResourceState srcState{ResourceState::Common};
+  ResourceState dstState{ResourceState::Common};
+};
+
 // Forward declarations per contract API sketch sections 1-7
 struct IDevice;
 struct IQueue;
@@ -41,6 +76,7 @@ struct ISampler;
 struct IPSO;
 struct IFence;
 struct ISemaphore;
+struct ISwapChain;
 
 }  // namespace rhi
 }  // namespace te
