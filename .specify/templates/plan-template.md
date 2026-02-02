@@ -12,7 +12,7 @@
 ## 实现范围（TenEngine：实现全量 ABI 内容）
 
 > **ABI 生成与保存模式**：
-> - **生成全量 ABI 内容**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**，包括：
+> - **生成全量 ABI 内容**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**，并可进行优化（补充、删除、合并等），包括：
 >   - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
 >   - **新增的 ABI**：本 feature 新增的接口条目
 >   - **修改的 ABI**：对现有 ABI 条目的修改
