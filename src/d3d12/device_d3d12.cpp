@@ -53,9 +53,15 @@ struct FenceD3D12 final : IFence {
   }
 };
 
+struct BufferD3D12 final : IBuffer {
+  ComPtr<ID3D12Resource> resource;
+  ~BufferD3D12() override = default;
+};
+
 struct CommandListD3D12 final : ICommandList {
   ComPtr<ID3D12GraphicsCommandList> list;
   ComPtr<ID3D12CommandAllocator> allocator;
+  ID3D12RootSignature* rootSignature = nullptr;
   bool recording = false;
 
   void Begin() override {
@@ -63,6 +69,10 @@ struct CommandListD3D12 final : ICommandList {
     if (recording) return;
     allocator->Reset();
     list->Reset(allocator.Get(), nullptr);
+    if (rootSignature) {
+      list->SetGraphicsRootSignature(rootSignature);
+      list->SetComputeRootSignature(rootSignature);
+    }
     recording = true;
   }
   void End() override {
@@ -101,6 +111,15 @@ struct CommandListD3D12 final : ICommandList {
       r[i].bottom = scissors[i].y + (LONG)scissors[i].height;
     }
     list->RSSetScissorRects(count, r.data());
+  }
+  void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) override {
+    if (!list || !recording || !rootSignature) return;
+    if (!buffer) return;
+    BufferD3D12* b = static_cast<BufferD3D12*>(buffer);
+    if (!b->resource) return;
+    D3D12_GPU_VIRTUAL_ADDRESS gpuVa = b->resource->GetGPUVirtualAddress() + (UINT64)offset;
+    list->SetGraphicsRootConstantBufferView(slot, gpuVa);
+    list->SetComputeRootConstantBufferView(slot, gpuVa);
   }
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
@@ -152,11 +171,6 @@ struct CommandListD3D12 final : ICommandList {
       list->ResourceBarrier((UINT)barriers.size(), barriers.data());
   }
   ~CommandListD3D12() override = default;
-};
-
-struct BufferD3D12 final : IBuffer {
-  ComPtr<ID3D12Resource> resource;
-  ~BufferD3D12() override = default;
 };
 
 struct TextureD3D12 final : ITexture {
@@ -228,6 +242,7 @@ struct QueueD3D12 final : IQueue {
 struct DeviceD3D12 final : IDevice {
   ComPtr<ID3D12Device> device;
   ComPtr<ID3D12CommandQueue> queue;
+  ComPtr<ID3D12RootSignature> rootSignature;
   QueueD3D12* queueWrapper = nullptr;
   DeviceFeatures features{};
   DeviceLimits limits{};
@@ -241,7 +256,7 @@ struct DeviceD3D12 final : IDevice {
   DeviceFeatures const& GetFeatures() const override { return features; }
   DeviceLimits const& GetLimits() const override { return limits; }
   ICommandList* CreateCommandList() override {
-    if (!device) return nullptr;
+    if (!device || !rootSignature) return nullptr;
     ComPtr<ID3D12CommandAllocator> allocator;
     if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator))))
       return nullptr;
@@ -252,15 +267,28 @@ struct DeviceD3D12 final : IDevice {
     auto* cl = new CommandListD3D12();
     cl->allocator = allocator;
     cl->list = list;
+    cl->rootSignature = rootSignature.Get();
     return cl;
   }
   void DestroyCommandList(ICommandList* cmd) override {
     delete static_cast<CommandListD3D12*>(cmd);
   }
+  void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) override {
+    if (!device || !buf || !data || size == 0) return;
+    BufferD3D12* b = static_cast<BufferD3D12*>(buf);
+    if (!b->resource) return;
+    void* ptr = nullptr;
+    D3D12_RANGE readRange = { 0, 0 };
+    if (FAILED(b->resource->Map(0, &readRange, &ptr))) return;
+    std::memcpy(static_cast<char*>(ptr) + offset, data, size);
+    D3D12_RANGE writeRange = { offset, offset + size };
+    b->resource->Unmap(0, &writeRange);
+  }
   IBuffer* CreateBuffer(BufferDesc const& desc) override {
     if (!device || desc.size == 0) return nullptr;
+    bool isUniform = (desc.usage & static_cast<uint32_t>(BufferUsage::Uniform)) != 0;
     D3D12_HEAP_PROPERTIES hp = {};
-    hp.Type = D3D12_HEAP_TYPE_DEFAULT;
+    hp.Type = isUniform ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
     hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
     hp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
     D3D12_RESOURCE_DESC rd = {};
@@ -274,9 +302,10 @@ struct DeviceD3D12 final : IDevice {
     rd.SampleDesc = { 1, 0 };
     rd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
     rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+    D3D12_RESOURCE_STATES state = isUniform ? D3D12_RESOURCE_STATE_GENERIC_READ : D3D12_RESOURCE_STATE_COMMON;
     ComPtr<ID3D12Resource> res;
     if (FAILED(device->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd,
-                                                D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&res))))
+                                                state, nullptr, IID_PPV_ARGS(&res))))
       return nullptr;
     auto* b = new BufferD3D12();
     b->resource = res;
@@ -403,9 +432,31 @@ IDevice* CreateDeviceD3D12() {
       qdesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
       ComPtr<ID3D12CommandQueue> queue;
       if (SUCCEEDED(device->CreateCommandQueue(&qdesc, IID_PPV_ARGS(&queue)))) {
+        /* Minimal root signature: 16 CBV slots for SetUniformBuffer(slot 0..15). */
+        enum { kMaxUniformSlots = 16 };
+        D3D12_ROOT_PARAMETER params[kMaxUniformSlots] = {};
+        for (UINT i = 0; i < kMaxUniformSlots; ++i) {
+          params[i].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+          params[i].Descriptor.ShaderRegister = i;
+          params[i].Descriptor.RegisterSpace = 0;
+          params[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+        }
+        D3D12_ROOT_SIGNATURE_DESC rsDesc = {};
+        rsDesc.NumParameters = kMaxUniformSlots;
+        rsDesc.pParameters = params;
+        rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+        ComPtr<ID3DBlob> rsBlob;
+        ComPtr<ID3DBlob> errBlob;
+        if (FAILED(D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rsBlob, &errBlob)))
+          continue;
+        ComPtr<ID3D12RootSignature> rootSig;
+        if (FAILED(device->CreateRootSignature(0, rsBlob->GetBufferPointer(), rsBlob->GetBufferSize(),
+                                                IID_PPV_ARGS(&rootSig))))
+          continue;
         auto* d = new DeviceD3D12();
         d->device = device;
         d->queue = queue;
+        d->rootSignature = rootSig;
         d->queueWrapper = new QueueD3D12();
         d->queueWrapper->queue = queue;
         d->limits.maxBufferSize = 256 * 1024 * 1024ull;

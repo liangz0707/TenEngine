@@ -75,6 +75,7 @@ struct ICommandList {
                            uint32_t first_instance = 0) = 0;
   virtual void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) = 0;
   virtual void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) = 0;
+  virtual void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) = 0;
   virtual void BeginRenderPass(RenderPassDesc const& desc) = 0;
   virtual void EndRenderPass() = 0;
   virtual void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst,

@@ -16,6 +16,7 @@
 #include <Foundation/Foundation.h>
 #include <dispatch/dispatch.h>
 #include <cstddef>
+#include <cstring>
 
 namespace te {
 namespace rhi {
@@ -39,6 +40,11 @@ struct FenceMetal final : IFence {
       semaphore = nullptr;
     }
   }
+};
+
+struct BufferMetal final : IBuffer {
+  id<MTLBuffer> buffer = nil;
+  ~BufferMetal() override { if (buffer) [buffer release]; }
 };
 
 struct CommandListMetal final : ICommandList {
@@ -159,6 +165,19 @@ struct CommandListMetal final : ICommandList {
       [renderEncoder setScissorRect:lastScissor];
   }
 
+  void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) override {
+    if (!recording || !buffer) return;
+    BufferMetal* b = static_cast<BufferMetal*>(buffer);
+    id<MTLBuffer> mb = b ? b->buffer : nil;
+    NSUInteger off = (NSUInteger)offset;
+    if (renderEncoder)
+      [renderEncoder setVertexBuffer:mb offset:off atIndex:slot];
+    if (renderEncoder)
+      [renderEncoder setFragmentBuffer:mb offset:off atIndex:slot];
+    if (computeEncoder)
+      [computeEncoder setBuffer:mb offset:off atIndex:slot];
+  }
+
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
@@ -207,11 +226,6 @@ struct CommandListMetal final : ICommandList {
     if (dummyIndexBuffer) { [dummyIndexBuffer release]; dummyIndexBuffer = nil; }
     if (buffer) { buffer = nil; }
   }
-};
-
-struct BufferMetal final : IBuffer {
-  id<MTLBuffer> buffer = nil;
-  ~BufferMetal() override { if (buffer) [buffer release]; }
 };
 
 struct TextureMetal final : ITexture {
@@ -309,9 +323,21 @@ struct DeviceMetal final : IDevice {
     delete static_cast<CommandListMetal*>(cmd);
   }
 
+  void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) override {
+    if (!device || !buf || !data || size == 0) return;
+    BufferMetal* b = static_cast<BufferMetal*>(buf);
+    if (!b->buffer) return;
+    void* ptr = [b->buffer contents];
+    if (!ptr) return;
+    std::memcpy(static_cast<char*>(ptr) + offset, data, size);
+  }
+
   IBuffer* CreateBuffer(BufferDesc const& desc) override {
     if (!device || desc.size == 0) return nullptr;
-    id<MTLBuffer> buf = [device newBufferWithLength:desc.size options:MTLResourceStorageModeShared];
+    /* Uniform / CPU-writable: use Shared so UpdateBuffer can write via contents. */
+    bool wantHostVisible = (desc.usage & static_cast<uint32_t>(BufferUsage::Uniform)) != 0;
+    MTLResourceOptions opts = wantHostVisible ? MTLResourceStorageModeShared : MTLResourceStorageModeShared;
+    id<MTLBuffer> buf = [device newBufferWithLength:desc.size options:opts];
     if (!buf) return nullptr;
     auto* b = new BufferMetal();
     b->buffer = buf;

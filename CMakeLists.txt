@@ -122,3 +122,9 @@ tenengine_add_module_test(
   SOURCES tests/swapchain_create.cpp
   ENABLE_CTEST
 )
+tenengine_add_module_test(
+  NAME te_rhi_buffer_update_uniform_bind_test
+  MODULE_TARGET te_rhi
+  SOURCES tests/buffer_update_uniform_bind.cpp
+  ENABLE_CTEST
+)

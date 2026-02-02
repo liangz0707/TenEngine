@@ -14,6 +14,7 @@
 #include <te/rhi/types.hpp>
 #include <d3d11.h>
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #ifdef CreateSemaphore
 #undef CreateSemaphore
@@ -48,6 +49,11 @@ struct FenceD3D11 final : IFence {
       event = nullptr;
     }
   }
+};
+
+struct BufferD3D11 final : IBuffer {
+  ID3D11Buffer* buffer = nullptr;
+  ~BufferD3D11() override { if (buffer) buffer->Release(); }
 };
 
 struct CommandListD3D11 final : ICommandList {
@@ -101,6 +107,23 @@ struct CommandListD3D11 final : ICommandList {
     }
     deferredCtx->RSSetScissorRects(count, r.data());
   }
+  void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) override {
+    if (!deferredCtx || !recording) return;
+    if (!buffer) {
+      ID3D11Buffer* nullBuf = nullptr;
+      deferredCtx->VSSetConstantBuffers(slot, 1, &nullBuf);
+      deferredCtx->PSSetConstantBuffers(slot, 1, &nullBuf);
+      deferredCtx->CSSetConstantBuffers(slot, 1, &nullBuf);
+      return;
+    }
+    BufferD3D11* b = static_cast<BufferD3D11*>(buffer);
+    if (!b->buffer) return;
+    ID3D11Buffer* cb = b->buffer;
+    (void)offset;  /* D3D11 VSSetConstantBuffers has no per-call offset; bind from buffer start */
+    deferredCtx->VSSetConstantBuffers(slot, 1, &cb);
+    deferredCtx->PSSetConstantBuffers(slot, 1, &cb);
+    deferredCtx->CSSetConstantBuffers(slot, 1, &cb);
+  }
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
@@ -137,11 +160,6 @@ struct CommandListD3D11 final : ICommandList {
       deferredCtx = nullptr;
     }
   }
-};
-
-struct BufferD3D11 final : IBuffer {
-  ID3D11Buffer* buffer = nullptr;
-  ~BufferD3D11() override { if (buffer) buffer->Release(); }
 };
 
 struct TextureD3D11 final : ITexture {
@@ -231,16 +249,37 @@ struct DeviceD3D11 final : IDevice {
   void DestroyCommandList(ICommandList* cmd) override {
     delete static_cast<CommandListD3D11*>(cmd);
   }
+  void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) override {
+    if (!context || !buf || !data || size == 0) return;
+    BufferD3D11* b = static_cast<BufferD3D11*>(buf);
+    if (!b->buffer) return;
+    D3D11_MAPPED_SUBRESOURCE mapped = {};
+    if (FAILED(context->Map(b->buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+      return;
+    std::memcpy(static_cast<char*>(mapped.pData) + offset, data, size);
+    context->Unmap(b->buffer, 0);
+  }
   IBuffer* CreateBuffer(BufferDesc const& desc) override {
     if (!device || desc.size == 0) return nullptr;
     D3D11_BUFFER_DESC bd = {};
     bd.ByteWidth = (UINT)desc.size;
     bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.BindFlags = 0;
     bd.CPUAccessFlags = 0;
     bd.MiscFlags = 0;
-    if (desc.usage != 0)
-      bd.BindFlags = (UINT)desc.usage;
+    if (desc.usage != 0) {
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Vertex)) bd.BindFlags |= D3D11_BIND_VERTEX_BUFFER;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Index)) bd.BindFlags |= D3D11_BIND_INDEX_BUFFER;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Uniform)) {
+        bd.BindFlags |= D3D11_BIND_CONSTANT_BUFFER;
+        bd.Usage = D3D11_USAGE_DYNAMIC;
+        bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+      }
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Storage)) bd.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::CopySrc)) bd.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::CopyDst)) { /* D3D11 has no separate copy-dst bind */ }
+    }
+    if (bd.BindFlags == 0) bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     ID3D11Buffer* buf = nullptr;
     if (FAILED(device->CreateBuffer(&bd, nullptr, &buf)) || !buf)
       return nullptr;

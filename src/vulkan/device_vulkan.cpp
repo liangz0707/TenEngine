@@ -41,10 +41,24 @@ struct FenceVulkan final : IFence {
   }
 };
 
+struct BufferVulkan final : IBuffer {
+  VkDevice device = VK_NULL_HANDLE;
+  VkBuffer buffer = VK_NULL_HANDLE;
+  VkDeviceMemory memory = VK_NULL_HANDLE;
+  ~BufferVulkan() override {
+    if (buffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyBuffer(device, buffer, nullptr);
+    if (memory != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkFreeMemory(device, memory, nullptr);
+  }
+};
+
 struct CommandListVulkan final : ICommandList {
   VkDevice device = VK_NULL_HANDLE;
   VkCommandPool pool = VK_NULL_HANDLE;
   VkCommandBuffer cmd = VK_NULL_HANDLE;
+  VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
   bool recording = false;
 
   void Begin() override {
@@ -89,6 +103,27 @@ struct CommandListVulkan final : ICommandList {
       s[i].extent = { scissors[i].width, scissors[i].height };
     }
     vkCmdSetScissor(cmd, first, count, s.data());
+  }
+  void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) override {
+    if (cmd == VK_NULL_HANDLE || !recording || descriptorSet == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE) return;
+    if (!buffer) return;
+    BufferVulkan* b = static_cast<BufferVulkan*>(buffer);
+    if (b->buffer == VK_NULL_HANDLE) return;
+    VkDescriptorBufferInfo binfo = {};
+    binfo.buffer = b->buffer;
+    binfo.offset = offset;
+    binfo.range = VK_WHOLE_SIZE;
+    VkWriteDescriptorSet write = {};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = descriptorSet;
+    write.dstBinding = slot;
+    write.dstArrayElement = 0;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write.pBufferInfo = &binfo;
+    vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
   }
   void BeginRenderPass(RenderPassDesc const& desc) override {
     (void)desc;
@@ -158,18 +193,6 @@ struct CommandListVulkan final : ICommandList {
   ~CommandListVulkan() override {
     if (cmd != VK_NULL_HANDLE && device != VK_NULL_HANDLE && pool != VK_NULL_HANDLE)
       vkFreeCommandBuffers(device, pool, 1, &cmd);
-  }
-};
-
-struct BufferVulkan final : IBuffer {
-  VkDevice device = VK_NULL_HANDLE;
-  VkBuffer buffer = VK_NULL_HANDLE;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
-  ~BufferVulkan() override {
-    if (buffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkDestroyBuffer(device, buffer, nullptr);
-    if (memory != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkFreeMemory(device, memory, nullptr);
   }
 };
 
@@ -256,6 +279,9 @@ struct DeviceVulkan final : IDevice {
   VkDevice   device   = VK_NULL_HANDLE;
   VkQueue    queue    = VK_NULL_HANDLE;
   VkCommandPool commandPool = VK_NULL_HANDLE;
+  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+  VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
   QueueVulkan* queueWrapper = nullptr;
   DeviceFeatures features{};
   DeviceLimits    limits{};
@@ -270,6 +296,8 @@ struct DeviceVulkan final : IDevice {
   DeviceLimits const& GetLimits() const override { return limits; }
   ICommandList* CreateCommandList() override {
     if (device == VK_NULL_HANDLE || commandPool == VK_NULL_HANDLE) return nullptr;
+    if (descriptorPool == VK_NULL_HANDLE || descriptorSetLayout == VK_NULL_HANDLE || pipelineLayout == VK_NULL_HANDLE)
+      return nullptr;
     VkCommandBufferAllocateInfo ai = {};
     ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     ai.commandPool = commandPool;
@@ -277,14 +305,35 @@ struct DeviceVulkan final : IDevice {
     ai.commandBufferCount = 1;
     VkCommandBuffer cb = VK_NULL_HANDLE;
     if (vkAllocateCommandBuffers(device, &ai, &cb) != VK_SUCCESS) return nullptr;
+    VkDescriptorSetAllocateInfo dsAi = {};
+    dsAi.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsAi.descriptorPool = descriptorPool;
+    dsAi.descriptorSetCount = 1;
+    dsAi.pSetLayouts = &descriptorSetLayout;
+    VkDescriptorSet ds = VK_NULL_HANDLE;
+    if (vkAllocateDescriptorSets(device, &dsAi, &ds) != VK_SUCCESS) {
+      vkFreeCommandBuffers(device, commandPool, 1, &cb);
+      return nullptr;
+    }
     auto* cl = new CommandListVulkan();
     cl->device = device;
     cl->pool = commandPool;
     cl->cmd = cb;
+    cl->descriptorSet = ds;
+    cl->pipelineLayout = pipelineLayout;
     return cl;
   }
   void DestroyCommandList(ICommandList* cmd) override {
     delete static_cast<CommandListVulkan*>(cmd);
+  }
+  void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) override {
+    if (device == VK_NULL_HANDLE || !buf || !data || size == 0) return;
+    BufferVulkan* b = static_cast<BufferVulkan*>(buf);
+    if (b->buffer == VK_NULL_HANDLE || b->memory == VK_NULL_HANDLE) return;
+    void* ptr = nullptr;
+    if (vkMapMemory(device, b->memory, offset, size, 0, &ptr) != VK_SUCCESS) return;
+    std::memcpy(ptr, data, size);
+    vkUnmapMemory(device, b->memory);
   }
   IBuffer* CreateBuffer(BufferDesc const& desc) override {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE || desc.size == 0)
@@ -293,8 +342,16 @@ struct DeviceVulkan final : IDevice {
     bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bci.size = desc.size;
     bci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    if (desc.usage != 0)
-      bci.usage = static_cast<VkBufferUsageFlags>(desc.usage);
+    if (desc.usage != 0) {
+      VkBufferUsageFlags u = 0;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Vertex)) u |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Index)) u |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Uniform)) u |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::Storage)) u |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::CopySrc)) u |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+      if (desc.usage & static_cast<uint32_t>(BufferUsage::CopyDst)) u |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+      if (u != 0) bci.usage = u;
+    }
     VkBuffer buf = VK_NULL_HANDLE;
     if (vkCreateBuffer(device, &bci, nullptr, &buf) != VK_SUCCESS)
       return nullptr;
@@ -302,12 +359,27 @@ struct DeviceVulkan final : IDevice {
     vkGetBufferMemoryRequirements(device, buf, &memReq);
     VkPhysicalDeviceMemoryProperties memProps = {};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProps);
+    bool wantHostVisible = (desc.usage & static_cast<uint32_t>(BufferUsage::Uniform)) != 0;
     uint32_t memTypeIndex = (uint32_t)-1;
     for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
-      if ((memReq.memoryTypeBits & (1u << i)) &&
-          (memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+      if (!(memReq.memoryTypeBits & (1u << i))) continue;
+      VkMemoryPropertyFlags flags = memProps.memoryTypes[i].propertyFlags;
+      if (wantHostVisible && (flags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         memTypeIndex = i;
         break;
+      }
+      if (!wantHostVisible && (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+        memTypeIndex = i;
+        break;
+      }
+    }
+    if (memTypeIndex == (uint32_t)-1 && !wantHostVisible) {
+      for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+        if ((memReq.memoryTypeBits & (1u << i)) &&
+            (memProps.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
+          memTypeIndex = i;
+          break;
+        }
       }
     }
     if (memTypeIndex == (uint32_t)-1) {
@@ -513,6 +585,12 @@ struct DeviceVulkan final : IDevice {
   ~DeviceVulkan() override {
     delete queueWrapper;
     queueWrapper = nullptr;
+    if (descriptorPool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    if (pipelineLayout != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    if (descriptorSetLayout != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
     if (commandPool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
       vkDestroyCommandPool(device, commandPool, nullptr);
   }
@@ -571,12 +649,62 @@ IDevice* CreateDeviceVulkan() {
     vkDestroyInstance(instance, nullptr);
     return nullptr;
   }
+  /* Descriptor set layout: up to 16 uniform buffer bindings (slots 0..15). */
+  enum { kMaxUniformSlots = 16 };
+  VkDescriptorSetLayoutBinding bindings[kMaxUniformSlots] = {};
+  for (uint32_t i = 0; i < kMaxUniformSlots; ++i) {
+    bindings[i].binding = i;
+    bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[i].descriptorCount = 1;
+    bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+  }
+  VkDescriptorSetLayoutCreateInfo dsLayoutCi = {};
+  dsLayoutCi.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  dsLayoutCi.bindingCount = kMaxUniformSlots;
+  dsLayoutCi.pBindings = bindings;
+  VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+  if (vkCreateDescriptorSetLayout(device, &dsLayoutCi, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+    vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    return nullptr;
+  }
+  VkDescriptorPoolSize poolSizes[] = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, kMaxUniformSlots * 64 } };
+  VkDescriptorPoolCreateInfo poolCi = {};
+  poolCi.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  poolCi.maxSets = 64;
+  poolCi.poolSizeCount = 1;
+  poolCi.pPoolSizes = poolSizes;
+  VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+  if (vkCreateDescriptorPool(device, &poolCi, nullptr, &descriptorPool) != VK_SUCCESS) {
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    return nullptr;
+  }
+  VkPipelineLayoutCreateInfo plCi = {};
+  plCi.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  plCi.setLayoutCount = 1;
+  plCi.pSetLayouts = &descriptorSetLayout;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  if (vkCreatePipelineLayout(device, &plCi, nullptr, &pipelineLayout) != VK_SUCCESS) {
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    return nullptr;
+  }
   auto* d = new DeviceVulkan();
   d->instance = instance;
   d->physicalDevice = physDev;
   d->device = device;
   d->queue = queue;
   d->commandPool = commandPool;
+  d->descriptorSetLayout = descriptorSetLayout;
+  d->descriptorPool = descriptorPool;
+  d->pipelineLayout = pipelineLayout;
   VkPhysicalDeviceProperties props = {};
   vkGetPhysicalDeviceProperties(physDev, &props);
   d->limits.maxBufferSize = 256 * 1024 * 1024ull;

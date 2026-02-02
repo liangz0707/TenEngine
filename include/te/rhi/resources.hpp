@@ -11,9 +11,20 @@
 namespace te {
 namespace rhi {
 
+/** Buffer usage bits; BufferDesc::usage is a bitmask of BufferUsage. */
+enum class BufferUsage : uint32_t {
+  Vertex  = 1u << 0,
+  Index   = 1u << 1,
+  Uniform = 1u << 2,
+  Storage = 1u << 3,
+  CopySrc = 1u << 4,
+  CopyDst = 1u << 5,
+};
+
+/** Buffer creation descriptor. usage is a BufferUsage bitmask; include Uniform for constant buffers. */
 struct BufferDesc {
-  size_t  size;
-  uint32_t usage;
+  size_t   size;
+  uint32_t usage;  // BufferUsage bitmask; Uniform bit required for CreateUniformBuffer etc.
 };
 
 struct TextureDesc {
