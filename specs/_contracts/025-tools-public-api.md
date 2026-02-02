@@ -26,14 +26,14 @@
 | CLICommand | 命令行、子命令、离线 API | 单次调用 |
 | PluginDescriptor | 插件/包发现、版本、依赖、与 ModuleLoad 对接 | 由 Tools 或包管理管理 |
 
-若运行时需查询构建信息或插件列表，可在本契约中补充只读接口。
+若运行时需查询构建信息或插件列表，可在本契约中补充只读接口。**ABI 显式表**：[025-tools-ABI.md](./025-tools-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Build**：Configure、Compile、Dependencies、TargetPlatform；与构建系统对接。
-2. **Batch**：BatchImport、BatchProcess；与 Resource 对接。
-3. **CLI**：ParseArgs、RunCommand、OfflineAPI。
-4. **PackageManager**：DiscoverPlugins、ResolveDeps、LoadPlugin；与 ModuleLoad 对接。
+1. **Build**：IBuildSystem::Configure、Compile；BuildConfig；GetBuildSystem；与构建系统对接。
+2. **Batch**：IBatchProcessor::BatchImport、BatchProcess；BatchJob；与 Resource 对接。
+3. **CLI**：ParseArgs、RunCommand、InvokeOfflineAPI；CLIResult；单次调用。
+4. **PackageManager**：IPluginManager::DiscoverPlugins、ResolveDeps、LoadPlugin；PluginDescriptor；与 ModuleLoad 对接。
 
 ## 调用顺序与约束
 
@@ -44,3 +44,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：025-Tools 对应本契约；无下游；与 docs/module-specs/025-tools.md 一致 |
+| 2026-01-28 | 根据 025-tools-ABI 反向更新：IBuildSystem、IBatchProcessor、ParseArgs、RunCommand、IPluginManager、BuildConfig、BatchJob、PluginDescriptor；能力与类型与 ABI 表一致 |
