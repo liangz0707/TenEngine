@@ -1,6 +1,7 @@
 # 008-RHI 模块 ABI
 
 - **契约**：[008-rhi-public-api.md](./008-rhi-public-api.md)（能力与类型描述）
+- **后端任务索引**：[008-rhi-backend-tasks.md](./008-rhi-backend-tasks.md)（代码内 T0xx 注释与实现状态对应）
 - **本文件**：008-RHI 对外 ABI 显式表。
 - **平台与接口**：引擎支持 **Android、iOS** 等平台（见 001-Core）；RHI 支持 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口，及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端实现路径。
 - **参考**：Vulkan（vkCmd*、VkBuffer/VkImage/VkDescriptorSet、vkCmdPipelineBarrier）、Metal（MTLCommandEncoder、MTLBuffer/MTLTexture、setVertexBuffer/setFragmentTexture、drawIndexedPrimitives）、D3D12（ID3D12GraphicsCommandList、ResourceBarrier、DrawIndexedInstanced）、Unreal FRHICommandList、Unity 底层图形封装。
@@ -14,7 +15,8 @@
 
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
-| 008-RHI | te::rhi | Backend | 枚举 | 图形后端 | te/rhi/types.hpp | `enum class Backend : unsigned { Vulkan = 0, D3D12 = 1, Metal = 2 };` |
+| 008-RHI | te::rhi | Backend | 枚举 | 图形后端 | te/rhi/types.hpp | `enum class Backend : unsigned { Vulkan = 0, D3D12 = 1, Metal = 2, D3D11 = 3 };` |
+| 008-RHI | te::rhi | DeviceLimits | struct | 设备限制 | te/rhi/types.hpp | `maxBufferSize`, `maxTextureDimension2D`, `maxTextureDimension3D`, `minUniformBufferOffsetAlignment` (size_t/uint32_t) |
 | 008-RHI | te::rhi | QueueType | 枚举 | 队列类型 | te/rhi/types.hpp | `enum class QueueType : unsigned { Graphics = 0, Compute = 1, Copy = 2 };` |
 | 008-RHI | te::rhi | DeviceFeatures | struct | 设备特性（最小集） | te/rhi/types.hpp | `maxTextureDimension2D`, `maxTextureDimension3D` (uint32_t) |
 | 008-RHI | te::rhi | ResourceState | 枚举 | 资源状态（屏障用） | te/rhi/types.hpp | `enum class ResourceState : uint32_t { Common, VertexBuffer, IndexBuffer, RenderTarget, DepthWrite, ShaderResource, CopySrc, CopyDst, Present };` |
@@ -56,6 +58,7 @@
 | 008-RHI | te::rhi | IDevice::GetBackend | 成员函数 | 返回创建时后端 | te/rhi/device.hpp | `Backend GetBackend() const = 0;` |
 | 008-RHI | te::rhi | IDevice::GetQueue | 成员函数 | 获取队列 | te/rhi/device.hpp | `IQueue* GetQueue(QueueType type, uint32_t index) = 0;` 越界返回 nullptr |
 | 008-RHI | te::rhi | IDevice::GetFeatures | 成员函数 | 设备特性 | te/rhi/device.hpp | `DeviceFeatures const& GetFeatures() const = 0;` |
+| 008-RHI | te::rhi | IDevice::GetLimits | 成员函数 | 设备限制 | te/rhi/device.hpp | `DeviceLimits const& GetLimits() const = 0;` |
 | 008-RHI | te::rhi | IDevice::CreateCommandList | 成员函数 | 创建命令列表 | te/rhi/device.hpp | `ICommandList* CreateCommandList() = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::DestroyCommandList | 成员函数 | 销毁命令列表 | te/rhi/device.hpp | `void DestroyCommandList(ICommandList* cmd) = 0;` |
 | 008-RHI | te::rhi | IDevice::CreateBuffer | 成员函数 | 创建缓冲 | te/rhi/device.hpp | `IBuffer* CreateBuffer(BufferDesc const& desc) = 0;` 失败返回 nullptr |
@@ -70,11 +73,16 @@
 | 008-RHI | te::rhi | IDevice::SetShader | 成员函数 | 绑定 shader 数据 | te/rhi/device.hpp | `void SetShader(IPSO* pso, void const* data, size_t size) = 0;` |
 | 008-RHI | te::rhi | IDevice::Cache | 成员函数 | PSO 缓存 | te/rhi/device.hpp | `void Cache(IPSO* pso) = 0;` |
 | 008-RHI | te::rhi | IDevice::DestroyPSO | 成员函数 | 销毁 PSO | te/rhi/device.hpp | `void DestroyPSO(IPSO* pso) = 0;` |
-| 008-RHI | te::rhi | IDevice::CreateFence | 成员函数 | 创建 Fence | te/rhi/device.hpp | `IFence* CreateFence() = 0;` 失败返回 nullptr |
+| 008-RHI | te::rhi | IDevice::CreateFence | 成员函数 | 创建 Fence | te/rhi/device.hpp | `IFence* CreateFence(bool initialSignaled = false) = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::CreateSemaphore | 成员函数 | 创建 Semaphore | te/rhi/device.hpp | `ISemaphore* CreateSemaphore() = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::DestroyFence | 成员函数 | 销毁 Fence | te/rhi/device.hpp | `void DestroyFence(IFence* f) = 0;` |
 | 008-RHI | te::rhi | IDevice::DestroySemaphore | 成员函数 | 销毁 Semaphore | te/rhi/device.hpp | `void DestroySemaphore(ISemaphore* s) = 0;` |
 | 008-RHI | te::rhi | IDevice::CreateSwapChain | 成员函数 | 创建交换链 | te/rhi/device.hpp | `ISwapChain* CreateSwapChain(SwapChainDesc const& desc) = 0;` 失败返回 nullptr |
+| 008-RHI | te::rhi | IDevice::CreateDescriptorSetLayout | 成员函数 | 创建描述符集布局 | te/rhi/device.hpp | `IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) = 0;` 失败返回 nullptr（P2） |
+| 008-RHI | te::rhi | IDevice::AllocateDescriptorSet | 成员函数 | 分配描述符集 | te/rhi/device.hpp | `IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) = 0;` 失败返回 nullptr（P2） |
+| 008-RHI | te::rhi | IDevice::UpdateDescriptorSet | 成员函数 | 更新描述符 | te/rhi/device.hpp | `void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) = 0;`（P2） |
+| 008-RHI | te::rhi | IDevice::DestroyDescriptorSetLayout | 成员函数 | 销毁描述符集布局 | te/rhi/device.hpp | `void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) = 0;`（P2） |
+| 008-RHI | te::rhi | IDevice::DestroyDescriptorSet | 成员函数 | 销毁描述符集 | te/rhi/device.hpp | `void DestroyDescriptorSet(IDescriptorSet* set) = 0;`（P2） |
 | 008-RHI | te::rhi | IQueue | 抽象接口 | 队列 | te/rhi/queue.hpp | 见下表 IQueue 成员 |
 | 008-RHI | te::rhi | IQueue::Submit | 成员函数 | 提交命令列表 | te/rhi/queue.hpp | `void Submit(ICommandList* cmdList, IFence* signalFence = nullptr, ISemaphore* waitSemaphore = nullptr, ISemaphore* signalSemaphore = nullptr) = 0;` |
 | 008-RHI | te::rhi | IQueue::WaitIdle | 成员函数 | 等待队列空闲 | te/rhi/queue.hpp | `void WaitIdle() = 0;` |
@@ -86,13 +94,30 @@
 | 008-RHI | te::rhi | ICommandList | 抽象接口 | 命令缓冲 | te/rhi/command_list.hpp | 见下表 ICommandList 成员 |
 | 008-RHI | te::rhi | ICommandList::Begin | 成员函数 | 开始录制 | te/rhi/command_list.hpp | `void Begin() = 0;` |
 | 008-RHI | te::rhi | ICommandList::End | 成员函数 | 结束录制 | te/rhi/command_list.hpp | `void End() = 0;` |
+| 008-RHI | te::rhi | LoadOp | 枚举 | 渲染附件加载操作 | te/rhi/command_list.hpp | `enum class LoadOp : uint32_t { Load = 0, Clear = 1, DontCare = 2 };` |
+| 008-RHI | te::rhi | StoreOp | 枚举 | 渲染附件存储操作 | te/rhi/command_list.hpp | `enum class StoreOp : uint32_t { Store = 0, DontCare = 1 };` |
+| 008-RHI | te::rhi | kMaxColorAttachments | 常量 | 颜色附件最大数量 | te/rhi/command_list.hpp | `constexpr uint32_t kMaxColorAttachments = 8u;` |
+| 008-RHI | te::rhi | Viewport | struct | 视口 | te/rhi/command_list.hpp | x, y, width, height, minDepth, maxDepth (float) |
+| 008-RHI | te::rhi | ScissorRect | struct | 裁剪矩形 | te/rhi/command_list.hpp | x, y, width, height (int32_t/uint32_t) |
+| 008-RHI | te::rhi | RenderPassDesc | struct | 渲染通道描述（P2） | te/rhi/command_list.hpp | colorAttachmentCount, colorAttachments[kMaxColorAttachments], depthStencilAttachment, colorLoadOp/colorStoreOp, depthLoadOp/depthStoreOp, clearColor/clearDepth/clearStencil |
+| 008-RHI | te::rhi | BufferRegion, TextureRegion | struct | 拷贝区域（P2） | te/rhi/command_list.hpp | CopyBuffer/CopyBufferToTexture/CopyTextureToBuffer 用 |
 | 008-RHI | te::rhi | ICommandList::Draw | 成员函数 | 非索引绘制 | te/rhi/command_list.hpp | `void Draw(uint32_t vertex_count, uint32_t instance_count = 1, uint32_t first_vertex = 0, uint32_t first_instance = 0) = 0;` |
+| 008-RHI | te::rhi | ICommandList::DrawIndexed | 成员函数 | 索引绘制 | te/rhi/command_list.hpp | `void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) = 0;` |
+| 008-RHI | te::rhi | ICommandList::SetViewport | 成员函数 | 设置视口 | te/rhi/command_list.hpp | `void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) = 0;` |
+| 008-RHI | te::rhi | ICommandList::SetScissor | 成员函数 | 设置裁剪 | te/rhi/command_list.hpp | `void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) = 0;` |
+| 008-RHI | te::rhi | ICommandList::BeginRenderPass | 成员函数 | 开始渲染通道（P2） | te/rhi/command_list.hpp | `void BeginRenderPass(RenderPassDesc const& desc) = 0;` |
+| 008-RHI | te::rhi | ICommandList::EndRenderPass | 成员函数 | 结束渲染通道（P2） | te/rhi/command_list.hpp | `void EndRenderPass() = 0;` |
+| 008-RHI | te::rhi | ICommandList::CopyBuffer | 成员函数 | 缓冲间拷贝（P2） | te/rhi/command_list.hpp | `void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) = 0;` |
+| 008-RHI | te::rhi | ICommandList::CopyBufferToTexture | 成员函数 | 缓冲到纹理（P2） | te/rhi/command_list.hpp | `void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) = 0;` |
+| 008-RHI | te::rhi | ICommandList::CopyTextureToBuffer | 成员函数 | 纹理到缓冲（P2） | te/rhi/command_list.hpp | `void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) = 0;` |
+| 008-RHI | te::rhi | ICommandList::BuildAccelerationStructure | 成员函数 | 构建光追加速结构（D3D12） | te/rhi/command_list.hpp | `void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) = 0;` |
+| 008-RHI | te::rhi | ICommandList::DispatchRays | 成员函数 | 派发光线（D3D12） | te/rhi/command_list.hpp | `void DispatchRays(DispatchRaysDesc const& desc) = 0;` |
 | 008-RHI | te::rhi | ICommandList::Dispatch | 成员函数 | 派发计算 | te/rhi/command_list.hpp | `void Dispatch(uint32_t x, uint32_t y = 1, uint32_t z = 1) = 0;` |
 | 008-RHI | te::rhi | ICommandList::Copy | 成员函数 | 内存拷贝 | te/rhi/command_list.hpp | `void Copy(void const* src, void* dst, size_t size) = 0;` |
 | 008-RHI | te::rhi | ICommandList::ResourceBarrier | 成员函数 | 资源屏障 | te/rhi/command_list.hpp | `void ResourceBarrier(uint32_t bufferBarrierCount, BufferBarrier const* bufferBarriers, uint32_t textureBarrierCount, TextureBarrier const* textureBarriers) = 0;` |
 | 008-RHI | te::rhi | Begin | 自由函数 | 开始录制 | te/rhi/command_list.hpp | `void Begin(ICommandList* cmd);` |
 | 008-RHI | te::rhi | End | 自由函数 | 结束录制 | te/rhi/command_list.hpp | `void End(ICommandList* cmd);` |
-| 008-RHI | te::rhi | Submit | 自由函数 | 提交到队列 | te/rhi/command_list.hpp | `void Submit(ICommandList* cmd, IQueue* queue);` 内部调用 queue->Submit(cmd, nullptr, nullptr, nullptr) |
+| 008-RHI | te::rhi | Submit | 自由函数 | 提交到队列 | te/rhi/command_list.hpp | `void Submit(ICommandList* cmd, IQueue* queue);` 或 `void Submit(ICommandList* cmd, IQueue* queue, IFence* signalFence, ISemaphore* waitSem, ISemaphore* signalSem);` |
 
 ### 同步（te/rhi/sync.hpp）
 
@@ -129,23 +154,60 @@
 | te/rhi/command_list.hpp | te/rhi/types.hpp | ICommandList, Begin, End, Submit |
 | te/rhi/device.hpp | te/rhi/queue.hpp, types.hpp, resources.hpp, pso.hpp, sync.hpp, swapchain.hpp | IDevice, SelectBackend, GetSelectedBackend, CreateDevice, DestroyDevice |
 
-### 未在本次实现中导出的符号（与旧 ABI 差异说明）
+### 描述符集（te/rhi/descriptor_set.hpp）（P2）
 
-以下为旧 ABI 或规约中出现、**当前实现未提供**的符号，下游若依赖须在上游 ABI 中以 TODO 登记或由后续 feature 补充：
+| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
+|--------|----------|------|----------|----------|--------|------|
+| 008-RHI | te::rhi | DescriptorSetLayoutDesc, DescriptorWrite | struct | 描述符布局/写入 | te/rhi/descriptor_set.hpp | bindings[]; dstSet, binding, type, buffer/texture/sampler |
+| 008-RHI | te::rhi | IDescriptorSetLayout, IDescriptorSet | 抽象接口 | 描述符集布局/集 | te/rhi/descriptor_set.hpp | 虚析构 |
 
-- `DeviceDesc`、`CreateDevice(DeviceDesc const&)`：当前使用 `CreateDevice(Backend)` / `CreateDevice()`。
-- `GetGraphicsQueue()` / `GetComputeQueue()` / `GetCopyQueue()`：当前使用 `GetQueue(QueueType type, uint32_t index)`。
-- `GetCommandListForSlot`、`SubmitCommandList(FrameSlotId)`、`WaitForSlot`、`FrameSlotId`：当前无 slot 概念；命令列表由 `CreateCommandList()` 分配，由 `Submit(cmd, queue)` 提交。
-- `CreateDeviceResource`、`UpdateDeviceResource`、`DestroyResource`、`DeviceResourceType`：当前为分立的 CreateBuffer/CreateTexture/CreateSampler/Create*PSO、Destroy*。
-- `GetLimits()`、`DeviceLimits`：当前仅有 `GetFeatures()` 返回 `DeviceFeatures`（maxTextureDimension2D/3D）。
-- `IDevice::DestroySwapChain`：当前未在 IDevice 中声明；交换链生命周期与设备一致或由调用方约定。
-- `IFence::Wait(uint64_t timeoutNs)`、`IFence::GetStatus`、`IFence::GetCompletedValue`：当前为 `Wait()`、`Signal()`、`Reset()` 无参。
-- `CreateFence(bool signaled)`：当前为 `CreateFence()` 无参。
-- `ICommandList::SetPipelineState`、`SetVertexBuffers`、`SetIndexBuffer`、`SetDescriptorSet`、`SetViewport`、`SetScissor`、`BeginRenderPass`、`EndRenderPass`、`DrawIndexed`、`DrawIndexedIndirect`、`CopyBuffer`、`CopyBufferToTexture`、`CopyTextureToBuffer`、`ClearRenderTarget`、`ClearDepthStencil`：当前仅实现 Begin/End/Draw/Dispatch/Copy/ResourceBarrier。
-- `IBuffer::GetSize`、`IBuffer::GetGPUAddress`；`ITexture::GetWidth`、`GetHeight`、`GetDepthOrArrayLayers`、`GetMipLevelCount`、`GetFormat`：当前 IBuffer/ITexture 为空接口（仅虚析构）。
-- `IDescriptorSetLayout`、`IDescriptorSet`、`DescriptorSetLayoutDesc`、`DescriptorSetDesc`、`DescriptorWrite`：当前未实现。
-- `PixelFormat`、`BufferUsage`、`TextureUsage`、`TextureType`、`PrimitiveTopology`、`PipelineBindPoint`、`Viewport`、`Rect2D`、`RenderPassDesc`、`IndexType`、`BufferTextureCopy`：当前描述符为最小集（如 BufferDesc.usage、TextureDesc.format 为 uint32_t）。
+### 光追（te/rhi/raytracing.hpp）（仅 D3D12）
+
+| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
+|--------|----------|------|----------|----------|--------|------|
+| 008-RHI | te::rhi | RaytracingAccelerationStructureDesc, DispatchRaysDesc | struct | 加速结构/派发描述 | te/rhi/raytracing.hpp | 映射 D3D12 BLAS/TLAS、D3D12_DISPATCH_RAYS_DESC |
+
+### 实现状态表（按后端）
+
+| 能力 / 接口 | Vulkan | D3D12 | Metal | D3D11 | 说明 |
+|-------------|--------|-------|-------|-------|------|
+| BeginRenderPass / EndRenderPass | ✓ | ✓ | ✓ | ✓ | 四后端均已实现（D3D12 使用 RTV/DSV heap） |
+| CopyBuffer | ✓ | ✓ | ✓ | ✓ | 四后端均已实现 |
+| CopyBufferToTexture / CopyTextureToBuffer | ✓ | ✓ | ✓ | 占位 | Vulkan/D3D12/Metal 已实现；D3D11 无直接 Buffer↔Texture 拷贝 API，见下节 |
+| CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet | ✓ | 占位 | 占位 | 占位 | Vulkan 已完整实现（含 texture SRV 的 VkImageView）；D3D12/Metal/D3D11 占位原因见下节 |
+| BuildAccelerationStructure / DispatchRays | no-op | no-op | no-op | no-op | 光追需 DXR/VK_KHR_ray_tracing；当前无 SDK 集成，见下节 |
+| DeviceLimits / CreateFence(bool) / Submit(…Fence/Semaphore) | ✓ | ✓ | ✓ | ✓ | 已实现 |
+
+### 渲染通道（RenderPass）实现说明
+
+- **无独立 CreateRenderPass**：渲染通道由 `BeginRenderPass(RenderPassDesc)` 在录制时创建，无需预创建 IRenderPass 对象。
+- **Vulkan**：BeginRenderPass 内创建 VkImageView、VkRenderPass、VkFramebuffer，做 image 过渡后 `vkCmdBeginRenderPass`；EndRenderPass 调用 `vkCmdEndRenderPass` 并销毁上述对象。支持单 color 附件 + clear。
+- **D3D11**：BeginRenderPass 内对 `colorAttachments`/`depthStencilAttachment` 创建 RTV/DSV，`OMSetRenderTargets`，按 loadOp 做 Clear；EndRenderPass 解绑并释放 RTV/DSV。
+- **Metal**：BeginRenderPass 用 MTLRenderPassDescriptor 设置首 color 附件的 texture 与 load/store/clear，`renderCommandEncoderWithDescriptor` 得到 encoder；EndRenderPass 调用 `endEncoding`。
+- **D3D12**：BeginRenderPass 使用设备级 RTV/DSV heap（EnsureRtvDsvHeaps），CreateRenderTargetView/CreateDepthStencilView，OMSetRenderTargets，ClearRenderTargetView/ClearDepthStencilView；EndRenderPass 无额外解绑。
+
+### Copy 实现说明
+
+- **CopyBuffer**：Vulkan/D3D12/Metal/D3D11 均已实现（vkCmdCopyBuffer、CopyBufferRegion、MTLBlitCommandEncoder copyFromBuffer、CopyResource/CopySubresourceRegion）。
+- **CopyBufferToTexture / CopyTextureToBuffer**：Vulkan 已实现（image 布局过渡 + vkCmdCopyBufferToImage/vkCmdCopyImageToBuffer）；D3D12 已实现（GetCopyableFootprints + CopyTextureRegion + ResourceBarrier）；Metal 已实现（MTLBlitCommandEncoder copyFromBuffer:toTexture:/copyFromTexture:toBuffer:）；D3D11 无直接 GPU Buffer↔Texture 拷贝 API，需通过 Staging 或 Compute，当前保留占位。
+
+### 不能实现或保留占位及原因
+
+| 项 | 后端 | 原因 |
+|----|------|------|
+| **SwapChain（真实呈现）** | 全部 | 需应用层提供窗口句柄/View（HWND、VkSurfaceKHR、NSView/CAMetalLayer），RHI 层不创建窗口；有 windowHandle 时各后端可接 VkSurfaceKHR/CreateSwapChainForHwnd/CAMetalLayer，当前无窗口时返回 stub。 |
+| **BuildAccelerationStructure / DispatchRays** | 全部 | D3D12 需 DXR SDK 与 ID3D12GraphicsCommandList4；Vulkan 需 VK_KHR_ray_tracing_pipeline；Metal 为 MTLAccelerationStructure 可选。当前无 DXR/SDK 集成，故保持 no-op。 |
+| **CopyBufferToTexture / CopyTextureToBuffer** | D3D11 | D3D11 无直接 Buffer↔Texture 的 GPU 拷贝 API（仅 CopyResource/CopySubresourceRegion 为 Texture↔Texture）；需通过 Staging 资源或 Compute Shader 实现，当前保留占位。 |
+| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | D3D12 | 需 Root Signature 与 Descriptor Heap 与 PSO 根签名对接，绑定流程与 Vulkan 描述符集模型差异大，完整实现需较大改动，当前保留占位。 |
+| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | Metal | Metal 使用 MTLArgumentEncoder/MTLResource 绑定，与 Vulkan 描述符集模型不同，需与 PSO 编码路径对接，当前保留占位。 |
+| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | D3D11 | D3D11 无描述符集概念，绑定通过 Context::PSSetShaderResources 等；为 ABI 一致当前返回 nullptr。 |
+| **完整 PSO（VkPipeline/D3D12_GRAPHICS_PIPELINE_STATE_DESC 等）** | 全部 | 完整管线需顶点输入、光栅化、多重采样等状态；当前 API 仅传 Shader 字节码，最小路径返回非空 IPSO，完整创建待与 010-Shader 对接后补。 |
+
+### TODO（已实现项已移除）
+
+- `PipelineState`、`VertexBuffers`、`IndexBuffer` 绑定：当前 PSO 仅 CreateGraphicsPSO/CreateComputePSO，需补充绑定接口。
+- `DrawIndexedIndirect`、`ClearRenderTarget`、`ClearDepthStencil`：待补充。
 
 ---
 
-*本 ABI 表根据 008-rhi-fullmodule-003 当前实现（include/te/rhi/*.hpp、src/）反向更新；与 008-rhi-public-api.md 中 API 雏形对齐，差异见「未在本次实现中导出的符号」小节。*
+*本 ABI 表已合并 008-rhi-fullmodule-004 增量；已补充 LoadOp/StoreOp/kMaxColorAttachments 及按后端的实现状态表；Copy/RenderPass/DescriptorSet 实现说明已更新；新增「不能实现或保留占位及原因」小节。*

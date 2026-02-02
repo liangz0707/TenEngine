@@ -21,5 +21,10 @@ void Submit(ICommandList* cmd, IQueue* queue) {
     queue->Submit(cmd, nullptr, nullptr, nullptr);
 }
 
+void Submit(ICommandList* cmd, IQueue* queue, IFence* signalFence, ISemaphore* waitSem, ISemaphore* signalSem) {
+  if (cmd && queue)
+    queue->Submit(cmd, signalFence, waitSem, signalSem);
+}
+
 }  // namespace rhi
 }  // namespace te

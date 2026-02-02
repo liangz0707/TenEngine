@@ -18,6 +18,9 @@
 #if defined(TE_RHI_D3D12) && TE_RHI_D3D12
 #include "te/rhi/backend_d3d12.hpp"
 #endif
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11
+#include "te/rhi/backend_d3d11.hpp"
+#endif
 #if defined(TE_RHI_METAL) && TE_RHI_METAL
 #include "te/rhi/backend_metal.hpp"
 #endif
@@ -49,9 +52,19 @@ struct CommandListStub : ICommandList {
   void Begin() override {}
   void End() override {}
   void Draw(uint32_t vc, uint32_t ic, uint32_t fv, uint32_t fi) override { (void)vc;(void)ic;(void)fv;(void)fi; }
+  void DrawIndexed(uint32_t ic, uint32_t inst, uint32_t fi, int32_t vo, uint32_t finst) override { (void)ic;(void)inst;(void)fi;(void)vo;(void)finst; }
   void Dispatch(uint32_t x, uint32_t y, uint32_t z) override { (void)x;(void)y;(void)z; }
   void Copy(void const* s, void* d, size_t sz) override { (void)s;(void)d;(void)sz; }
   void ResourceBarrier(uint32_t, BufferBarrier const*, uint32_t, TextureBarrier const*) override {}
+  void SetViewport(uint32_t, uint32_t, Viewport const*) override {}
+  void SetScissor(uint32_t, uint32_t, ScissorRect const*) override {}
+  void BeginRenderPass(RenderPassDesc const&) override {}
+  void EndRenderPass() override {}
+  void CopyBuffer(IBuffer*, size_t, IBuffer*, size_t, size_t) override {}
+  void CopyBufferToTexture(IBuffer*, size_t, ITexture*, TextureRegion const&) override {}
+  void CopyTextureToBuffer(ITexture*, TextureRegion const&, IBuffer*, size_t) override {}
+  void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const&, IBuffer*, IBuffer*) override {}
+  void DispatchRays(DispatchRaysDesc const&) override {}
 };
 
 struct BufferStub : IBuffer {};
@@ -67,6 +80,7 @@ struct SemaphoreStub : ISemaphore {};
 
 struct DeviceStub : IDevice {
   DeviceFeatures features{4096, 256};
+  DeviceLimits limits{};
   QueueStub graphics_queue;
 
   Backend GetBackend() const override { return Backend::Vulkan; }
@@ -76,6 +90,7 @@ struct DeviceStub : IDevice {
     return nullptr;
   }
   DeviceFeatures const& GetFeatures() const override { return features; }
+  DeviceLimits const& GetLimits() const override { return limits; }
   ICommandList* CreateCommandList() override {
     auto* p = static_cast<CommandListStub*>(core::Alloc(sizeof(CommandListStub), alignof(CommandListStub)));
     if (!p) return nullptr;
@@ -142,7 +157,8 @@ struct DeviceStub : IDevice {
     if (pso) { static_cast<PSOStub*>(pso)->~PSOStub(); core::Free(pso); }
   }
 
-  IFence* CreateFence() override {
+  IFence* CreateFence(bool initialSignaled = false) override {
+    (void)initialSignaled;
     auto* p = static_cast<FenceStub*>(core::Alloc(sizeof(FenceStub), alignof(FenceStub)));
     if (!p) return nullptr;
     new (p) FenceStub();
@@ -170,6 +186,12 @@ struct DeviceStub : IDevice {
     p->h = desc.height;
     return p;
   }
+
+  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const&) override { return nullptr; }
+  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout*) override { return nullptr; }
+  void UpdateDescriptorSet(IDescriptorSet*, DescriptorWrite const*, uint32_t) override {}
+  void DestroyDescriptorSetLayout(IDescriptorSetLayout*) override {}
+  void DestroyDescriptorSet(IDescriptorSet*) override {}
 };
 
 }  // namespace
@@ -190,6 +212,10 @@ IDevice* CreateDevice(Backend backend) {
 #if defined(TE_RHI_D3D12) && TE_RHI_D3D12
   if (backend == Backend::D3D12)
     return CreateDeviceD3D12();
+#endif
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11
+  if (backend == Backend::D3D11)
+    return CreateDeviceD3D11();
 #endif
 #if defined(TE_RHI_METAL) && TE_RHI_METAL
   if (backend == Backend::Metal)
@@ -214,6 +240,12 @@ void DestroyDevice(IDevice* device) {
 #if defined(TE_RHI_D3D12) && TE_RHI_D3D12
   if (device->GetBackend() == Backend::D3D12) {
     DestroyDeviceD3D12(device);
+    return;
+  }
+#endif
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11
+  if (device->GetBackend() == Backend::D3D11) {
+    DestroyDeviceD3D11(device);
     return;
   }
 #endif

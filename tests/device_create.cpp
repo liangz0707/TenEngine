@@ -5,6 +5,7 @@
  * Unsupported backend returns nullptr; no auto-fallback.
  */
 #include "te/rhi/device.hpp"
+#include "te/rhi/sync.hpp"
 #include "te/rhi/types.hpp"
 #include <cassert>
 #include <cstdio>
@@ -31,6 +32,21 @@ void test_backend(te::rhi::Backend backend) {
   te::rhi::DeviceFeatures const& feats = dev->GetFeatures();
   assert(feats.maxTextureDimension2D > 0);
   assert(feats.maxTextureDimension3D > 0);
+
+  te::rhi::DeviceLimits const& limits = dev->GetLimits();
+  (void)limits;
+
+  te::rhi::IFence* fenceFalse = dev->CreateFence(false);
+  if (fenceFalse) {
+    fenceFalse->Reset();
+    dev->DestroyFence(fenceFalse);
+  }
+  te::rhi::IFence* fenceTrue = dev->CreateFence(true);
+  if (fenceTrue) {
+    fenceTrue->Wait();
+    fenceTrue->Reset();
+    dev->DestroyFence(fenceTrue);
+  }
 
   te::rhi::DestroyDevice(dev);
 }
@@ -69,6 +85,10 @@ int main() {
 
 #if defined(TE_RHI_METAL) && TE_RHI_METAL && defined(__APPLE__)
   test_backend(te::rhi::Backend::Metal);
+#endif
+
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11 && defined(_WIN32)
+  test_backend(te::rhi::Backend::D3D11);
 #endif
 
   te::rhi::DestroyDevice(nullptr);

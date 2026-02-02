@@ -6,6 +6,7 @@
 #ifndef TE_RHI_TYPES_HPP
 #define TE_RHI_TYPES_HPP
 
+#include <cstddef>
 #include <cstdint>
 
 namespace te {
@@ -16,6 +17,7 @@ enum class Backend : unsigned {
   Vulkan = 0,
   D3D12  = 1,
   Metal  = 2,
+  D3D11  = 3,
 };
 
 /** Queue type per contract API sketch section 2. */
@@ -29,6 +31,14 @@ enum class QueueType : unsigned {
 struct DeviceFeatures {
   uint32_t maxTextureDimension2D{0};
   uint32_t maxTextureDimension3D{0};
+};
+
+/** Device limits (ABI TODO); query from backend where applicable. */
+struct DeviceLimits {
+  size_t maxBufferSize{0};
+  uint32_t maxTextureDimension2D{0};
+  uint32_t maxTextureDimension3D{0};
+  uint32_t minUniformBufferOffsetAlignment{0};
 };
 
 /** Resource state for barrier (fine-grained per spec clarification). */

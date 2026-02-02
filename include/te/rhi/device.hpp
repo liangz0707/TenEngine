@@ -11,6 +11,7 @@
 #include "te/rhi/pso.hpp"
 #include "te/rhi/sync.hpp"
 #include "te/rhi/swapchain.hpp"
+#include "te/rhi/descriptor_set.hpp"
 
 namespace te {
 namespace rhi {
@@ -25,6 +26,7 @@ struct IDevice {
   virtual Backend GetBackend() const = 0;
   virtual IQueue* GetQueue(QueueType type, uint32_t index) = 0;
   virtual DeviceFeatures const& GetFeatures() const = 0;
+  virtual DeviceLimits const& GetLimits() const = 0;
   virtual ICommandList* CreateCommandList() = 0;
   virtual void DestroyCommandList(ICommandList* cmd) = 0;
 
@@ -42,12 +44,18 @@ struct IDevice {
   virtual void Cache(IPSO* pso) = 0;
   virtual void DestroyPSO(IPSO* pso) = 0;
 
-  virtual IFence* CreateFence() = 0;
+  virtual IFence* CreateFence(bool initialSignaled = false) = 0;
   virtual ISemaphore* CreateSemaphore() = 0;
   virtual void DestroyFence(IFence* f) = 0;
   virtual void DestroySemaphore(ISemaphore* s) = 0;
 
   virtual ISwapChain* CreateSwapChain(SwapChainDesc const& desc) = 0;
+
+  virtual IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) = 0;
+  virtual IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) = 0;
+  virtual void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) = 0;
+  virtual void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) = 0;
+  virtual void DestroyDescriptorSet(IDescriptorSet* set) = 0;
 };
 
 /** Set default backend; used when CreateDevice() is called with no args. */

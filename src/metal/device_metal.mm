@@ -38,6 +38,7 @@ struct CommandListMetal;
 struct QueueMetal : IQueue {
   id<MTLCommandQueue> queue;
   id<MTLDevice> device;
+  id<MTLCommandBuffer> lastCommitted{nil};  // T055: for WaitIdle
 
   void Submit(ICommandList* cmdList, IFence* signalFence,
               ISemaphore* waitSemaphore, ISemaphore* signalSemaphore) override;
@@ -45,22 +46,38 @@ struct QueueMetal : IQueue {
 };
 
 // --- CommandList (MTLCommandBuffer wrapper) ---
+struct TextureMetal;
 struct CommandListMetal : ICommandList {
   id<MTLCommandBuffer> cmdBuffer;
   id<MTLCommandQueue> queue;
+  id<MTLRenderCommandEncoder> currentRenderEncoder{nil};
 
   void Begin() override;
   void End() override;
   void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) override;
+  void DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
   void Dispatch(uint32_t x, uint32_t y, uint32_t z) override;
   void Copy(void const* src, void* dst, size_t size) override;
   void ResourceBarrier(uint32_t bufferBarrierCount, BufferBarrier const* bufferBarriers,
                        uint32_t textureBarrierCount, TextureBarrier const* textureBarriers) override;
+  void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) override;
+  void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) override;
+  void BeginRenderPass(RenderPassDesc const& desc) override;
+  void EndRenderPass() override;
+  void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override;
+  void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) override;
+  void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) override;
+  void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) override;
+  void DispatchRays(DispatchRaysDesc const& desc) override;
 };
 
 void CommandListMetal::Begin() {
   if (queue && !cmdBuffer) {
     cmdBuffer = [queue commandBuffer];
+  }
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
   }
 }
 
@@ -71,6 +88,79 @@ void CommandListMetal::End() {
 void CommandListMetal::Draw(uint32_t vc, uint32_t ic, uint32_t fv, uint32_t fi) {
   (void)vc; (void)ic; (void)fv; (void)fi;
   // T056: Use MTLRenderCommandEncoder drawPrimitives; skip when no encoder
+}
+
+void CommandListMetal::DrawIndexed(uint32_t ic, uint32_t inst, uint32_t fi, int32_t vo, uint32_t finst) {
+  (void)ic; (void)inst; (void)fi; (void)vo; (void)finst;
+  // MTLRenderCommandEncoder drawIndexedPrimitives when encoder bound
+}
+
+void CommandListMetal::SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) {
+  (void)first;
+  if (!currentRenderEncoder || !viewports || count == 0) return;
+  MTLViewport vp;
+  vp.originX = static_cast<double>(viewports[0].x);
+  vp.originY = static_cast<double>(viewports[0].y);
+  vp.width = static_cast<double>(viewports[0].width);
+  vp.height = static_cast<double>(viewports[0].height);
+  vp.znear = static_cast<double>(viewports[0].minDepth);
+  vp.zfar = static_cast<double>(viewports[0].maxDepth);
+  [currentRenderEncoder setViewport:vp];
+}
+
+void CommandListMetal::SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) {
+  (void)first;
+  if (!currentRenderEncoder || !scissors || count == 0) return;
+  MTLScissorRect rect;
+  rect.x = static_cast<NSUInteger>(scissors[0].x < 0 ? 0 : scissors[0].x);
+  rect.y = static_cast<NSUInteger>(scissors[0].y < 0 ? 0 : scissors[0].y);
+  rect.width = scissors[0].width;
+  rect.height = scissors[0].height;
+  [currentRenderEncoder setScissorRect:rect];
+}
+
+void CommandListMetal::BeginRenderPass(RenderPassDesc const& desc);
+void CommandListMetal::EndRenderPass();
+
+static void CopyBufferMetalImpl(CommandListMetal* cl, IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size);
+static void CopyBufferToTextureMetalImpl(CommandListMetal* cl, IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion);
+static void CopyTextureToBufferMetalImpl(CommandListMetal* cl, ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset);
+
+void CommandListMetal::CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) {
+  if (!cmdBuffer || !src || !dst || size == 0) return;
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
+  }
+  CopyBufferMetalImpl(this, src, srcOffset, dst, dstOffset, size);
+}
+
+void CommandListMetal::CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) {
+  if (!cmdBuffer || !src || !dst) return;
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
+  }
+  CopyBufferToTextureMetalImpl(this, src, srcOffset, dst, dstRegion);
+}
+
+void CommandListMetal::CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) {
+  if (!cmdBuffer || !src || !dst) return;
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
+  }
+  CopyTextureToBufferMetalImpl(this, src, srcRegion, dst, dstOffset);
+}
+
+void CommandListMetal::BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) {
+  (void)desc;(void)scratch;(void)result;
+  // Metal ray tracing: MTLAccelerationStructure; no-op for API parity.
+}
+
+void CommandListMetal::DispatchRays(DispatchRaysDesc const& desc) {
+  (void)desc;
+  // Metal ray tracing; no-op.
 }
 
 void CommandListMetal::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
@@ -95,19 +185,24 @@ void QueueMetal::Submit(ICommandList* cmdList, IFence* signalFence,
   if (!cmdList) return;
   CommandListMetal* mtlCmd = static_cast<CommandListMetal*>(cmdList);
   if (mtlCmd->cmdBuffer) {
+    lastCommitted = mtlCmd->cmdBuffer;  // T055: for WaitIdle
     [mtlCmd->cmdBuffer commit];
     mtlCmd->cmdBuffer = nil; // Reset for next Begin()
   }
 }
 
 void QueueMetal::WaitIdle() {
-  // T055: waitUntilCompleted on last command buffer; placeholder
+  if (lastCommitted) {
+    [lastCommitted waitUntilCompleted];
+    lastCommitted = nil;
+  }
 }
 
 // --- Device (MTLDevice wrapper) ---
 struct DeviceMetal : IDevice {
   id<MTLDevice> device;
   DeviceFeatures features{};
+  DeviceLimits limits{};
   QueueMetal graphicsQueue;
 
   ~DeviceMetal() override;
@@ -115,6 +210,7 @@ struct DeviceMetal : IDevice {
   Backend GetBackend() const override { return Backend::Metal; }
   IQueue* GetQueue(QueueType type, uint32_t index) override;
   DeviceFeatures const& GetFeatures() const override { return features; }
+  DeviceLimits const& GetLimits() const override { return limits; }
   ICommandList* CreateCommandList() override;
   void DestroyCommandList(ICommandList* cmd) override;
 
@@ -132,13 +228,19 @@ struct DeviceMetal : IDevice {
   void Cache(IPSO* pso) override;
   void DestroyPSO(IPSO* pso) override;
 
-  IFence* CreateFence() override;
+  IFence* CreateFence(bool initialSignaled = false) override;
   ISemaphore* CreateSemaphore() override;
   void DestroyFence(IFence* f) override;
   void DestroySemaphore(ISemaphore* s) override;
 
   ISwapChain* CreateSwapChain(SwapChainDesc const& desc) override;
   void DestroySwapChain(ISwapChain* sc);
+
+  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override;
+  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override;
+  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override;
+  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override;
+  void DestroyDescriptorSet(IDescriptorSet* set) override;
 };
 
 DeviceMetal::~DeviceMetal() {
@@ -191,6 +293,45 @@ struct TextureMetal : ITexture {
   id<MTLTexture> texture;
 };
 
+static void CopyBufferMetalImpl(CommandListMetal* cl, IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) {
+  BufferMetal* vs = static_cast<BufferMetal*>(src);
+  BufferMetal* vd = static_cast<BufferMetal*>(dst);
+  if (!vs->buffer || !vd->buffer) return;
+  id<MTLBlitCommandEncoder> blit = [cl->cmdBuffer blitCommandEncoder];
+  [blit copyFromBuffer:vs->buffer sourceOffset:srcOffset toBuffer:vd->buffer destinationOffset:dstOffset size:size];
+  [blit endEncoding];
+}
+
+static void CopyBufferToTextureMetalImpl(CommandListMetal* cl, IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) {
+  BufferMetal* vs = static_cast<BufferMetal*>(src);
+  TextureMetal* td = static_cast<TextureMetal*>(dst);
+  if (!vs->buffer || !td->texture) return;
+  NSUInteger w = dstRegion.width > 0 ? dstRegion.width : [td->texture width];
+  NSUInteger h = dstRegion.height > 0 ? dstRegion.height : [td->texture height];
+  NSUInteger bytesPerRow = w * 4;
+  NSUInteger bytesPerImage = bytesPerRow * h;
+  MTLOrigin origin = { static_cast<NSUInteger>(dstRegion.x), static_cast<NSUInteger>(dstRegion.y), static_cast<NSUInteger>(dstRegion.z) };
+  MTLSize size = { w, h, dstRegion.depth > 0 ? dstRegion.depth : 1 };
+  id<MTLBlitCommandEncoder> blit = [cl->cmdBuffer blitCommandEncoder];
+  [blit copyFromBuffer:vs->buffer sourceOffset:srcOffset sourceBytesPerRow:bytesPerRow sourceBytesPerImage:bytesPerImage sourceSize:size toTexture:td->texture destinationSlice:dstRegion.arrayLayer destinationLevel:dstRegion.mipLevel destinationOrigin:origin];
+  [blit endEncoding];
+}
+
+static void CopyTextureToBufferMetalImpl(CommandListMetal* cl, ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) {
+  TextureMetal* ts = static_cast<TextureMetal*>(src);
+  BufferMetal* vd = static_cast<BufferMetal*>(dst);
+  if (!ts->texture || !vd->buffer) return;
+  NSUInteger w = srcRegion.width > 0 ? srcRegion.width : [ts->texture width];
+  NSUInteger h = srcRegion.height > 0 ? srcRegion.height : [ts->texture height];
+  NSUInteger bytesPerRow = w * 4;
+  NSUInteger bytesPerImage = bytesPerRow * h;
+  MTLOrigin origin = { static_cast<NSUInteger>(srcRegion.x), static_cast<NSUInteger>(srcRegion.y), static_cast<NSUInteger>(srcRegion.z) };
+  MTLSize size = { w, h, srcRegion.depth > 0 ? srcRegion.depth : 1 };
+  id<MTLBlitCommandEncoder> blit = [cl->cmdBuffer blitCommandEncoder];
+  [blit copyFromTexture:ts->texture sourceSlice:srcRegion.arrayLayer sourceLevel:srcRegion.mipLevel sourceOrigin:origin sourceSize:size toBuffer:vd->buffer destinationOffset:dstOffset destinationBytesPerRow:bytesPerRow destinationRowsPerImage:h];
+  [blit endEncoding];
+}
+
 struct SamplerMetal : ISampler {
   id<MTLSamplerState> sampler;
 };
@@ -226,6 +367,30 @@ ITexture* DeviceMetal::CreateTexture(TextureDesc const& desc) {
   new (tex) TextureMetal();
   tex->texture = texture;
   return tex;
+}
+
+void CommandListMetal::BeginRenderPass(RenderPassDesc const& desc) {
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
+  }
+  if (!cmdBuffer || desc.colorAttachmentCount == 0 || !desc.colorAttachments[0]) return;
+  TextureMetal* tex = static_cast<TextureMetal*>(desc.colorAttachments[0]);
+  if (!tex->texture) return;
+  MTLRenderPassDescriptor* rpd = [MTLRenderPassDescriptor renderPassDescriptor];
+  if (!rpd) return;
+  rpd.colorAttachments[0].texture = tex->texture;
+  rpd.colorAttachments[0].loadAction = (desc.colorLoadOp == LoadOp::Clear) ? MTLLoadActionClear : (desc.colorLoadOp == LoadOp::Load ? MTLLoadActionLoad : MTLLoadActionDontCare);
+  rpd.colorAttachments[0].storeAction = (desc.colorStoreOp == StoreOp::Store) ? MTLStoreActionStore : MTLStoreActionDontCare;
+  rpd.colorAttachments[0].clearColor = MTLClearColorMake(static_cast<double>(desc.clearColor[0]), static_cast<double>(desc.clearColor[1]), static_cast<double>(desc.clearColor[2]), static_cast<double>(desc.clearColor[3]));
+  currentRenderEncoder = [cmdBuffer renderCommandEncoderWithDescriptor:rpd];
+}
+
+void CommandListMetal::EndRenderPass() {
+  if (currentRenderEncoder) {
+    [currentRenderEncoder endEncoding];
+    currentRenderEncoder = nil;
+  }
 }
 
 ISampler* DeviceMetal::CreateSampler(SamplerDesc const& desc) {
@@ -331,7 +496,8 @@ struct SemaphoreMetal : ISemaphore {
   id<MTLSharedEvent> event;
 };
 
-IFence* DeviceMetal::CreateFence() {
+IFence* DeviceMetal::CreateFence(bool initialSignaled) {
+  (void)initialSignaled;
   if (!device) return nullptr;
   
   FenceMetal* f = static_cast<FenceMetal*>(core::Alloc(sizeof(FenceMetal), alignof(FenceMetal)));
@@ -410,6 +576,28 @@ void DeviceMetal::DestroySwapChain(ISwapChain* sc) {
   core::Free(swapChain);
 }
 
+IDescriptorSetLayout* DeviceMetal::CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) {
+  (void)desc;
+  return nullptr;  // P2: MTLArgumentEncoder; minimal no-op.
+}
+
+IDescriptorSet* DeviceMetal::AllocateDescriptorSet(IDescriptorSetLayout* layout) {
+  (void)layout;
+  return nullptr;
+}
+
+void DeviceMetal::UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) {
+  (void)set;(void)writes;(void)writeCount;
+}
+
+void DeviceMetal::DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) {
+  (void)layout;
+}
+
+void DeviceMetal::DestroyDescriptorSet(IDescriptorSet* set) {
+  (void)set;
+}
+
 }  // namespace
 
 IDevice* CreateDeviceMetal() {
@@ -421,9 +609,13 @@ IDevice* CreateDeviceMetal() {
   new (dev) DeviceMetal();
   dev->device = device;
   
-  // Fill features from device
+  // Fill features and limits from device
   dev->features.maxTextureDimension2D = 16384; // Typical Metal limit
   dev->features.maxTextureDimension3D = 2048;
+  dev->limits.maxBufferSize = 256u * 1024u * 1024u;
+  dev->limits.maxTextureDimension2D = 16384;
+  dev->limits.maxTextureDimension3D = 2048;
+  dev->limits.minUniformBufferOffsetAlignment = 256;
   
   return dev;
 }

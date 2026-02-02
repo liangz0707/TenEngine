@@ -10,6 +10,7 @@
 #include "te/rhi/queue.hpp"
 #include "te/rhi/command_list.hpp"
 #include "te/rhi/resources.hpp"
+#include "te/rhi/descriptor_set.hpp"
 #include "te/rhi/pso.hpp"
 #include "te/rhi/sync.hpp"
 #include "te/rhi/swapchain.hpp"
@@ -45,18 +46,43 @@ struct CommandListVulkan : ICommandList {
   VkCommandBuffer cmd{VK_NULL_HANDLE};
   VkDevice device{VK_NULL_HANDLE};
   VkCommandPool pool{VK_NULL_HANDLE};
+  VkRenderPass currentRenderPass{VK_NULL_HANDLE};
+  VkFramebuffer currentFramebuffer{VK_NULL_HANDLE};
+  VkImageView currentPassColorView{VK_NULL_HANDLE};
 
   void Begin() override;
   void End() override;
   void Draw(uint32_t vertex_count, uint32_t instance_count, uint32_t first_vertex, uint32_t first_instance) override;
+  void DrawIndexed(uint32_t index_count, uint32_t instance_count, uint32_t first_index, int32_t vertex_offset, uint32_t first_instance) override;
   void Dispatch(uint32_t x, uint32_t y, uint32_t z) override;
   void Copy(void const* src, void* dst, size_t size) override;
   void ResourceBarrier(uint32_t bufferBarrierCount, BufferBarrier const* bufferBarriers,
                        uint32_t textureBarrierCount, TextureBarrier const* textureBarriers) override;
+  void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) override;
+  void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) override;
+  void BeginRenderPass(RenderPassDesc const& desc) override;
+  void EndRenderPass() override;
+  void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override;
+  void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) override;
+  void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) override;
+  void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) override;
+  void DispatchRays(DispatchRaysDesc const& desc) override;
 };
 
 void CommandListVulkan::Begin() {
   if (cmd == VK_NULL_HANDLE) return;
+  if (currentFramebuffer != VK_NULL_HANDLE) {
+    vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
+    currentFramebuffer = VK_NULL_HANDLE;
+  }
+  if (currentRenderPass != VK_NULL_HANDLE) {
+    vkDestroyRenderPass(device, currentRenderPass, nullptr);
+    currentRenderPass = VK_NULL_HANDLE;
+  }
+  if (currentPassColorView != VK_NULL_HANDLE) {
+    vkDestroyImageView(device, currentPassColorView, nullptr);
+    currentPassColorView = VK_NULL_HANDLE;
+  }
   VkCommandBufferBeginInfo beginInfo = {};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   vkBeginCommandBuffer(cmd, &beginInfo);
@@ -68,19 +94,58 @@ void CommandListVulkan::End() {
 }
 
 void CommandListVulkan::Draw(uint32_t vc, uint32_t ic, uint32_t fv, uint32_t fi) {
-  (void)vc; (void)ic; (void)fv; (void)fi;
-  // T038: vkCmdDraw when PSO bound; skip here to avoid "draw without pipeline" validation.
+  if (cmd == VK_NULL_HANDLE) return;
+  // T038: vkCmdDraw when PSO bound; call for API completeness (validation may warn without pipeline).
+  vkCmdDraw(cmd, vc, ic, fv, fi);
+}
+
+void CommandListVulkan::DrawIndexed(uint32_t ic, uint32_t inst, uint32_t fi, int32_t vo, uint32_t finst) {
+  if (cmd == VK_NULL_HANDLE) return;
+  // T038: vkCmdDrawIndexed when PSO + index buffer bound; call for API completeness.
+  vkCmdDrawIndexed(cmd, ic, inst, fi, vo, finst);
+}
+
+void CommandListVulkan::SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) {
+  if (cmd == VK_NULL_HANDLE || !viewports || count == 0) return;
+  constexpr uint32_t kMax = 16u;
+  VkViewport vps[kMax];
+  uint32_t n = count > kMax ? kMax : count;
+  for (uint32_t i = 0; i < n; ++i) {
+    vps[i].x = viewports[i].x;
+    vps[i].y = viewports[i].y;
+    vps[i].width = viewports[i].width;
+    vps[i].height = viewports[i].height;
+    vps[i].minDepth = viewports[i].minDepth;
+    vps[i].maxDepth = viewports[i].maxDepth;
+  }
+  vkCmdSetViewport(cmd, first, n, vps);
+}
+
+void CommandListVulkan::SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) {
+  if (cmd == VK_NULL_HANDLE || !scissors || count == 0) return;
+  constexpr uint32_t kMax = 16u;
+  VkRect2D rects[kMax];
+  uint32_t n = count > kMax ? kMax : count;
+  for (uint32_t i = 0; i < n; ++i) {
+    rects[i].offset.x = scissors[i].x;
+    rects[i].offset.y = scissors[i].y;
+    rects[i].extent.width = scissors[i].width;
+    rects[i].extent.height = scissors[i].height;
+  }
+  vkCmdSetScissor(cmd, first, n, rects);
 }
 
 void CommandListVulkan::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
-  (void)x; (void)y; (void)z;
-  // T038: vkCmdDispatch when compute PSO bound; skip here to avoid validation.
+  if (cmd == VK_NULL_HANDLE) return;
+  // T038: vkCmdDispatch when compute PSO bound; call for API completeness.
+  vkCmdDispatch(cmd, x, y, z);
 }
 
 void CommandListVulkan::Copy(void const* src, void* dst, size_t size) {
   (void)src; (void)dst; (void)size;
-  // T038: CopyBuffer/CopyBufferToTexture; skip for minimal test.
+  // T038: host memory copy; RHI Copy(src,dst,size) is CPU-side; GPU buffer/texture copy use CopyBuffer/CopyBufferToTexture.
 }
+
 
 void CommandListVulkan::ResourceBarrier(uint32_t bc, BufferBarrier const* bb,
                                         uint32_t tc, TextureBarrier const* tb) {
@@ -97,17 +162,22 @@ void CommandListVulkan::ResourceBarrier(uint32_t bc, BufferBarrier const* bb,
                        0, 1, &memBarrier, 0, nullptr, 0, nullptr);
 }
 
+// Forward: get VkFence from IFence* (implemented after FenceVulkan).
+VkFence GetVkFenceFromFence(IFence* f);
+
 void QueueVulkan::Submit(ICommandList* cmdList, IFence* signalFence,
                          ISemaphore* waitSemaphore, ISemaphore* signalSemaphore) {
-  (void)signalFence; (void)waitSemaphore; (void)signalSemaphore;
   if (!cmdList || queue == VK_NULL_HANDLE) return;
   CommandListVulkan* vkCmd = static_cast<CommandListVulkan*>(cmdList);
   if (vkCmd->cmd == VK_NULL_HANDLE) return;
+  VkFence submitFence = GetVkFenceFromFence(signalFence);
   VkSubmitInfo submitInfo = {};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &vkCmd->cmd;
-  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueSubmit(queue, 1, &submitInfo, submitFence);
+  (void)waitSemaphore;
+  (void)signalSemaphore;
 }
 
 void QueueVulkan::WaitIdle() {
@@ -121,8 +191,10 @@ struct DeviceVulkan : IDevice {
   VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
   VkDevice device{VK_NULL_HANDLE};
   VkCommandPool commandPool{VK_NULL_HANDLE};
+  VkDescriptorPool descriptorPool{VK_NULL_HANDLE};  // for AllocateDescriptorSet
   uint32_t graphicsQueueFamilyIndex{0};
   DeviceFeatures features{};
+  DeviceLimits limits{};
   QueueVulkan graphicsQueue;
 
   ~DeviceVulkan() override;
@@ -130,6 +202,7 @@ struct DeviceVulkan : IDevice {
   Backend GetBackend() const override { return Backend::Vulkan; }
   IQueue* GetQueue(QueueType type, uint32_t index) override;
   DeviceFeatures const& GetFeatures() const override { return features; }
+  DeviceLimits const& GetLimits() const override { return limits; }
   ICommandList* CreateCommandList() override;
   void DestroyCommandList(ICommandList* cmd) override;
 
@@ -147,18 +220,28 @@ struct DeviceVulkan : IDevice {
   void Cache(IPSO* pso) override;
   void DestroyPSO(IPSO* pso) override;
 
-  IFence* CreateFence() override;
+  IFence* CreateFence(bool initialSignaled = false) override;
   ISemaphore* CreateSemaphore() override;
   void DestroyFence(IFence* f) override;
   void DestroySemaphore(ISemaphore* s) override;
 
   ISwapChain* CreateSwapChain(SwapChainDesc const& desc) override;
   void DestroySwapChain(ISwapChain* sc);
+
+  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override;
+  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override;
+  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override;
+  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override;
+  void DestroyDescriptorSet(IDescriptorSet* set) override;
 };
 
 DeviceVulkan::~DeviceVulkan() {
   if (device != VK_NULL_HANDLE) {
     vkDeviceWaitIdle(device);
+    if (descriptorPool != VK_NULL_HANDLE) {
+      vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+      descriptorPool = VK_NULL_HANDLE;
+    }
     if (commandPool != VK_NULL_HANDLE) {
       vkDestroyCommandPool(device, commandPool, nullptr);
       commandPool = VK_NULL_HANDLE;
@@ -216,7 +299,26 @@ void DeviceVulkan::DestroyCommandList(ICommandList* cmd) {
   core::Free(vkCmd);
 }
 
-// Placeholder implementations (T039–T042 will fill); return nullptr or minimal for now.
+// T039: memory type selection and format mapping helpers
+static uint32_t SelectMemoryType(VkPhysicalDevice phys, VkMemoryRequirements const& memReq, VkMemoryPropertyFlags prefer) {
+  VkPhysicalDeviceMemoryProperties props = {};
+  vkGetPhysicalDeviceMemoryProperties(phys, &props);
+  for (uint32_t i = 0; i < props.memoryTypeCount; ++i) {
+    if (!(memReq.memoryTypeBits & (1u << i))) continue;
+    if ((props.memoryTypes[i].propertyFlags & prefer) == prefer)
+      return i;
+  }
+  for (uint32_t i = 0; i < props.memoryTypeCount; ++i) {
+    if (memReq.memoryTypeBits & (1u << i)) return i;
+  }
+  return 0;
+}
+
+static VkFormat GetVkFormatFromDesc(uint32_t format) {
+  (void)format;
+  // T039: map TextureDesc.format (0 = R8G8B8A8_UNORM; extend as needed).
+  return VK_FORMAT_R8G8B8A8_UNORM;
+}
 
 // --- Buffer/Texture/Sampler (VkBuffer/VkImage/VkSampler wrappers) ---
 struct BufferVulkan : IBuffer {
@@ -229,7 +331,106 @@ struct TextureVulkan : ITexture {
   VkImage image{VK_NULL_HANDLE};
   VkDeviceMemory memory{VK_NULL_HANDLE};
   VkDevice device{VK_NULL_HANDLE};
+  uint32_t width{0};
+  uint32_t height{0};
 };
+
+void CommandListVulkan::CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) {
+  if (cmd == VK_NULL_HANDLE || !src || !dst || size == 0) return;
+  BufferVulkan* vs = static_cast<BufferVulkan*>(src);
+  BufferVulkan* vd = static_cast<BufferVulkan*>(dst);
+  if (vs->buffer == VK_NULL_HANDLE || vd->buffer == VK_NULL_HANDLE) return;
+  VkBufferCopy region = {};
+  region.srcOffset = srcOffset;
+  region.dstOffset = dstOffset;
+  region.size = size;
+  vkCmdCopyBuffer(cmd, vs->buffer, vd->buffer, 1, &region);
+}
+
+void CommandListVulkan::CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) {
+  if (cmd == VK_NULL_HANDLE || !src || !dst) return;
+  BufferVulkan* vs = static_cast<BufferVulkan*>(src);
+  TextureVulkan* td = static_cast<TextureVulkan*>(dst);
+  if (vs->buffer == VK_NULL_HANDLE || td->image == VK_NULL_HANDLE) return;
+  uint32_t w = dstRegion.width > 0 ? dstRegion.width : (td->width - dstRegion.x);
+  uint32_t h = dstRegion.height > 0 ? dstRegion.height : (td->height - dstRegion.y);
+  uint32_t d = dstRegion.depth > 0 ? dstRegion.depth : 1;
+  if (w == 0 || h == 0) return;
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.image = td->image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = dstRegion.mipLevel;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = dstRegion.arrayLayer;
+  barrier.subresourceRange.layerCount = 1;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  VkBufferImageCopy region = {};
+  region.bufferOffset = srcOffset;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.mipLevel = dstRegion.mipLevel;
+  region.imageSubresource.baseArrayLayer = dstRegion.arrayLayer;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = {static_cast<int32_t>(dstRegion.x), static_cast<int32_t>(dstRegion.y), static_cast<int32_t>(dstRegion.z)};
+  region.imageExtent = {w, h, d};
+  vkCmdCopyBufferToImage(cmd, vs->buffer, td->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void CommandListVulkan::CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) {
+  if (cmd == VK_NULL_HANDLE || !src || !dst) return;
+  TextureVulkan* ts = static_cast<TextureVulkan*>(src);
+  BufferVulkan* vd = static_cast<BufferVulkan*>(dst);
+  if (ts->image == VK_NULL_HANDLE || vd->buffer == VK_NULL_HANDLE) return;
+  uint32_t w = srcRegion.width > 0 ? srcRegion.width : (ts->width - srcRegion.x);
+  uint32_t h = srcRegion.height > 0 ? srcRegion.height : (ts->height - srcRegion.y);
+  uint32_t d = srcRegion.depth > 0 ? srcRegion.depth : 1;
+  if (w == 0 || h == 0) return;
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  barrier.image = ts->image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = srcRegion.mipLevel;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = srcRegion.arrayLayer;
+  barrier.subresourceRange.layerCount = 1;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  VkBufferImageCopy region = {};
+  region.bufferOffset = dstOffset;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.mipLevel = srcRegion.mipLevel;
+  region.imageSubresource.baseArrayLayer = srcRegion.arrayLayer;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = {static_cast<int32_t>(srcRegion.x), static_cast<int32_t>(srcRegion.y), static_cast<int32_t>(srcRegion.z)};
+  region.imageExtent = {w, h, d};
+  vkCmdCopyImageToBuffer(cmd, ts->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vd->buffer, 1, &region);
+}
+
+void CommandListVulkan::BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) {
+  (void)desc;(void)scratch;(void)result;
+  // Ray tracing: VK_KHR_ray_tracing_pipeline; no-op for API parity.
+}
+
+void CommandListVulkan::DispatchRays(DispatchRaysDesc const& desc) {
+  (void)desc;
+  // Ray tracing: VK_KHR_ray_tracing_pipeline; no-op.
+}
 
 struct SamplerVulkan : ISampler {
   VkSampler sampler{VK_NULL_HANDLE};
@@ -237,7 +438,7 @@ struct SamplerVulkan : ISampler {
 };
 
 IBuffer* DeviceVulkan::CreateBuffer(BufferDesc const& desc) {
-  if (desc.size == 0) return nullptr;
+  if (desc.size == 0 || device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return nullptr;
   VkBufferCreateInfo bufInfo = {};
   bufInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufInfo.size = desc.size;
@@ -251,7 +452,7 @@ IBuffer* DeviceVulkan::CreateBuffer(BufferDesc const& desc) {
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memReq.size;
-  allocInfo.memoryTypeIndex = 0; // T039: select proper memory type (host-visible or device-local)
+  allocInfo.memoryTypeIndex = SelectMemoryType(physicalDevice, memReq, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   VkDeviceMemory memory = VK_NULL_HANDLE;
   if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
     vkDestroyBuffer(device, buffer, nullptr);
@@ -276,11 +477,11 @@ IBuffer* DeviceVulkan::CreateBuffer(BufferDesc const& desc) {
 }
 
 ITexture* DeviceVulkan::CreateTexture(TextureDesc const& desc) {
-  if (desc.width == 0 || desc.height == 0) return nullptr;
+  if (desc.width == 0 || desc.height == 0 || device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE) return nullptr;
   VkImageCreateInfo imgInfo = {};
   imgInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   imgInfo.imageType = VK_IMAGE_TYPE_2D;
-  imgInfo.format = VK_FORMAT_R8G8B8A8_UNORM; // T039: map desc.format to VkFormat
+  imgInfo.format = GetVkFormatFromDesc(desc.format);
   imgInfo.extent.width = desc.width;
   imgInfo.extent.height = desc.height;
   imgInfo.extent.depth = desc.depth > 0 ? desc.depth : 1;
@@ -299,7 +500,7 @@ ITexture* DeviceVulkan::CreateTexture(TextureDesc const& desc) {
   VkMemoryAllocateInfo allocInfo = {};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memReq.size;
-  allocInfo.memoryTypeIndex = 0; // T039: select device-local memory type
+  allocInfo.memoryTypeIndex = SelectMemoryType(physicalDevice, memReq, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   VkDeviceMemory memory = VK_NULL_HANDLE;
   if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
     vkDestroyImage(device, image, nullptr);
@@ -320,7 +521,109 @@ ITexture* DeviceVulkan::CreateTexture(TextureDesc const& desc) {
   tex->image = image;
   tex->memory = memory;
   tex->device = device;
+  tex->width = desc.width;
+  tex->height = desc.height;
   return tex;
+}
+
+void CommandListVulkan::BeginRenderPass(RenderPassDesc const& desc) {
+  if (cmd == VK_NULL_HANDLE || device == VK_NULL_HANDLE) return;
+  if (desc.colorAttachmentCount == 0 || !desc.colorAttachments[0]) return;
+  TextureVulkan* tex = static_cast<TextureVulkan*>(desc.colorAttachments[0]);
+  if (tex->image == VK_NULL_HANDLE || tex->width == 0 || tex->height == 0) return;
+  VkImageViewCreateInfo viewInfo = {};
+  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  viewInfo.image = tex->image;
+  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+  viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.levelCount = 1;
+  viewInfo.subresourceRange.baseArrayLayer = 0;
+  viewInfo.subresourceRange.layerCount = 1;
+  if (vkCreateImageView(device, &viewInfo, nullptr, &currentPassColorView) != VK_SUCCESS)
+    return;
+  VkAttachmentDescription att = {};
+  att.format = VK_FORMAT_R8G8B8A8_UNORM;
+  att.samples = VK_SAMPLE_COUNT_1_BIT;
+  att.loadOp = (desc.colorLoadOp == LoadOp::Clear) ? VK_ATTACHMENT_LOAD_OP_CLEAR : (desc.colorLoadOp == LoadOp::Load ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+  att.storeOp = (desc.colorStoreOp == StoreOp::Store) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  att.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  att.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  att.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  VkAttachmentReference colorRef = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+  VkSubpassDescription subpass = {};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorRef;
+  VkRenderPassCreateInfo rpInfo = {};
+  rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  rpInfo.attachmentCount = 1;
+  rpInfo.pAttachments = &att;
+  rpInfo.subpassCount = 1;
+  rpInfo.pSubpasses = &subpass;
+  if (vkCreateRenderPass(device, &rpInfo, nullptr, &currentRenderPass) != VK_SUCCESS) {
+    vkDestroyImageView(device, currentPassColorView, nullptr);
+    currentPassColorView = VK_NULL_HANDLE;
+    return;
+  }
+  VkFramebufferCreateInfo fbInfo = {};
+  fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+  fbInfo.renderPass = currentRenderPass;
+  fbInfo.attachmentCount = 1;
+  fbInfo.pAttachments = &currentPassColorView;
+  fbInfo.width = tex->width;
+  fbInfo.height = tex->height;
+  fbInfo.layers = 1;
+  if (vkCreateFramebuffer(device, &fbInfo, nullptr, &currentFramebuffer) != VK_SUCCESS) {
+    vkDestroyRenderPass(device, currentRenderPass, nullptr);
+    vkDestroyImageView(device, currentPassColorView, nullptr);
+    currentRenderPass = VK_NULL_HANDLE;
+    currentPassColorView = VK_NULL_HANDLE;
+    return;
+  }
+  VkImageMemoryBarrier barrier = {};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.srcAccessMask = 0;
+  barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  barrier.image = tex->image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.layerCount = 1;
+  vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  VkClearValue clearVal = {};
+  clearVal.color.float32[0] = desc.clearColor[0];
+  clearVal.color.float32[1] = desc.clearColor[1];
+  clearVal.color.float32[2] = desc.clearColor[2];
+  clearVal.color.float32[3] = desc.clearColor[3];
+  VkRenderPassBeginInfo beginInfo = {};
+  beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  beginInfo.renderPass = currentRenderPass;
+  beginInfo.framebuffer = currentFramebuffer;
+  beginInfo.renderArea = {{0, 0}, {tex->width, tex->height}};
+  beginInfo.clearValueCount = 1;
+  beginInfo.pClearValues = &clearVal;
+  vkCmdBeginRenderPass(cmd, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void CommandListVulkan::EndRenderPass() {
+  if (cmd != VK_NULL_HANDLE && currentRenderPass != VK_NULL_HANDLE)
+    vkCmdEndRenderPass(cmd);
+  if (currentFramebuffer != VK_NULL_HANDLE) {
+    vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
+    currentFramebuffer = VK_NULL_HANDLE;
+  }
+  if (currentRenderPass != VK_NULL_HANDLE) {
+    vkDestroyRenderPass(device, currentRenderPass, nullptr);
+    currentRenderPass = VK_NULL_HANDLE;
+  }
+  if (currentPassColorView != VK_NULL_HANDLE) {
+    vkDestroyImageView(device, currentPassColorView, nullptr);
+    currentPassColorView = VK_NULL_HANDLE;
+  }
 }
 
 ISampler* DeviceVulkan::CreateSampler(SamplerDesc const& desc) {
@@ -480,13 +783,11 @@ struct FenceVulkan : IFence {
   VkDevice device{VK_NULL_HANDLE};
 
   void Wait() override {
-    // T041: vkWaitForFences blocks if fence not signaled. For test (Signal->Wait), we skip wait or ensure fence is signaled.
-    // Minimal: no-op so test doesn't hang (fence created as signaled, Wait should return immediately).
-    // if (fence != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-    //   vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+    if (fence != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
   }
   void Signal() override {
-    // Fence is signaled by GPU on submit; host can't signal. For test we no-op (fence created signaled).
+    // Fence is signaled by GPU on submit; host does not signal.
   }
   void Reset() override {
     if (fence != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
@@ -494,15 +795,20 @@ struct FenceVulkan : IFence {
   }
 };
 
+VkFence GetVkFenceFromFence(IFence* f) {
+  if (!f) return VK_NULL_HANDLE;
+  return static_cast<FenceVulkan*>(f)->fence;
+}
+
 struct SemaphoreVulkan : ISemaphore {
   VkSemaphore semaphore{VK_NULL_HANDLE};
   VkDevice device{VK_NULL_HANDLE};
 };
 
-IFence* DeviceVulkan::CreateFence() {
+IFence* DeviceVulkan::CreateFence(bool initialSignaled) {
   VkFenceCreateInfo fenceInfo = {};
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT; // T041: create as signaled so Wait() doesn't block initially
+  fenceInfo.flags = initialSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0u;
   VkFence fence = VK_NULL_HANDLE;
   if (vkCreateFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
     return nullptr;
@@ -592,6 +898,202 @@ void DeviceVulkan::DestroySwapChain(ISwapChain* sc) {
   }
   vkSc->~SwapChainVulkan();
   core::Free(vkSc);
+}
+
+// --- Descriptor set (VkDescriptorSetLayout / VkDescriptorSet) ---
+static VkDescriptorType ToVkDescriptorType(DescriptorType t) {
+  switch (t) {
+    case DescriptorType::Sampler: return VK_DESCRIPTOR_TYPE_SAMPLER;
+    case DescriptorType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case DescriptorType::ShaderResource: return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    case DescriptorType::UnorderedAccess: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    default: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  }
+}
+
+static VkShaderStageFlags ToVkStageFlags(uint32_t stageFlags) {
+  VkShaderStageFlags v = 0;
+  if (stageFlags & 0x01u) v |= VK_SHADER_STAGE_VERTEX_BIT;
+  if (stageFlags & 0x02u) v |= VK_SHADER_STAGE_FRAGMENT_BIT;
+  if (stageFlags & 0x04u) v |= VK_SHADER_STAGE_COMPUTE_BIT;
+  return v ? v : VK_SHADER_STAGE_ALL;
+}
+
+struct DescriptorSetLayoutVulkan : IDescriptorSetLayout {
+  VkDescriptorSetLayout layout{VK_NULL_HANDLE};
+  VkDevice device{VK_NULL_HANDLE};
+  ~DescriptorSetLayoutVulkan() override {
+    if (layout != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyDescriptorSetLayout(device, layout, nullptr);
+  }
+};
+
+constexpr uint32_t kMaxDescriptorSetImageViews = 16u;
+struct DescriptorSetVulkan : IDescriptorSet {
+  VkDescriptorSet set{VK_NULL_HANDLE};
+  VkDescriptorPool pool{VK_NULL_HANDLE};
+  VkDevice device{VK_NULL_HANDLE};
+  VkImageView imageViews[kMaxDescriptorSetImageViews]{};
+  uint32_t imageViewCount{0};
+};
+
+static bool EnsureDescriptorPool(DeviceVulkan* dev) {
+  if (dev->descriptorPool != VK_NULL_HANDLE) return true;
+  VkDescriptorPoolSize poolSizes[] = {
+    { VK_DESCRIPTOR_TYPE_SAMPLER, 64 },
+    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64 },
+    { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 64 },
+    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64 },
+  };
+  VkDescriptorPoolCreateInfo poolInfo = {};
+  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+  poolInfo.maxSets = 256;
+  poolInfo.poolSizeCount = static_cast<uint32_t>(sizeof(poolSizes) / sizeof(poolSizes[0]));
+  poolInfo.pPoolSizes = poolSizes;
+  return vkCreateDescriptorPool(dev->device, &poolInfo, nullptr, &dev->descriptorPool) == VK_SUCCESS;
+}
+
+IDescriptorSetLayout* DeviceVulkan::CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) {
+  if (device == VK_NULL_HANDLE || desc.bindingCount == 0) return nullptr;
+  constexpr uint32_t kMax = 16u;
+  VkDescriptorSetLayoutBinding vkBindings[kMax];
+  uint32_t n = desc.bindingCount > kMax ? kMax : desc.bindingCount;
+  for (uint32_t i = 0; i < n; ++i) {
+    vkBindings[i].binding = desc.bindings[i].binding;
+    vkBindings[i].descriptorType = ToVkDescriptorType(desc.bindings[i].type);
+    vkBindings[i].descriptorCount = desc.bindings[i].count > 0 ? desc.bindings[i].count : 1;
+    vkBindings[i].stageFlags = ToVkStageFlags(desc.bindings[i].stageFlags);
+    vkBindings[i].pImmutableSamplers = nullptr;
+  }
+  VkDescriptorSetLayoutCreateInfo layoutCreateInfo = {};
+  layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutCreateInfo.bindingCount = n;
+  layoutCreateInfo.pBindings = vkBindings;
+  VkDescriptorSetLayout vkLayout = VK_NULL_HANDLE;
+  if (vkCreateDescriptorSetLayout(device, &layoutCreateInfo, nullptr, &vkLayout) != VK_SUCCESS)
+    return nullptr;
+  DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(
+      core::Alloc(sizeof(DescriptorSetLayoutVulkan), alignof(DescriptorSetLayoutVulkan)));
+  if (!dsl) {
+    vkDestroyDescriptorSetLayout(device, vkLayout, nullptr);
+    return nullptr;
+  }
+  new (dsl) DescriptorSetLayoutVulkan();
+  dsl->layout = vkLayout;
+  dsl->device = device;
+  return dsl;
+}
+
+IDescriptorSet* DeviceVulkan::AllocateDescriptorSet(IDescriptorSetLayout* layout) {
+  if (!layout || device == VK_NULL_HANDLE) return nullptr;
+  DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(layout);
+  if (dsl->layout == VK_NULL_HANDLE) return nullptr;
+  if (!EnsureDescriptorPool(this)) return nullptr;
+  VkDescriptorSetAllocateInfo allocInfo = {};
+  allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = descriptorPool;
+  allocInfo.descriptorSetCount = 1;
+  allocInfo.pSetLayouts = &dsl->layout;
+  VkDescriptorSet set = VK_NULL_HANDLE;
+  if (vkAllocateDescriptorSets(device, &allocInfo, &set) != VK_SUCCESS)
+    return nullptr;
+  DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(
+      core::Alloc(sizeof(DescriptorSetVulkan), alignof(DescriptorSetVulkan)));
+  if (!ds) {
+    vkFreeDescriptorSets(device, descriptorPool, 1, &set);
+    return nullptr;
+  }
+  new (ds) DescriptorSetVulkan();
+  ds->set = set;
+  ds->pool = descriptorPool;
+  ds->device = device;
+  return ds;
+}
+
+void DeviceVulkan::UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) {
+  if (!set || !writes || writeCount == 0) return;
+  DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(set);
+  if (ds->set == VK_NULL_HANDLE) return;
+  for (uint32_t i = 0; i < ds->imageViewCount; ++i) {
+    if (ds->imageViews[i] != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyImageView(device, ds->imageViews[i], nullptr);
+    ds->imageViews[i] = VK_NULL_HANDLE;
+  }
+  ds->imageViewCount = 0;
+  struct BufferVulkan; struct TextureVulkan; struct SamplerVulkan;
+  constexpr uint32_t kMaxWrites = 16u;
+  VkWriteDescriptorSet vkWrites[kMaxWrites];
+  VkDescriptorBufferInfo bufInfos[kMaxWrites];
+  VkDescriptorImageInfo imgInfos[kMaxWrites];
+  uint32_t n = writeCount > kMaxWrites ? kMaxWrites : writeCount;
+  for (uint32_t i = 0; i < n; ++i) {
+    vkWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    vkWrites[i].pNext = nullptr;
+    vkWrites[i].dstSet = ds->set;
+    vkWrites[i].dstBinding = writes[i].binding;
+    vkWrites[i].dstArrayElement = 0;
+    vkWrites[i].descriptorCount = 1;
+    vkWrites[i].descriptorType = ToVkDescriptorType(writes[i].type);
+    vkWrites[i].pImageInfo = nullptr;
+    vkWrites[i].pBufferInfo = nullptr;
+    vkWrites[i].pTexelBufferView = nullptr;
+    if (writes[i].type == DescriptorType::UniformBuffer && writes[i].buffer) {
+      bufInfos[i].buffer = static_cast<BufferVulkan*>(writes[i].buffer)->buffer;
+      bufInfos[i].offset = writes[i].offset;
+      bufInfos[i].range = writes[i].range > 0 ? writes[i].range : VK_WHOLE_SIZE;
+      vkWrites[i].pBufferInfo = &bufInfos[i];
+    } else if (writes[i].type == DescriptorType::ShaderResource && writes[i].texture && ds->imageViewCount < kMaxDescriptorSetImageViews) {
+      TextureVulkan* tex = static_cast<TextureVulkan*>(writes[i].texture);
+      if (tex->image != VK_NULL_HANDLE) {
+        VkImageViewCreateInfo viewInfo = {};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = tex->image;
+        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
+        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+        VkImageView view = VK_NULL_HANDLE;
+        if (vkCreateImageView(device, &viewInfo, nullptr, &view) == VK_SUCCESS) {
+          ds->imageViews[ds->imageViewCount++] = view;
+          imgInfos[i].sampler = VK_NULL_HANDLE;
+          imgInfos[i].imageView = view;
+          imgInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+          vkWrites[i].pImageInfo = &imgInfos[i];
+        }
+      }
+    } else if (writes[i].type == DescriptorType::Sampler && writes[i].sampler) {
+      imgInfos[i].sampler = static_cast<SamplerVulkan*>(writes[i].sampler)->sampler;
+      imgInfos[i].imageView = VK_NULL_HANDLE;
+      imgInfos[i].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      vkWrites[i].pImageInfo = &imgInfos[i];
+    }
+  }
+  vkUpdateDescriptorSets(device, n, vkWrites, 0, nullptr);
+}
+
+void DeviceVulkan::DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) {
+  if (!layout) return;
+  DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(layout);
+  dsl->~DescriptorSetLayoutVulkan();
+  core::Free(dsl);
+}
+
+void DeviceVulkan::DestroyDescriptorSet(IDescriptorSet* set) {
+  if (!set) return;
+  DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(set);
+  for (uint32_t i = 0; i < ds->imageViewCount; ++i) {
+    if (ds->imageViews[i] != VK_NULL_HANDLE && ds->device != VK_NULL_HANDLE)
+      vkDestroyImageView(ds->device, ds->imageViews[i], nullptr);
+  }
+  if (ds->set != VK_NULL_HANDLE && ds->pool != VK_NULL_HANDLE && ds->device != VK_NULL_HANDLE)
+    vkFreeDescriptorSets(ds->device, ds->pool, 1, &ds->set);
+  ds->set = VK_NULL_HANDLE;
+  ds->~DescriptorSetVulkan();
+  core::Free(ds);
 }
 
 }  // namespace
@@ -725,6 +1227,10 @@ IDevice* CreateDeviceVulkan() {
   dev->graphicsQueueFamilyIndex = graphicsQueueFamilyIndex;
   dev->features.maxTextureDimension2D = limits.maxImageDimension2D;
   dev->features.maxTextureDimension3D = limits.maxImageDimension3D;
+  dev->limits.maxBufferSize = static_cast<size_t>(limits.maxStorageBufferRange);
+  dev->limits.maxTextureDimension2D = limits.maxImageDimension2D;
+  dev->limits.maxTextureDimension3D = limits.maxImageDimension3D;
+  dev->limits.minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment;
   return dev;
 }
 

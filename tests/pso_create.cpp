@@ -1,7 +1,7 @@
 /**
  * @file pso_create.cpp
  * @brief Test CreateGraphicsPSO, CreateComputePSO, SetShader, Cache (US4).
- * Tests real backend PSO path: Vulkan (TE_RHI_VULKAN), D3D12 on Windows (TE_RHI_D3D12), Metal on macOS (TE_RHI_METAL).
+ * Tests real backend PSO path: Vulkan (TE_RHI_VULKAN), D3D12/D3D11 on Windows (TE_RHI_D3D12/TE_RHI_D3D11), Metal on macOS (TE_RHI_METAL).
  * Uses minimal shader bytecode; verifies non-null; failure (e.g. invalid bytecode) may return nullptr.
  */
 #include "te/rhi/device.hpp"
@@ -79,6 +79,11 @@ int main() {
 #if defined(TE_RHI_METAL) && TE_RHI_METAL && defined(__APPLE__)
   test_backend(te::rhi::Backend::Metal);
   test_failure_returns_null(te::rhi::Backend::Metal);
+#endif
+
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11 && defined(_WIN32)
+  test_backend(te::rhi::Backend::D3D11);
+  test_failure_returns_null(te::rhi::Backend::D3D11);
 #endif
 
   return 0;

@@ -1,7 +1,7 @@
 /**
  * @file resources_create.cpp
  * @brief Test CreateBuffer, CreateTexture, CreateSampler, CreateView, Destroy (US3).
- * Covers real backend allocation: Vulkan (TE_RHI_VULKAN), D3D12 on Windows (TE_RHI_D3D12), Metal on macOS (TE_RHI_METAL).
+ * Covers real backend allocation: Vulkan (TE_RHI_VULKAN), D3D12/D3D11 on Windows (TE_RHI_D3D12/TE_RHI_D3D11), Metal on macOS (TE_RHI_METAL).
  * Verifies handles valid; Destroy then no use; failure paths return nullptr.
  */
 #include "te/rhi/device.hpp"
@@ -99,6 +99,12 @@ int main() {
   test_backend(te::rhi::Backend::Metal);
   test_failure_returns_null(te::rhi::Backend::Metal);
   test_create_view(te::rhi::Backend::Metal);
+#endif
+
+#if defined(TE_RHI_D3D11) && TE_RHI_D3D11 && defined(_WIN32)
+  test_backend(te::rhi::Backend::D3D11);
+  test_failure_returns_null(te::rhi::Backend::D3D11);
+  test_create_view(te::rhi::Backend::D3D11);
 #endif
 
   return 0;
