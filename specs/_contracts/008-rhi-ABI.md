@@ -153,7 +153,7 @@
 | te/rhi/command_list.hpp | te/rhi/types.hpp | ICommandList, Begin, End, Submit |
 | te/rhi/device.hpp | te/rhi/queue.hpp, types.hpp, resources.hpp, pso.hpp, sync.hpp, swapchain.hpp | IDevice, SelectBackend, GetSelectedBackend, CreateDevice, DestroyDevice |
 
-### 描述符集（te/rhi/descriptor_set.hpp）（P2）
+### 描述符集（te/rhi/descriptor_set.hpp）
 
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
@@ -165,47 +165,6 @@
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
 | 008-RHI | te::rhi | RaytracingAccelerationStructureDesc, DispatchRaysDesc | struct | 加速结构/派发描述 | te/rhi/raytracing.hpp | 映射 D3D12 BLAS/TLAS、D3D12_DISPATCH_RAYS_DESC |
-
-### 实现状态表（按后端）
-
-| 能力 / 接口 | Vulkan | D3D12 | Metal | D3D11 | 说明 |
-|-------------|--------|-------|-------|-------|------|
-| BeginRenderPass / EndRenderPass | ✓ | ✓ | ✓ | ✓ | 四后端均已实现（D3D12 使用 RTV/DSV heap） |
-| CopyBuffer | ✓ | ✓ | ✓ | ✓ | 四后端均已实现 |
-| CopyBufferToTexture / CopyTextureToBuffer | ✓ | ✓ | ✓ | 占位 | Vulkan/D3D12/Metal 已实现；D3D11 无直接 Buffer↔Texture 拷贝 API，见下节 |
-| CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet | ✓ | 占位 | 占位 | 占位 | Vulkan 已完整实现（含 texture SRV 的 VkImageView）；D3D12/Metal/D3D11 占位原因见下节 |
-| BuildAccelerationStructure / DispatchRays | no-op | no-op | no-op | no-op | 光追需 DXR/VK_KHR_ray_tracing；当前无 SDK 集成，见下节 |
-| DeviceLimits / CreateFence(bool) / Submit(…Fence/Semaphore) | ✓ | ✓ | ✓ | ✓ | 已实现 |
-
-### 渲染通道（RenderPass）实现说明
-
-- **无独立 CreateRenderPass**：渲染通道由 `BeginRenderPass(RenderPassDesc)` 在录制时创建，无需预创建 IRenderPass 对象。
-- **Vulkan**：BeginRenderPass 内创建 VkImageView、VkRenderPass、VkFramebuffer，做 image 过渡后 `vkCmdBeginRenderPass`；EndRenderPass 调用 `vkCmdEndRenderPass` 并销毁上述对象。支持单 color 附件 + clear。
-- **D3D11**：BeginRenderPass 内对 `colorAttachments`/`depthStencilAttachment` 创建 RTV/DSV，`OMSetRenderTargets`，按 loadOp 做 Clear；EndRenderPass 解绑并释放 RTV/DSV。
-- **Metal**：BeginRenderPass 用 MTLRenderPassDescriptor 设置首 color 附件的 texture 与 load/store/clear，`renderCommandEncoderWithDescriptor` 得到 encoder；EndRenderPass 调用 `endEncoding`。
-- **D3D12**：BeginRenderPass 使用设备级 RTV/DSV heap（EnsureRtvDsvHeaps），CreateRenderTargetView/CreateDepthStencilView，OMSetRenderTargets，ClearRenderTargetView/ClearDepthStencilView；EndRenderPass 无额外解绑。
-
-### Copy 实现说明
-
-- **CopyBuffer**：Vulkan/D3D12/Metal/D3D11 均已实现（vkCmdCopyBuffer、CopyBufferRegion、MTLBlitCommandEncoder copyFromBuffer、CopyResource/CopySubresourceRegion）。
-- **CopyBufferToTexture / CopyTextureToBuffer**：Vulkan 已实现（image 布局过渡 + vkCmdCopyBufferToImage/vkCmdCopyImageToBuffer）；D3D12 已实现（GetCopyableFootprints + CopyTextureRegion + ResourceBarrier）；Metal 已实现（MTLBlitCommandEncoder copyFromBuffer:toTexture:/copyFromTexture:toBuffer:）；D3D11 无直接 GPU Buffer↔Texture 拷贝 API，需通过 Staging 或 Compute，当前保留占位。
-
-### 不能实现或保留占位及原因
-
-| 项 | 后端 | 原因 |
-|----|------|------|
-| **SwapChain（真实呈现）** | 全部 | 需应用层提供窗口句柄/View（HWND、VkSurfaceKHR、NSView/CAMetalLayer），RHI 层不创建窗口；有 windowHandle 时各后端可接 VkSurfaceKHR/CreateSwapChainForHwnd/CAMetalLayer，当前无窗口时返回 stub。 |
-| **BuildAccelerationStructure / DispatchRays** | 全部 | D3D12 需 DXR SDK 与 ID3D12GraphicsCommandList4；Vulkan 需 VK_KHR_ray_tracing_pipeline；Metal 为 MTLAccelerationStructure 可选。当前无 DXR/SDK 集成，故保持 no-op。 |
-| **CopyBufferToTexture / CopyTextureToBuffer** | D3D11 | D3D11 无直接 Buffer↔Texture 的 GPU 拷贝 API（仅 CopyResource/CopySubresourceRegion 为 Texture↔Texture）；需通过 Staging 资源或 Compute Shader 实现，当前保留占位。 |
-| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | D3D12 | 需 Root Signature 与 Descriptor Heap 与 PSO 根签名对接，绑定流程与 Vulkan 描述符集模型差异大，完整实现需较大改动，当前保留占位。 |
-| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | Metal | Metal 使用 MTLArgumentEncoder/MTLResource 绑定，与 Vulkan 描述符集模型不同，需与 PSO 编码路径对接，当前保留占位。 |
-| **CreateDescriptorSetLayout / AllocateDescriptorSet / UpdateDescriptorSet** | D3D11 | D3D11 无描述符集概念，绑定通过 Context::PSSetShaderResources 等；为 ABI 一致当前返回 nullptr。 |
-| **完整 PSO（VkPipeline/D3D12_GRAPHICS_PIPELINE_STATE_DESC 等）** | 全部 | 完整管线需顶点输入、光栅化、多重采样等状态；当前 API 仅传 Shader 字节码，最小路径返回非空 IPSO，完整创建待与 010-Shader 对接后补。 |
-
-### TODO（已实现项已移除）
-
-- `PipelineState`、`VertexBuffers`、`IndexBuffer` 绑定：当前 PSO 仅 CreateGraphicsPSO/CreateComputePSO，需补充绑定接口。
-- `DrawIndexedIndirect`、`ClearRenderTarget`、`ClearDepthStencil`：待补充。
 
 ---
 
