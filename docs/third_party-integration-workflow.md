@@ -1,6 +1,6 @@
 # 第三方库集成工作流（TenEngine）
 
-本文档定义：**模块如何声明第三方依赖**、**Plan 指令如何自动纳入**、**Task 过程中必须执行的步骤**、**引入方式与 CMake 的对应关系**，以及**从 `docs/third_party/*.md` 自动识别引入方式**的规则。参考实现见 `G:\AIHUMAN\WorkSpace\FirstEngine`（third_party 子模块 + 各模块 CMake 引用）。
+本文档定义：**模块如何声明第三方依赖**、**Plan 指令如何自动纳入**、**Task 过程中必须执行的步骤**、**引入方式与 CMake 的对应关系**，以及**从 `docs/third_party/*.md` 自动识别引入方式**的规则。
 
 ---
 
@@ -26,11 +26,11 @@
 
 ## 二、模块中如何体现第三方依赖
 
-1. **在模块 spec 或 ABI/契约中声明**  
-   在 `specs/NNN-module-name/spec.md` 或 `specs/_contracts/NNN-module-name-public-api.md` 的「依赖」或「技术栈」中列出本模块所需的第三方库 **ID**（与 `docs/third_party/` 表一致），例如：`第三方: gtest, spdlog, glm, stb`。
+1. **在模块契约 public-api 中声明**  
+   在 `specs/_contracts/NNN-modulename-public-api.md` 的「依赖」「技术栈」或「第三方依赖」中列出本模块所需的第三方库 **ID**（与 `docs/third_party/` 表一致），例如：`第三方: gtest, spdlog, glm, stb`。第三方库引入说明以 public-api 为准，不在 spec.md 中重复声明。
 
 2. **在 plan 中必须列出**  
-   若本 feature 涉及某模块，且该模块声明了第三方依赖，则 **plan.md 必须包含「第三方依赖」小节**（见 §三），不得遗漏；Plan 指令（speckit.plan）会据此自动加入该小节。
+   若本 feature 涉及某模块，且该模块的 public-api 声明了第三方依赖，则 **plan.md 必须包含「第三方依赖」小节**（见 §三），不得遗漏；Plan 指令（speckit.plan）从 public-api 读取并据此自动加入该小节。
 
 3. **在 CMake 中最终体现**  
    通过「配置实现」步骤（见 §四）在模块或根的 CMake 中完成：`target_link_libraries(本模块 PRIVATE <第三方_target>)` 或 `target_include_directories` + 宏定义；引入方式决定具体写法（见 §一表格）。
@@ -39,7 +39,7 @@
 
 ## 三、Plan 指令中自动加入第三方依赖
 
-- **触发条件**：本 feature 对应的模块（或 spec/contracts）中声明了第三方库 ID。  
+- **触发条件**：本 feature 涉及的模块在 `specs/_contracts/NNN-modulename-public-api.md` 中声明了第三方库 ID。  
 - **必须产出**：在 plan.md 的「依赖引入方式」之后（或其中）增加 **「第三方依赖」** 小节，格式如下：
 
 ```markdown
@@ -95,15 +95,14 @@
 
 ---
 
-## 六、与 FirstEngine 的对应关系
+## 六、按引入方式的典型集成示例
 
-FirstEngine 中第三方位于 `third_party/`，通过 **git submodule** 拉取；各模块在各自 `CMakeLists.txt` 中通过 `add_subdirectory` 或 include 路径引用：
+- **header-only**：glm、stb 等。拉取到 `third_party/<id>/` 后，`add_library(<id> INTERFACE)` + `target_include_directories(<id> INTERFACE <path>)`；stb 需在某一 .cpp 中 `#define STB_XXX_IMPLEMENTATION` 后 include。  
+- **source**：assimp、glslang、spirv-cross 等。`FetchContent_Declare` + `FetchContent_MakeAvailable(<id>)` 或 `add_subdirectory(third_party/<id>)`；本模块 `target_link_libraries(本模块 PRIVATE <id>::<id>)`。  
+- **sdk**：预编译库或官方 SDK。`find_package(<id>)` 或 `find_path`/`find_library`；文档指定下载 URL 或安装路径，**必须**在配置前存在或通过脚本安装。  
+- **system**：Vulkan SDK、Windows D3D11/D3D12、Apple Metal 等。`find_package(Vulkan)`、Windows SDK 的 d3d11.lib/d3d12.lib、Metal.framework；不自动下载，文档说明安装方式（如安装 Vulkan SDK、安装 Windows SDK、Xcode 自带 Metal）。  
 
-- **header-only**：glm、stb（stb 仅 include 路径，在单 TU 中 define IMPLEMENTATION 后 include）。  
-- **source**：assimp、glfw、glslang、spirv-cross、pybind11（均为 add_subdirectory）。  
-- **sdk/system**：Vulkan（external/vulkan 或 find_package(Vulkan)）、Python（external/python 或系统路径）。  
-
-TenEngine 可采用 **FetchContent 优先**（配置时自动下载），或沿用 submodule + add_subdirectory；无论哪种，**自动下载（步骤 2）为必须**，且需在文档与任务中写明具体方式。
+TenEngine 推荐 **FetchContent 优先**（配置时自动下载）；**自动下载（步骤 2）对 header-only/source/sdk 为必须**，system 类无下载步骤；任务中须写明具体方式。
 
 ---
 

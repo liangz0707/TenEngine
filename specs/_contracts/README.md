@@ -13,6 +13,8 @@
 
 以上与 **`docs/agent-interface-sync.md`** §4.2、**`specs/_contracts/000-module-ABI.md`** 中的契约更新流程一致。
 
+- **第三方依赖声明**：若本模块需集成第三方库，须在 **`NNN-modulename-public-api.md`** 的「依赖」「技术栈」或「第三方依赖」中列出第三方 ID（与 `docs/third_party/` 表一致）。Plan 从 public-api 读取并自动填入「第三方依赖」小节，Task 将生成 7 步集成任务。详见 `docs/third_party-integration-workflow.md`。
+
 ## 使用方式
 
 - **在任意 T0-* 模块分支上开始工作前**：先拉取最新契约：`git pull origin T0-contracts`（或 `git fetch origin T0-contracts` 后 `git merge origin/T0-contracts`）。
