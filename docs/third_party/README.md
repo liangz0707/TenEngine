@@ -24,16 +24,15 @@
 | 项目 | 说明 |
 |------|------|
 | **每个集成一个 md** | 每个第三方库/工具对应 `docs/third_party/<id>-<name>.md`，内容含：仓库/来源、版本建议、CMake 集成方式、引用方式、可选配置。 |
-| **工程引用即自动集成** | 模块的 CMake 或依赖清单中**声明**所需第三方（如 `TENENGINE_USE_SPDLOG=ON` 或引用 `third_party/spdlog`）；构建时由 `cmake/` 或主仓统一脚本根据文档拉取/配置，无需手写 URL 与选项。 |
+| **工程引用即自动集成** | 模块在 `specs/_contracts/NNN-modulename-public-api.md` 中**声明**所需第三方 ID（「依赖」「技术栈」或「第三方依赖」小节）；CMake 或根清单根据 public-api 与 `cmake/` 统一脚本拉取/配置，无需手写 URL 与选项。 |
 | **与 T0 契约一致** | 第三方仅用于实现层；对外 API 仍以 `specs/_contracts/` 契约为准，不直接暴露第三方类型到契约。 |
 
 ---
 
 ## 三、如何引用并自动集成
 
-1. **在模块或根 CMake 中声明依赖**  
-   使用统一变量或清单列出本模块需要的第三方 ID（见下表「ID」列），例如：  
-   `set(TENENGINE_THIRD_PARTY "gtest;spdlog;glm;stb")` 或在 `cmake/ThirdPartyDependencies.cmake` 中按模块启用。
+1. **在模块契约 public-api 中声明依赖**  
+   在 `specs/_contracts/NNN-modulename-public-api.md` 的「依赖」「技术栈」或「第三方依赖」中列出本模块需要的第三方 ID（见下表「ID」列），例如：`第三方: gtest, spdlog, glm, stb`。Plan/Task 从 public-api 读取并自动纳入；CMake 或 `cmake/ThirdPartyDependencies.cmake` 按模块启用。
 
 2. **构建时自动拉取与配置**  
    根目录或各 worktree 的 CMake 在配置阶段：  
@@ -64,6 +63,10 @@
 | **libwebp** | libwebp | WebP 图像编解码 | [libwebp.md](./libwebp.md) | 013-Resource、贴图管线、Web 资源 |
 | **basis-universal** | Basis Universal | 纹理压缩（KTX2/Basis、GPU 友好） | [basis-universal.md](./basis-universal.md) | 013-Resource、008-RHI、贴图上传 |
 | **volk** | Volk | Vulkan 加载器 | [volk.md](./volk.md) | 008-RHI（Vulkan 后端） |
+| **vulkan-headers** | Vulkan Headers | Vulkan 头文件与注册表 | [vulkan-headers.md](./vulkan-headers.md) | 008-RHI、volk/glslang 依赖 |
+| **d3d11** | DirectX 11 | Windows 图形 API（即时模式） | [d3d11.md](./d3d11.md) | 008-RHI（D3D11 后端） |
+| **d3d12** | DirectX 12 | Windows 图形 API（显式、低开销） | [d3d12.md](./d3d12.md) | 008-RHI（D3D12 后端） |
+| **metal** | Metal | Apple 图形与计算 API | [metal.md](./metal.md) | 008-RHI（Metal 后端） |
 | **glslang** | glslang | GLSL/HLSL 编译为 SPIR-V | [glslang.md](./glslang.md) | 010-Shader、离线编译 |
 | **spirv-cross** | SPIRV-Cross | SPIR-V 转 MSL/HLSL 等 | [spirv-cross.md](./spirv-cross.md) | 010-Shader、跨后端 |
 | **imgui** | Dear ImGui | 即时模式 GUI（编辑器/工具） | [imgui.md](./imgui.md) | 024-Editor、025-Tools、调试 UI |
@@ -76,12 +79,15 @@
 | **box2d** | Box2D | 2D 物理 | [box2d.md](./box2d.md) | 014-Physics、022-2D（2D 部分） |
 | **assimp** | Assimp | 模型/场景导入（FBX、OBJ、glTF 等多格式） | [assimp.md](./assimp.md) | 012-Mesh、013-Resource、024-Editor（可选） |
 | **fast_obj** | fast_obj | OBJ 模型快速解析（单文件、轻量） | [fast_obj.md](./fast_obj.md) | 012-Mesh、013-Resource（可选，OBJ 专用） |
-| **vulkan-headers** | Vulkan Headers | Vulkan 头文件与注册表 | [vulkan-headers.md](./vulkan-headers.md) | 008-RHI、volk/glslang 依赖 |
 
-**平台/系统级（不单独建 md，仅在模块「依赖的外部内容」中说明）**  
+**008-RHI 后端依赖一览**（详见各 md）  
+- **Vulkan**：volk + vulkan-headers；需 Vulkan SDK 或驱动。  
+- **D3D11**：d3d11（Windows SDK）。  
+- **D3D12**：d3d12（Windows SDK）。  
+- **Metal**：metal（Xcode / Apple 系统框架）。
+
+**其他平台/系统级**（不单独建 md）  
 - **Vulkan SDK**：开发机安装；运行时可选。  
-- **D3D12 / DXGI**：Windows SDK。  
-- **Metal**：Apple 平台系统框架。  
 - **WASAPI / ALSA / Core Audio**：各平台音频 API，由 016-Audio 抽象。
 
 ---

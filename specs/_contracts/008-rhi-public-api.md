@@ -15,6 +15,10 @@
 - 024-Editor（视口渲染）
 - 027-XR（提交到 XR 交换链）
 
+## 第三方依赖
+
+- **第三方**：volk、vulkan-headers（Vulkan 后端）；d3d11、d3d12（Windows 后端）；metal（Apple 后端）。详见 `docs/third_party/` 对应 md，按平台与编译选项选择。
+
 ## 版本 / ABI
 
 - 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。

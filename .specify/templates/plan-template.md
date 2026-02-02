@@ -44,7 +44,7 @@
 
 ### 第三方依赖（本 feature 涉及模块所需）
 
-> **规约**：若本 feature 涉及某模块，且该模块的 spec/contracts 或依赖清单中声明了第三方库，**必须**在本节列出；每个第三方对应 `docs/third_party/<id>-<name>.md`，引入方式见该文档或 [third_party-integration-workflow.md](../../docs/third_party-integration-workflow.md)。Plan 指令会据此自动加入；Task 阶段将生成「版本选择、自动下载、配置、安装、编译测试、部署进工程、配置实现」等任务。
+> **规约**：若本 feature 涉及的模块在 `specs/_contracts/NNN-modulename-public-api.md` 中声明了第三方库，**必须**在本节列出；每个第三方对应 `docs/third_party/<id>-<name>.md`，引入方式见该文档或 [third_party-integration-workflow.md](../../docs/third_party-integration-workflow.md)。Plan 指令从 public-api 读取并据此自动加入；Task 阶段将生成「版本选择、自动下载、配置、安装、编译测试、部署进工程、配置实现」等任务。
 
 | 第三方 ID | 引入方式 | 文档 | 说明 |
 |-----------|----------|------|------|
