@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(TENENGINE_CORE_USE_SOURCE "Build 001-Core from source" ON)
 option(TENENGINE_RHI_USE_SOURCE "Build 008-RHI from source" ON)
 
-# Module library
+# Module library (internal impl + ABI wrappers)
 add_library(TenEngine_RenderCore STATIC
     src/render_core/types.hpp
     src/render_core/resource_desc.hpp
@@ -20,6 +20,10 @@ add_library(TenEngine_RenderCore STATIC
     src/render_core/pass_protocol.cpp
     src/render_core/uniform_buffer.hpp
     src/render_core/uniform_buffer.cpp
+    src/render_core/ResourceDesc.cpp
+    src/render_core/UniformLayout.cpp
+    src/render_core/PassProtocol.cpp
+    src/render_core/UniformBuffer.cpp
     src/render_core/api.hpp
 )
 

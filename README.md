@@ -1,4 +1,4 @@
-﻿# Branch: T0-009-render-core
+# Branch: T0-009-render-core
 
 This branch contains only **constraint files**, **module description**, and **global dependency** for module **009-render-core**.
 

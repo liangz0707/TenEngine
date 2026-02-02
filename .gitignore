@@ -1,10 +1,8 @@
-# Build directories
+# C++ / CMake
 build/
 out/
 bin/
 obj/
-
-# Compiled files
 *.o
 *.obj
 *.a
@@ -12,6 +10,7 @@ obj/
 *.so
 *.dll
 *.exe
+*.dylib
 
 # IDE
 .idea/
@@ -31,7 +30,9 @@ Makefile
 *.cmake
 !CMakeLists.txt
 
-# Logs and temp
+# Env and logs
+.env
+.env.*
 *.log
 *.tmp
 *.swp

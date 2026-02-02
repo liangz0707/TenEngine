@@ -31,11 +31,12 @@
 |------|------|----------|
 | IDevice | 图形设备抽象；创建队列、资源、PSO | 由 RHI 管理，创建后直至 DestroyDevice |
 | IQueue | 队列句柄；由 IDevice::GetQueue 返回 | 非拥有，生命周期与 IDevice 一致 |
-| ICommandList | 命令缓冲录制；Draw/Dispatch/Copy、ResourceBarrier、Submit | 单次录制周期内有效 |
+| ICommandList | 命令缓冲录制；Draw/DrawIndexed/Dispatch/Copy、ResourceBarrier、RenderPass、Submit | 单次录制周期内有效 |
 | IBuffer / ITexture | 缓冲、纹理；可带视图（SRV/UAV/RTV/DSV 等概念） | 创建后直至显式 Destroy |
 | ISampler | 采样器 | 创建后直至显式销毁 |
 | IPSO | 管线状态对象（图形/计算）；与 Shader 字节码绑定 | 创建后直至显式销毁，可缓存 |
 | IFence / ISemaphore | 同步对象；多队列、跨帧同步 | 按实现约定 |
+| IDescriptorSetLayout / IDescriptorSet | 描述符集布局与描述符集（P2） | 创建后直至显式销毁；各后端当前占位 |
 | 资源视图句柄（ViewHandle） | 描述符或视图 ID，用于绑定到 PSO | 与资源生命周期一致 |
 
 下游仅通过上述抽象类型与句柄访问，不暴露具体后端（Vulkan/Metal/D3D12）类型。平台与后端**可通过宏选择执行哪一段代码**（001-Core 平台宏、本模块 TE_RHI_* 后端宏）。
@@ -70,7 +71,7 @@
 
 ### 1. Device 与后端
 
-- 枚举 `Backend`: `Vulkan`, `D3D12`, `Metal`。
+- 枚举 `Backend`: `Vulkan`, `D3D12`, `Metal`, `D3D11`。
 - `void SelectBackend(Backend b);` — 设置默认后端；`CreateDevice()` 无参时使用。
 - `Backend GetSelectedBackend();`
 - `struct IDevice;` — 图形设备抽象；创建后直至 `DestroyDevice`，不暴露后端类型。
@@ -84,10 +85,12 @@
 - `struct IQueue;` — 队列句柄；由 `IDevice::GetQueue` 返回。
 - `IQueue* IDevice::GetQueue(QueueType type, uint32_t index);` — 无效或越界返回 `nullptr`。非拥有，生命周期与 `IDevice` 一致。
 
-### 3. 特性查询
+### 3. 特性与限制查询
 
 - `struct DeviceFeatures` — 可读、可验证；至少 `maxTextureDimension2D`、`maxTextureDimension3D`。
 - `DeviceFeatures const& IDevice::GetFeatures() const;`
+- `struct DeviceLimits` — 设备限制；`maxBufferSize`、`maxTextureDimension2D/3D`、`minUniformBufferOffsetAlignment`。
+- `DeviceLimits const& IDevice::GetLimits() const;`
 
 ### 4. 命令列表
 
@@ -95,8 +98,12 @@
 - `ICommandList* IDevice::CreateCommandList();` — 失败返回 `nullptr`。
 - `void IDevice::DestroyCommandList(ICommandList* cmd);` — `nullptr` 为 no-op。
 - `void Begin(ICommandList* cmd);` / `void End(ICommandList* cmd);`
-- `void ICommandList::Draw(uint32_t, uint32_t=1, uint32_t=0, uint32_t=0);` / `Dispatch(uint32_t, uint32_t=1, uint32_t=1);` / `Copy(void const*, void*, size_t);` / `ResourceBarrier();`
-- `void Submit(ICommandList* cmd, IQueue* queue);`
+- `void ICommandList::Draw(...);` / `void ICommandList::DrawIndexed(...);` / `Dispatch(...);` / `Copy(void const*, void*, size_t);` / `ResourceBarrier(...);`
+- `void ICommandList::SetViewport(uint32_t first, uint32_t count, Viewport const*);` / `void ICommandList::SetScissor(uint32_t first, uint32_t count, ScissorRect const*);`
+- 渲染通道（P2）：`enum class LoadOp` / `enum class StoreOp`；`constexpr uint32_t kMaxColorAttachments`；`struct RenderPassDesc`（colorAttachments、depthStencilAttachment、loadOp/storeOp、clearColor/clearDepth/clearStencil）；`void ICommandList::BeginRenderPass(RenderPassDesc const&);` / `void ICommandList::EndRenderPass();`
+- 拷贝（P2）：`struct BufferRegion` / `struct TextureRegion`；`void ICommandList::CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size);`；`CopyBufferToTexture` / `CopyTextureToBuffer`。
+- 光追（仅 D3D12 计划）：`void ICommandList::BuildAccelerationStructure(...);` / `void ICommandList::DispatchRays(...);` — 当前各后端 no-op。
+- `void Submit(ICommandList* cmd, IQueue* queue);` / `void Submit(ICommandList* cmd, IQueue* queue, IFence* signalFence, ISemaphore* waitSem, ISemaphore* signalSem);`
 
 ### 5. 资源与视图
 
@@ -114,11 +121,17 @@
 ### 7. 同步
 
 - `struct IFence;` / `struct ISemaphore;` — 多队列、跨帧同步。
-- `IFence* IDevice::CreateFence();` / `ISemaphore* IDevice::CreateSemaphore();`
+- `IFence* IDevice::CreateFence(bool initialSignaled = false);` / `ISemaphore* IDevice::CreateSemaphore();`
 - `void Wait(IFence* f);` / `void Signal(IFence* f);`
 - `void IDevice::DestroyFence(IFence*);` / `DestroySemaphore(ISemaphore*);`
 
-### 8. 错误与约束
+### 8. 描述符集（P2）
+
+- `struct IDescriptorSetLayout;` / `struct IDescriptorSet;` — 描述符集布局与描述符集；各后端当前占位（返回 nullptr 或 no-op）。
+- `IDescriptorSetLayout* IDevice::CreateDescriptorSetLayout(DescriptorSetLayoutDesc const&);` / `IDescriptorSet* IDevice::AllocateDescriptorSet(IDescriptorSetLayout*);` / `void IDevice::UpdateDescriptorSet(IDescriptorSet*, DescriptorWrite const*, uint32_t writeCount);`
+- `void IDevice::DestroyDescriptorSetLayout(IDescriptorSetLayout*);` / `void IDevice::DestroyDescriptorSet(IDescriptorSet*);`
+
+### 9. 错误与约束
 
 - 后端不可用时 `CreateDevice` 返回 `nullptr`，不自动回退；回退与重试由上层负责。
 - 多线程行为由实现定义并文档化；本契约不要求默认并发安全。
@@ -132,3 +145,4 @@
 | T0 更新 | 对齐 T0 架构 008-RHI：实现方改为 008-RHI，消费者改为 T0 模块列表；类型与能力与 docs/module-specs/008-rhi.md 一致 |
 | 2026-01-29 | 契约与模块规约 §5.2 对齐：统一使用 TenEngine::rhi、CreateDevice/GetQueue/CreateBuffer/CreateTexture 等 API；能力 3 改为 CreateBuffer/CreateTexture/CreateSampler/CreateView；类型表补充 IQueue、IFence、ISemaphore、ViewHandle；新增 API 雏形 |
 | 2026-01-29 | contract(008-rhi): sync from plan 008-rhi-fullmodule-001；ABI 表新增 Phase 1 实现小节，与 public-api API 雏形及 docs/module-specs/008-rhi.md §5.2 对齐 |
+| 2026-01-31 | 与 008-rhi-ABI.md 同步：Backend 增加 D3D11；DeviceLimits/GetLimits；CreateFence(bool)；Submit 重载（Fence/Semaphore）；Viewport/ScissorRect、DrawIndexed、SetViewport/SetScissor；LoadOp/StoreOp/kMaxColorAttachments、RenderPassDesc、BeginRenderPass/EndRenderPass；BufferRegion/TextureRegion、CopyBuffer/CopyBufferToTexture/CopyTextureToBuffer；描述符集（P2）；光追 BuildAccelerationStructure/DispatchRays；类型表补充 IDescriptorSetLayout/IDescriptorSet |

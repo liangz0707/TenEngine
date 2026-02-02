@@ -73,7 +73,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 2. **Generate API/ABI design artifacts** from functional requirements:
    - For each user action or module boundary → interface/endpoint
-   - **TenEngine**：**plan 只保存相对于现有 ABI 的新增和修改部分**，不保存完整 ABI 表。依赖现有 `specs/_contracts/NNN-modulename-ABI.md`，按本 feature 的 spec 与规约产出**仅新增或修改**的 ABI 条目（命名空间、头文件、符号、完整函数签名）；若无新增/修改则产出空清单。计划结束时产出一份「契约更新」清单。写回契约时也仅将上述新增/修改部分增补或替换到现有 ABI 文件中。产出至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
+   - **TenEngine**：
+     - **生成全量 ABI 内容**：参考 spec、Unity/Unreal 等文档，生成本 feature 需要实现的**全部 ABI 内容**，包括：
+       - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
+       - **新增的 ABI**：本 feature 新增的接口条目
+       - **修改的 ABI**：对现有 ABI 条目的修改
+     - **文档中只保存变化部分**：plan.md 的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；若无新增/修改则产出空清单。
+     - **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
+     - 产出至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
    - 其他项目：可按 REST/GraphQL 产出 OpenAPI/GraphQL schema 至 `/contracts/`
 
 3. **Agent context update**:
