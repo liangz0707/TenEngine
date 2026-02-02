@@ -166,6 +166,24 @@
 |--------|----------|------|----------|----------|--------|------|
 | 008-RHI | te::rhi | RaytracingAccelerationStructureDesc, DispatchRaysDesc | struct | 加速结构/派发描述 | te/rhi/raytracing.hpp | 映射 D3D12 BLAS/TLAS、D3D12_DISPATCH_RAYS_DESC |
 
+
+## TODO
+
+1. Buffer 的 CPU 写入（UniformBuffer::Update 必须）
+需要：把 CPU 数据写入已创建的 IBuffer。
+建议形式之一：IBuffer::Map/Unmap 或 IDevice::UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size)。
+若当前 RHI 只有 CreateBuffer、没有写缓冲接口，009 的 Update 无法实现，需在 008-RHI 增加上述能力之一。
+2. Uniform 绑定到命令列表 slot（IUniformBuffer::Bind 必须）
+需要：把某个 IBuffer（及可选 offset）绑定到 ICommandList 的某 slot，供后续 Draw/Dispatch 使用。
+建议形式之一：ICommandList::SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset)，或通过 DescriptorSet（UpdateDescriptorSet + ICommandList::BindDescriptorSet 等）完成绑定。
+若当前 ICommandList 没有此类绑定接口，009 的 Bind 无法实现，需在 008-RHI 增加上述能力之一。
+3. BufferDesc 的 Uniform 用途
+CreateUniformBuffer 会调用 IDevice::CreateBuffer(BufferDesc)，BufferDesc.usage 需包含 Uniform 用途位（或等价语义）。
+若 008-RHI 尚未定义，需在 008-rhi 的 BufferDesc/usage 枚举中补充。
+4. 描述符与 RHI 的对接
+009 产出的 VertexFormat、IndexFormat、TextureDesc、BufferDesc 需能与 008-RHI 的顶点/纹理/缓冲创建参数对接（类型转换或字段一一对应）。
+若 RHI 使用 te::rhi::BufferDesc 等，009 需提供转换或与 RHI 约定共用描述结构；若你希望 008-RHI 增加/调整类型以更好对接 009，可直接说明，我可在 plan 里把“需 RHI 补充”写得更具体。
+
 ---
 
 *本 ABI 表已合并 008-rhi-fullmodule-004 增量；已补充 LoadOp/StoreOp/kMaxColorAttachments 及按后端的实现状态表；Copy/RenderPass/DescriptorSet 实现说明已更新；新增「不能实现或保留占位及原因」小节。*
