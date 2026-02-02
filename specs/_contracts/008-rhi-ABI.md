@@ -1,7 +1,6 @@
 # 008-RHI 模块 ABI
 
 - **契约**：[008-rhi-public-api.md](./008-rhi-public-api.md)（能力与类型描述）
-- **后端任务索引**：[008-rhi-backend-tasks.md](./008-rhi-backend-tasks.md)（代码内 T0xx 注释与实现状态对应）
 - **本文件**：008-RHI 对外 ABI 显式表。
 - **平台与接口**：引擎支持 **Android、iOS** 等平台（见 001-Core）；RHI 支持 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口，及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端实现路径。
 - **参考**：Vulkan（vkCmd*、VkBuffer/VkImage/VkDescriptorSet、vkCmdPipelineBarrier）、Metal（MTLCommandEncoder、MTLBuffer/MTLTexture、setVertexBuffer/setFragmentTexture、drawIndexedPrimitives）、D3D12（ID3D12GraphicsCommandList、ResourceBarrier、DrawIndexedInstanced）、Unreal FRHICommandList、Unity 底层图形封装。
