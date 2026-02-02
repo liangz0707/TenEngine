@@ -9,11 +9,19 @@
 
 [Extract from feature spec: primary requirement + technical approach from research]
 
-## 实现范围（TenEngine：仅实现 ABI 内容）
+## 实现范围（TenEngine：实现全量 ABI 内容）
 
-> **规约**：本 feature **只实现 ABI 文件**（`specs/_contracts/NNN-modulename-ABI.md`）中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。设计时可参考 **Unity、Unreal** 的模块与 API 构造。对外接口以 ABI 文件为准。**若对现存 ABI 有新增或变更**，则在本 plan 末尾产出一份「契约更新」（命名空间、头文件、符号与完整签名）。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
+> **ABI 生成与保存模式**：
+> - **生成全量 ABI 内容**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**，包括：
+>   - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
+>   - **新增的 ABI**：本 feature 新增的接口条目
+>   - **修改的 ABI**：对现有 ABI 条目的修改
+> - **文档中只保存变化部分**：plan.md 文档的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；不保存完整 ABI 表。
+> - **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
+>
+> **规约**：本 feature **只实现 ABI 文件**中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。设计时可参考 **Unity、Unreal** 的模块与 API 构造。对外接口以 ABI 文件为准。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
 
-[若本 feature 对应某模块，在此列出本切片要实现的 ABI 符号或引用 ABI 文件中的表行。]
+[若本 feature 对应某模块，在此列出本切片要实现的**全量 ABI 符号**（包括原始、新增、修改），或引用 ABI 文件中的表行。]
 
 ## Technical Context
 
@@ -119,6 +127,16 @@ ios/ or android/
 
 **Structure Decision**: [Document the selected structure and reference the real
 directories captured above]
+
+## 契约更新（TenEngine，仅新增/修改部分 - 用于写回）
+
+> **注意**：本小节**只保存相对于现有 ABI 的新增和修改**条目，用于查阅和写回契约；若无则本小节为空。写回时仅将下表增补或替换到 `specs/_contracts/NNN-modulename-ABI.md` 中。
+>
+> **实现时使用全量内容**：tasks 和 implement 阶段应基于**全量 ABI 内容**（包括原始 ABI、新增、修改）进行实现，详见上方「实现范围」小节。
+
+| 操作 | 模块名 | 命名空间 | 类名 | 接口说明 | 头文件 | 符号 | 说明 |
+|------|--------|----------|------|----------|--------|------|------|
+| 新增/修改 | … | … | … | … | … | … | 完整函数签名 |
 
 ## Complexity Tracking
 

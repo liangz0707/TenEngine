@@ -26,6 +26,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
    - **Optional**: data-model.md (entities), contracts/（API 或 ABI 设计产物；TenEngine 为接口/ABI 草图）, research.md (decisions), quickstart.md (test scenarios)
+   - **TenEngine ABI 说明**：plan 生成时已产生**全量 ABI 内容**（包括原始 ABI、新增、修改），虽然 plan.md 中只保存变化部分，但 tasks 生成时必须基于**全量 ABI 内容**（从现有 `specs/_contracts/NNN-modulename-ABI.md` + plan 生成的新增/修改）进行任务分解，确保实现所有需要的接口。
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 3. **Execute task generation workflow**:
@@ -121,6 +122,7 @@ Every task MUST strictly follow this format:
 
 2. **From Contracts**（contracts/ 为 API 或 ABI 设计产物；TenEngine 为接口/ABI 草图）:
    - Map each contract/endpoint or ABI artifact → to the user story it serves
+   - **TenEngine ABI**：基于**全量 ABI 内容**（现有 `specs/_contracts/NNN-modulename-ABI.md` 中的原始条目 + plan 生成的新增/修改）生成任务，确保实现所有需要的接口，不得仅实现变化部分。
    - If tests requested: Each contract → contract test task [P] before implementation in that story's phase
 
 3. **From Data Model**:
