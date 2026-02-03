@@ -82,3 +82,21 @@
 **平台与宏**：引擎支持 **Android、iOS** 等平台；**可以通过宏来判断执行哪一段代码**（如 TE_PLATFORM_ANDROID、TE_PLATFORM_IOS、TE_PLATFORM_WIN、TE_PLATFORM_LINUX、TE_PLATFORM_MACOS），编译时选择平台相关实现路径。平台检测与宏由 Platform 子模块或公共头提供。
 
 **说明**：命名空间与头文件为下游 include 与 link 的唯一依据。新增条目采用 TenEngine::core 与 PascalCase 命名。本表由 plan 001-core-fullversion-002 契约更新同步（2026-01-30）。
+
+---
+
+## TODO（010-Shader 依赖）
+
+010-Shader 模块**必须**使用本模块下列接口，001-Core 实现需确保可用：
+
+| 用途 | 符号 | 头文件 | 说明 |
+|------|------|--------|------|
+| 加载 shader 源码 | FileRead | te/core/platform.h | LoadSource 读文件；返回 UTF-8 字节流可直接转 string |
+| 错误与调试日志 | Log | te/core/log.h | 编译失败、缓存错误等使用 Log(LogLevel::Error/Warn, msg) |
+| 内存分配 | Alloc, Free 或 GetDefaultAllocator | te/core/alloc.h | 工厂 Create/Destroy、handle 与 buffer 分配 |
+| 路径规范化 | PathNormalize | te/core/platform.h | 缓存路径、源码路径规范化 |
+| 枚举目录 | DirectoryEnumerate | te/core/platform.h | 热重载监听、批量加载 shader |
+| 写缓存文件 | FileWrite | te/core/platform.h | SaveCache 写入字节 |
+| 校验与断言 | CheckError, Assert | te/core/check.h, te/core/log.h | 内部校验 |
+
+- [ ] 确认以上接口已实现且通过 010-Shader 集成测试
