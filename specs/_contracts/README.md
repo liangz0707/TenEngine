@@ -8,16 +8,18 @@
 
 ## 契约更新流程（ABI 先行）
 
-- **接口须在 ABI 文件中更新完整 ABI 条目**：修改某模块对外接口时，**必须**在对应 **ABI 文件**（`NNN-modulename-ABI.md`）中更新**完整的 ABI 表行**（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）；不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。契约（public-api）描述能力与类型，**接口符号与签名的权威来源是 ABI 文件**。
+- **接口须在 ABI 文件中增补或替换对应 ABI 条目**：修改某模块对外接口时，**必须**在对应 **ABI 文件**（`NNN-modulename-ABI.md`）中**增补**新行或**按符号/头文件匹配替换**已有行；每行须为完整 ABI 表行（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）。不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。plan 只产出新增/修改部分，写回时也仅写入该部分。契约（public-api）描述能力与类型，**接口符号与签名的权威来源是 ABI 文件**。
 - **下游所需接口在上游 ABI 中以 TODO 登记**：若**下游模块**需要某接口而**上游模块**尚未提供，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目（标明「下游 NNN-xxx 需要」及拟议签名/说明），待上游实现时转为正式 ABI 行并移除 TODO 标记。下游不得长期依赖未在上游 ABI 中登记（含 TODO）的接口。
 
 以上与 **`docs/agent-interface-sync.md`** §4.2、**`specs/_contracts/000-module-ABI.md`** 中的契约更新流程一致。
+
+- **第三方依赖声明**：若本模块需集成第三方库，须在 **`NNN-modulename-public-api.md`** 的「依赖」「技术栈」或「第三方依赖」中列出第三方 ID（与 `docs/third_party/` 表一致）。Plan 从 public-api 读取并自动填入「第三方依赖」小节，Task 将生成 7 步集成任务。详见 `docs/third_party-integration-workflow.md`。
 
 ## 使用方式
 
 - **在任意 T0-* 模块分支上开始工作前**：先拉取最新契约：`git pull origin T0-contracts`（或 `git fetch origin T0-contracts` 后 `git merge origin/T0-contracts`）。
 - **实现某模块前**：阅读本模块 **Dependencies** 中列出的契约文件（见 `000-module-dependency-map.md`），只使用契约中声明的类型与接口；接口符号以各模块 **ABI 文件**为准。
-- **修改某模块对外接口时**：在 **`T0-contracts` 分支**上**先在对应 ABI 文件中更新完整 ABI 条目**，再同步更新本目录下该模块的 `NNN-modulename-public-api.md`；在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。若下游提出所需接口，在上游 ABI 中增加 TODO 条目。
+- **修改某模块对外接口时**：在 **`T0-contracts` 分支**上**在对应 ABI 文件中增补或替换**新增/修改的 ABI 条目，再同步更新本目录下该模块的 `NNN-modulename-public-api.md`；在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。若下游提出所需接口，在上游 ABI 中增加 TODO 条目。plan 只产出新增/修改部分，写回时也仅写入该部分。
 
 ## ABI 实现与构建要求（强制）
 
