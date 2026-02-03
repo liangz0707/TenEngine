@@ -26,6 +26,7 @@
 - **完整 ABI 实现**：各模块**必须**实现其 ABI 文件（`NNN-modulename-ABI.md`）中列出的**全部**符号与能力；不得仅实现部分或预留「待补充」长期存在。
 - **构建须引入子模块代码**：构建过程**必须**通过引入**真实子模块源码**（如 `add_subdirectory`、`FetchContent` 拉取对应模块仓库）来满足依赖；不得在未引入上游模块源码的情况下，用本模块内自写的 stub、mock 或占位实现代替上游模块。
 - **禁止 stub/代替方案**：**禁止**为通过编译或联调而提供仅返回空/默认值的 stub 实现、或与 ABI/契约不一致的代替实现作为长期方案；仅允许在**明确标注为临时、且有计划替换为真实实现**的过渡期使用占位，且须在任务/计划中跟踪替换。
+- **头文件可见性（IDE）**：构建脚本应将**公开头文件**加入对应 CMake target（如 `target_sources` 或 `add_library` 源列表），并设置 `target_include_directories`，以确保 IDE 工程（VS/Xcode）能正确显示与包含头文件；避免出现“头文件未加入工程或无法 include”的问题。
 
 以上与 **`.specify/memory/constitution.md`** §VI 及 **`docs/engine-build-module-convention.md`** 一致；违反则不符合契约与构建规约。
 
