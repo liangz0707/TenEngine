@@ -1,124 +1,136 @@
-# 008-RHI library; C++17, contract-first (specs/_contracts/008-rhi-public-api.md).
+# 010-Shader library; C++17, contract-first (specs/_contracts/010-shader-public-api.md).
 cmake_minimum_required(VERSION 3.16)
-project(te_rhi LANGUAGES CXX)
+project(te_shader LANGUAGES CXX)
 
 enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 
-# Backend and debug options (plan Phase 2: T004, T008)
-option(TE_RHI_VULKAN "Enable Vulkan backend" ON)
-option(TE_RHI_D3D12 "Enable D3D12 backend (Windows)" ON)
-option(TE_RHI_D3D11 "Enable D3D11 backend (Windows)" OFF)
-option(TE_RHI_METAL "Enable Metal backend (macOS)" OFF)
-option(TE_RHI_VALIDATION "Enable Vulkan Validation Layer" OFF)
-option(TE_RHI_DEBUG_LAYER "Enable D3D12 Debug Layer" OFF)
+# Option: build without upstream (for CI or when siblings missing)
+option(TENENGINE_SHADER_STANDALONE "Build te_shader without 001-core, 008-rhi, 009-rendercore" OFF)
 
-set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
-include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
-tenengine_resolve_my_dependencies("008-rhi" OUT_DEPS MY_DEPS)
+set(MY_DEPS "")
+if(NOT TENENGINE_SHADER_STANDALONE)
+  if(NOT DEFINED TENENGINE_CMAKE_DIR)
+    set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
+  endif()
+  if(EXISTS "${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake")
+    include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
+    tenengine_resolve_my_dependencies("010-shader" OUT_DEPS MY_DEPS)
+  endif()
+endif()
+if(NOT MY_DEPS)
+  message(STATUS "te_shader: Standalone build (no upstream te_core, te_rhi, te_rendercore)")
+endif()
 
-# Third-party: volk + vulkan-headers when Vulkan backend enabled (T005)
-if(TE_RHI_VULKAN)
-  include(FetchContent)
-  FetchContent_Declare(volk
-    GIT_REPOSITORY https://github.com/zeux/volk.git
-    GIT_TAG        1.2.162
-  )
+# Third-party: vulkan-headers (shared with 008-RHI), glslang, spirv-cross
+include(FetchContent)
+
+# Vulkan-Headers: reuse if 008-RHI already fetched (per docs/third_party-integration-workflow.md §7)
+if(NOT TARGET Vulkan::Headers)
   FetchContent_Declare(Vulkan-Headers
     GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
     GIT_TAG        v1.3.280
   )
-  set(VOLK_INSTALL OFF CACHE BOOL "" FORCE)
-  FetchContent_MakeAvailable(volk Vulkan-Headers)
+  FetchContent_MakeAvailable(Vulkan-Headers)
 endif()
 
-set(TE_RHI_SOURCES
-  src/device/device.cpp
-  src/command_list/command_list.cpp
-  src/sync/sync.cpp
+# glslang
+set(ENABLE_OPT OFF CACHE BOOL "Disable SPIR-V optimizer (avoids SPIRV-Tools)")
+FetchContent_Declare(glslang
+  GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
+  GIT_TAG        14.0.0
 )
-if(TE_RHI_VULKAN)
-  list(APPEND TE_RHI_SOURCES src/vulkan/device_vulkan.cpp)
+set(SKIP_GLSLANG_INSTALL OFF CACHE BOOL "")
+FetchContent_MakeAvailable(glslang)
+
+# SPIRV-Cross: SPIR-V -> MSL/HLSL (required for Metal/D3D11 paths per plan)
+option(TENENGINE_USE_SPIRV_CROSS "Enable SPIRV-Cross for MSL/HLSL" ON)
+if(TENENGINE_USE_SPIRV_CROSS)
+  FetchContent_Declare(spirv_cross
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Cross.git
+    GIT_TAG        main
+  )
+  set(SPIRV_CROSS_CLI OFF CACHE BOOL "")
+  FetchContent_MakeAvailable(spirv_cross)
 endif()
+
+# DXC (D3D12): optional, require vcpkg or find_package when TE_RHI_D3D12
+option(TE_RHI_D3D12 "Enable D3D12 backend (HLSL->DXIL via DXC)" OFF)
+
+set(TE_SHADER_SOURCES
+  src/shader/compiler_impl.cpp
+  src/shader/factory.cpp
+  src/shader/handle_impl.cpp
+  src/shader/cache_impl.cpp
+  src/shader/hot_reload_impl.cpp
+  src/backends/glslang_backend.cpp
+  src/backends/spirv_cross_backend.cpp
+)
 if(TE_RHI_D3D12 AND WIN32)
-  list(APPEND TE_RHI_SOURCES src/d3d12/device_d3d12.cpp)
+  list(APPEND TE_SHADER_SOURCES src/backends/dxc_backend.cpp)
 endif()
-if(TE_RHI_D3D11 AND WIN32)
-  list(APPEND TE_RHI_SOURCES src/d3d11/device_d3d11.cpp)
-endif()
-if(TE_RHI_METAL AND APPLE)
-  list(APPEND TE_RHI_SOURCES src/metal/device_metal.mm)
-endif()
-add_library(te_rhi STATIC ${TE_RHI_SOURCES})
-target_link_libraries(te_rhi PRIVATE ${MY_DEPS})
-target_include_directories(te_rhi PUBLIC
+
+add_library(te_shader STATIC ${TE_SHADER_SOURCES})
+target_include_directories(te_shader PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
-# Backend/validation compile definitions (T004, T006, T007, T008)
-if(TE_RHI_VULKAN)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_VULKAN=1)
+target_link_libraries(te_shader PRIVATE
+  ${MY_DEPS}
+  Vulkan::Headers
+  glslang
+  SPIRV
+)
+if(MY_DEPS)
+  target_compile_definitions(te_shader PRIVATE TE_SHADER_USE_CORE=1)
 endif()
-if(TE_RHI_D3D12)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_D3D12=1)
-endif()
-if(TE_RHI_D3D11)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_D3D11=1)
-endif()
-if(TE_RHI_METAL)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_METAL=1)
-endif()
-if(TE_RHI_VALIDATION)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_VALIDATION=1)
-endif()
-if(TE_RHI_DEBUG_LAYER)
-  target_compile_definitions(te_rhi PRIVATE TE_RHI_DEBUG_LAYER=1)
-endif()
-if(TE_RHI_VULKAN AND TARGET volk)
-  target_link_libraries(te_rhi PRIVATE volk)
+if(TENENGINE_USE_SPIRV_CROSS)
+  target_link_libraries(te_shader PRIVATE spirv-cross-msl spirv-cross-hlsl spirv-cross-glsl)
+  target_compile_definitions(te_shader PRIVATE TENENGINE_USE_SPIRV_CROSS=1)
 endif()
 if(TE_RHI_D3D12 AND WIN32)
-  target_link_libraries(te_rhi PRIVATE d3d12 dxgi)
-endif()
-if(TE_RHI_D3D11 AND WIN32)
-  target_link_libraries(te_rhi PRIVATE d3d11 dxgi)
-endif()
-if(TE_RHI_METAL AND APPLE)
-  target_link_libraries(te_rhi PRIVATE "-framework Metal" "-framework QuartzCore" "-framework Foundation")
+  find_package(directx-dxc QUIET)
+  if(directx-dxc_FOUND)
+    target_link_libraries(te_shader PRIVATE Microsoft::DirectXShaderCompiler)
+    target_compile_definitions(te_shader PRIVATE TE_RHI_D3D12=1 TE_SHADER_HAVE_DXC=1)
+  endif()
 endif()
 
-tenengine_add_module_test(
-  NAME te_rhi_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/device_create.cpp
-  ENABLE_CTEST
-)
-tenengine_add_module_test(
-  NAME te_rhi_command_list_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/command_list_submit.cpp
-  ENABLE_CTEST
-)
-tenengine_add_module_test(
-  NAME te_rhi_resources_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/resources_create.cpp
-  ENABLE_CTEST
-)
-tenengine_add_module_test(
-  NAME te_rhi_pso_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/pso_create.cpp
-  ENABLE_CTEST
-)
-tenengine_add_module_test(
-  NAME te_rhi_sync_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/sync_fence_semaphore.cpp
-  ENABLE_CTEST
-)
-tenengine_add_module_test(
-  NAME te_rhi_swapchain_test
-  MODULE_TARGET te_rhi
-  SOURCES tests/swapchain_create.cpp
-  ENABLE_CTEST
-)
+if(TENENGINE_SHADER_STANDALONE)
+  add_executable(te_shader_compile_test tests/test_compile.cpp)
+  target_link_libraries(te_shader_compile_test PRIVATE te_shader)
+  add_test(NAME te_shader_compile_test COMMAND te_shader_compile_test)
+  add_executable(te_shader_variants_test tests/test_variants.cpp)
+  target_link_libraries(te_shader_variants_test PRIVATE te_shader)
+  add_test(NAME te_shader_variants_test COMMAND te_shader_variants_test)
+  add_executable(te_shader_cache_test tests/test_cache.cpp)
+  target_link_libraries(te_shader_cache_test PRIVATE te_shader)
+  add_test(NAME te_shader_cache_test COMMAND te_shader_cache_test)
+  add_executable(te_shader_hot_reload_test tests/test_hot_reload.cpp)
+  target_link_libraries(te_shader_hot_reload_test PRIVATE te_shader)
+  add_test(NAME te_shader_hot_reload_test COMMAND te_shader_hot_reload_test)
+else()
+  tenengine_add_module_test(
+    NAME te_shader_compile_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_compile.cpp
+    ENABLE_CTEST
+  )
+  tenengine_add_module_test(
+    NAME te_shader_variants_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_variants.cpp
+    ENABLE_CTEST
+  )
+  tenengine_add_module_test(
+    NAME te_shader_cache_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_cache.cpp
+    ENABLE_CTEST
+  )
+  tenengine_add_module_test(
+    NAME te_shader_hot_reload_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_hot_reload.cpp
+    ENABLE_CTEST
+  )
+endif()
