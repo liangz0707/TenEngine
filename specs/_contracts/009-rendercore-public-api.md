@@ -56,3 +56,4 @@
 | T0 新增 | 按 009-RenderCore 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/009-render-core.md 一致 |
 | 2026-01-29 | contract(009-rendercore): sync API sketch from plan 009-render-core-full |
 | 2026-01-29 | contract(009-rendercore): add PassHandle and ResourceHandle to types table |
+| 2026-02-03 | contract(009-rendercore): sync from plan 009-render-core-shader-reflection-abi；TODO 010-Shader 反射对接已实现 |
