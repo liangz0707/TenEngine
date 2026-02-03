@@ -6,10 +6,12 @@ UICore 提供**UI 布局、绘制与输入路由**：布局算法、绘制命令
 
 ## 2. 详细功能描述
 
-- **布局**：布局算法（锚点、网格、流式等）、脏区域、与分辨率/DPI 适配。
-- **绘制**：绘制命令生成、与 Pipeline 的 2D 或 Overlay 绘制对接、字体/图集。
-- **输入路由**：命中检测、焦点、事件路由（点击/拖拽等）到控件。
-- **字体**：字体加载、字形、图集、与 Resource 对接。
+对外接口以 **ABI** 为准：`specs/_contracts/017-uicore-ABI.md`；契约：`specs/_contracts/017-uicore-public-api.md`。
+
+- **布局**：ILayoutNode::Measure、Arrange、SetDirty、IsDirty；GetDPIScale；Size、Rect；布局规则、脏标记、与 Application 窗口/DPI 适配。
+- **绘制**：IDrawCommandList::DrawRect、DrawTexture、DrawText、SubmitToPipeline；CreateDrawCommandList；与 Pipeline 2D/Overlay 对接、字体/图集。
+- **输入路由**：HitTest、HitTestResult；IFocusChain::GetFocus、SetFocus、RouteEvent；GetFocusChain；命中检测、焦点、事件路由到控件。
+- **字体**：LoadFont、IFont::GetGlyph、GetAtlas；与 Resource 对接（可选）。
 
 ## 3. 实现难度
 
@@ -34,12 +36,12 @@ UICore 提供**UI 布局、绘制与输入路由**：布局算法、绘制命令
 | HitTest | 命中检测、焦点链、与 Input 事件对接 |
 | Font | 字体加载、字形、图集、与 Resource 对接 |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-Layout：Measure、Arrange、SetDirty、DPIScale。  
-Draw：DrawRect、DrawTexture、DrawText、SubmitToPipeline。  
-HitTest：HitTest、GetFocus、SetFocus、RouteEvent。  
-Font：LoadFont、GetGlyph、Atlas、与 Resource 对接。
+Layout：ILayoutNode::Measure、Arrange、SetDirty、IsDirty；GetDPIScale；Size、Rect。  
+Draw：IDrawCommandList::DrawRect、DrawTexture、DrawText、SubmitToPipeline；CreateDrawCommandList。  
+HitTest：HitTest、HitTestResult；IFocusChain::GetFocus、SetFocus、RouteEvent；GetFocusChain。  
+Font：LoadFont、IFont::GetGlyph、GetAtlas；与 Resource 对接。
 
 ### 5.3 子模块依赖图
 
@@ -87,4 +89,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

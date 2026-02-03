@@ -24,14 +24,14 @@
 | BusHandle | 混音总线；CreateBus、SetVolume、Mute、EffectSlot | 创建后直至显式释放 |
 | 空间音效参数 | SetPosition、Attenuation、Occlusion（可选） | 与 Source/Listener 绑定 |
 
-下游（游戏/Editor）通过上述类型与句柄访问；与 Resource 音频资源（WAV/OGG 等）、平台/第三方音频 API 通过抽象层对接。
+下游（游戏/Editor）通过上述类型与句柄访问；与 Resource 音频资源（WAV/OGG 等）、平台/第三方音频 API 通过抽象层对接。**ABI 显式表**：[016-audio-ABI.md](./016-audio-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Source**：CreateSource、Play、Pause、Stop、SetLoop、SetResource；与 Resource 音频资源对接。
-2. **Listener**：SetPosition、SetOrientation、BindToEntity；与 Scene/Entity 变换同步（可选）。
-3. **Mixer**：CreateBus、SetVolume、Mute、EffectSlot。
-4. **Spatial**：SetPosition、Attenuation、Occlusion；3D 定位与空间化（可选）。
+1. **Source**：IAudioSource::Play、Pause、Stop、SetLoop、IsLooping、SetResource、SetPosition、GetPosition、SetAttenuation、SetOcclusion；CreateAudioSource；与 Resource 音频资源对接。
+2. **Listener**：IAudioListener::SetPosition、SetOrientation、BindToEntity；GetMainListener；与 Scene/Entity 变换同步（可选）。
+3. **Mixer**：IAudioBus::SetVolume、SetMute、SetEffectSlot；CreateAudioBus。
+4. **Spatial**：IAudioSource::SetPosition、SetAttenuation、SetOcclusion；3D 定位与空间化（可选）。
 
 ## 调用顺序与约束
 
@@ -42,3 +42,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：016-Audio 对应本契约；与 docs/module-specs/016-audio.md 一致 |
+| 2026-01-28 | 根据 016-audio-ABI 反向更新：IAudioSource、IAudioListener、IAudioBus、CreateAudioSource、CreateAudioBus、GetMainListener；能力与类型与 ABI 表一致 |
