@@ -72,24 +72,17 @@ set(TE_RENDERCORE_PUBLIC_HEADERS
     include/te/rendercore/uniform_buffer.hpp
 )
 
-set(TE_RENDERCORE_INTERNAL_HEADERS
-    src/render_core/types.hpp
-    src/render_core/resource_desc.hpp
-    src/render_core/shader_params.hpp
-    src/render_core/pass_protocol.hpp
-    src/render_core/uniform_buffer.hpp
-    src/render_core/api.hpp
+set(TE_RENDERCORE_SOURCES
+    src/render_core/resource_desc.cpp
+    src/render_core/pass_protocol.cpp
+    src/render_core/uniform_buffer.cpp
+    src/render_core/uniform_layout.cpp
 )
 
 # Module library (implementation + ABI headers)
 add_library(te_rendercore STATIC
     ${TE_RENDERCORE_PUBLIC_HEADERS}
-    ${TE_RENDERCORE_INTERNAL_HEADERS}
-    src/render_core/resource_desc.cpp
-    src/render_core/shader_params.cpp
-    src/render_core/pass_protocol.cpp
-    src/render_core/uniform_buffer.cpp
-    src/render_core/uniform_layout.cpp
+    ${TE_RENDERCORE_SOURCES}
 )
 
 target_include_directories(te_rendercore

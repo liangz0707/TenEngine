@@ -2,11 +2,11 @@
 // Verifies descriptors are accepted by RHI creation (per 008-RHI contract).
 // Note: Requires RHI test harness; placeholder for now.
 
-#include "render_core/api.hpp"
+#include <te/rendercore/api.hpp>
 #include <cassert>
 #include <cstdio>
 
-using namespace TenEngine::RenderCore;
+using namespace te::rendercore;
 
 // ============================================================================
 // T021: Contract tests (RHI integration)

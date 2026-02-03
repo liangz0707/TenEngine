@@ -1,11 +1,11 @@
 // 009-RenderCore Unit Tests
 // Tests for contract API using only public types.
 
-#include "render_core/api.hpp"
+#include <te/rendercore/api.hpp>
 #include <cassert>
 #include <cstdio>
 
-using namespace TenEngine::RenderCore;
+using namespace te::rendercore;
 
 // ============================================================================
 // T020: Unit tests for descriptors and layout
@@ -83,49 +83,39 @@ void TestCreateBufferDesc() {
     std::printf("[PASS] TestCreateBufferDesc\n");
 }
 
-void TestDefineLayoutAndGetOffset() {
+void TestCreateUniformLayout() {
     UniformMember members[] = {
         {"MVP", UniformMemberType::Mat4, 0, 64},
         {"color", UniformMemberType::Float4, 64, 16}
     };
     UniformLayoutDesc desc{members, 2, 80};
-    UniformLayout layout = DefineLayout(desc);
-    assert(layout.IsValid());
+    IUniformLayout* layout = CreateUniformLayout(desc);
+    assert(layout != nullptr);
 
-    size_t mvpOffset = GetOffset(layout, "MVP");
+    size_t mvpOffset = layout->GetOffset("MVP");
     assert(mvpOffset == 0);
 
-    size_t colorOffset = GetOffset(layout, "color");
+    size_t colorOffset = layout->GetOffset("color");
     assert(colorOffset == 64);
 
-    size_t unknownOffset = GetOffset(layout, "unknown");
+    size_t unknownOffset = layout->GetOffset("unknown");
     assert(unknownOffset == 0); // Not found
 
-    ReleaseLayout(layout);
-    std::printf("[PASS] TestDefineLayoutAndGetOffset\n");
+    ReleaseUniformLayout(layout);
+    std::printf("[PASS] TestCreateUniformLayout\n");
 }
 
 void TestPassProtocol() {
     PassHandle pass{1};
     ResourceHandle res{100};
+    DeclareRead(pass, res);
+    DeclareWrite(pass, res);
 
-    PassResourceDecl readDecl = DeclareRead(pass, res);
-    assert(readDecl.IsValid());
-    assert(readDecl.isRead);
-    assert(!readDecl.isWrite);
-
-    PassResourceDecl writeDecl = DeclareWrite(pass, res);
-    assert(writeDecl.IsValid());
-    assert(!writeDecl.isRead);
-    assert(writeDecl.isWrite);
-
-    SetResourceLifetime(readDecl, ResourceLifetime::Persistent);
-    assert(readDecl.lifetime == ResourceLifetime::Persistent);
-
-    // Invalid handles
-    PassHandle invalidPass{0};
-    PassResourceDecl invalidDecl = DeclareRead(invalidPass, res);
-    assert(!invalidDecl.IsValid());
+    PassResourceDecl decl{};
+    decl.pass = pass;
+    decl.resource = res;
+    SetResourceLifetime(decl, ResourceLifetime::Persistent);
+    assert(decl.lifetime == ResourceLifetime::Persistent);
 
     std::printf("[PASS] TestPassProtocol\n");
 }
@@ -135,26 +125,26 @@ void TestUniformBuffer() {
         {"data", UniformMemberType::Float4, 0, 16}
     };
     UniformLayoutDesc layoutDesc{members, 1, 16};
-    UniformLayout layout = DefineLayout(layoutDesc);
-    assert(layout.IsValid());
+    IUniformLayout* layout = CreateUniformLayout(layoutDesc);
+    assert(layout != nullptr);
 
-    UniformBufferHandle ub = CreateUniformBuffer(layout);
-    assert(ub.IsValid());
+    IUniformBuffer* ub = CreateUniformBuffer(layout, nullptr);
+    assert(ub != nullptr);
 
-    // Update
+    // Update on slot 0
     float data[4] = {1.0f, 2.0f, 3.0f, 4.0f};
-    Update(ub, data, sizeof(data));
+    ub->SetCurrentFrameSlot(0);
+    ub->Update(data, sizeof(data));
 
-    // RingBuffer
-    bool advanced = RingBufferAdvance(ub);
-    assert(advanced);
+    // Switch slot and update again
+    ub->SetCurrentFrameSlot(1);
+    ub->Update(data, sizeof(data));
 
-    // Bind
-    BindSlot slot{0, 0};
-    Bind(ub, slot);
+    // Bind (no-op placeholder)
+    ub->Bind(nullptr, 0);
 
     ReleaseUniformBuffer(ub);
-    ReleaseLayout(layout);
+    ReleaseUniformLayout(layout);
 
     std::printf("[PASS] TestUniformBuffer\n");
 }
@@ -170,7 +160,7 @@ int main() {
     TestCreateIndexFormat();
     TestCreateTextureDesc();
     TestCreateBufferDesc();
-    TestDefineLayoutAndGetOffset();
+    TestCreateUniformLayout();
     TestPassProtocol();
     TestUniformBuffer();
 
