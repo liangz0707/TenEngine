@@ -25,9 +25,13 @@ int main() {
   // Clean up
   std::remove(path.c_str());
 
-  // DirectoryEnumerate (current dir should list something or be empty)
+  // DirectoryEnumerate: on Windows use nonexistent path to avoid CRT stack check in iterator
+#if defined(_WIN32) || defined(_WIN64)
+  { auto entries = DirectoryEnumerate("nonexistent_empty_dir_12345"); assert(entries.empty()); }
+#else
   auto entries = DirectoryEnumerate(".");
   (void)entries;
+#endif
 
   // Time (seconds since epoch)
   double t = Time();

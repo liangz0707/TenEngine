@@ -42,9 +42,10 @@ bool FileWrite(std::string const& path, std::string const& data) {
 std::vector<DirEntry> DirectoryEnumerate(std::string const& path) {
   std::vector<DirEntry> out;
   std::error_code ec;
-  for (auto const& e : fs::directory_iterator(path, ec)) {
-    if (ec) return {};
-    out.push_back(e.path().filename().string());
+  fs::directory_iterator it(path, ec);
+  if (ec) return {};
+  for (; it != fs::directory_iterator(); ++it) {
+    out.push_back(it->path().filename().generic_string());
   }
   return out;
 }
@@ -67,7 +68,7 @@ std::optional<std::string> GetEnv(std::string const& name) {
 }
 
 std::string PathNormalize(std::string const& path) {
-  return fs::path(path).lexically_normal().string();
+  return fs::path(path).lexically_normal().generic_string();
 }
 
 }  // namespace core
