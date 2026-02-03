@@ -97,17 +97,9 @@
 
 ---
 
-## TODO（010-Shader 反射对接）
+## 已实现（原 TODO：010-Shader 反射对接）
 
-010-Shader 需产出 Uniform 布局描述供本模块创建 IUniformLayout；本模块需提供以下能力：
+010-Shader 产出 Uniform 布局描述供本模块创建 IUniformLayout；以下能力已实现：
 
-| 待实现 | 说明 |
-|--------|------|
-| te/rendercore/uniform_layout.hpp | 新建头文件，定义 UniformMemberType、UniformMember、UniformLayoutDesc、IUniformLayout |
-| CreateUniformLayout | `IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc);` 接受 010-Shader 反射产出的 desc |
-| ReleaseUniformLayout | `void ReleaseUniformLayout(IUniformLayout* layout);` |
-| IUniformLayout::GetOffset | 按成员名返回字节偏移 |
-| IUniformLayout::GetTotalSize | 返回布局总大小（满足 std140 对齐） |
-
-- [ ] 实现 te/rendercore/uniform_layout.hpp 及 CreateUniformLayout/ReleaseUniformLayout
-- [ ] 与 010-Shader GetReflection 产出的 UniformLayoutDesc 格式对齐（成员类型映射、偏移、命名）
+- [x] te/rendercore/uniform_layout.hpp 及 CreateUniformLayout/ReleaseUniformLayout
+- [x] 与 010-Shader GetReflection 产出的 UniformLayoutDesc 格式对齐（成员类型映射、偏移、命名，std140）
