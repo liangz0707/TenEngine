@@ -31,6 +31,9 @@ void* Alloc(std::size_t size, std::size_t alignment);
 /** Global Free: no-op for nullptr or double-free. */
 void Free(void* ptr);
 
+/** Return default heap allocator; caller does not own the pointer. Thread-safe. */
+Allocator* GetDefaultAllocator();
+
 }  // namespace core
 }  // namespace te
 

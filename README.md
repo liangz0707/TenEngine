@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- C++17 compiler (MSVC 2017+ / GCC 7+ / Clang 5+)
+- C++17 compiler (MSVC 2017+ / GCC 7+ / Clang 5+). On Windows, MinGW GCC 6.x is not sufficient (e.g. missing `<optional>`); use MSVC or MinGW-w64 with GCC 7+.
 - CMake 3.16+
 - Windows / Linux / macOS
 
@@ -37,9 +37,11 @@ On Visual Studio multi-config builds, tests may need to be run by config (e.g. r
 Or run each test executable (paths relative to `build`):
 
 - `tests/Release/test_alloc.exe` (Windows) or `tests/test_alloc` (Unix)
+- `tests/Release/test_engine.exe` / `tests/test_engine`
 - `tests/Release/test_thread.exe` / `tests/test_thread`
 - `tests/Release/test_platform.exe` / `tests/test_platform`
 - `tests/Release/test_log.exe` / `tests/test_log`
+- `tests/Release/test_check.exe` / `tests/test_check`
 - `tests/Release/test_math.exe` / `tests/test_math`
 - `tests/Release/test_containers.exe` / `tests/test_containers`
 - `tests/Release/test_module_load.exe` / `tests/test_module_load`

@@ -1,14 +1,15 @@
 /**
  * @file thread.cpp
- * @brief Implementation of Thread, TLS, Atomic, Mutex, ConditionVariable, TaskQueue per contract (001-core-public-api.md).
+ * @brief Implementation of Thread, TLS, Atomic, Mutex, ConditionVariable, TaskQueue, IThreadPool, GetThreadPool per contract (001-core-ABI.md).
  * Uses std::thread, std::mutex, std::condition_variable. Comments in English.
  */
 
-#include "te/core/thread.h"
+#include <thread>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
-#include <thread>
+#include <utility>
+#include "te/core/thread.h"
 
 namespace te {
 namespace core {
@@ -120,6 +121,54 @@ void TaskQueue::Shutdown() {
   std::lock_guard<std::mutex> lock(impl_->m);
   impl_->shutdown = true;
   impl_->cv.notify_all();
+}
+
+// --- IThreadPool / GetThreadPool ---
+struct DefaultThreadPool : IThreadPool {
+  std::thread worker;
+  std::mutex m;
+  std::condition_variable cv;
+  std::queue<std::pair<TaskCallback, void*>> queue;
+  bool shutdown = false;
+
+  DefaultThreadPool() {
+    worker = std::thread([this]() {
+      while (true) {
+        std::pair<TaskCallback, void*> item{nullptr, nullptr};
+        {
+          std::unique_lock<std::mutex> lock(m);
+          cv.wait(lock, [this] { return shutdown || !queue.empty(); });
+          if (shutdown && queue.empty()) break;
+          if (!queue.empty()) {
+            item = std::move(queue.front());
+            queue.pop();
+          }
+        }
+        if (item.first) item.first(item.second);
+      }
+    });
+  }
+
+  ~DefaultThreadPool() override {
+    {
+      std::lock_guard<std::mutex> lock(m);
+      shutdown = true;
+      cv.notify_all();
+    }
+    if (worker.joinable()) worker.join();
+  }
+
+  void SubmitTask(TaskCallback callback, void* user_data) override {
+    std::lock_guard<std::mutex> lock(m);
+    if (shutdown) return;
+    queue.push({callback, user_data});
+    cv.notify_one();
+  }
+};
+
+IThreadPool* GetThreadPool() {
+  static DefaultThreadPool s_pool;
+  return &s_pool;
 }
 
 }  // namespace core

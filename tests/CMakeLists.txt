@@ -26,3 +26,11 @@ add_test(NAME test_containers COMMAND test_containers)
 add_executable(test_module_load unit/test_module_load.cpp)
 target_link_libraries(test_module_load PRIVATE te_core)
 add_test(NAME test_module_load COMMAND test_module_load)
+
+add_executable(test_engine unit/test_engine.cpp)
+target_link_libraries(test_engine PRIVATE te_core)
+add_test(NAME test_engine COMMAND test_engine)
+
+add_executable(test_check unit/test_check.cpp)
+target_link_libraries(test_check PRIVATE te_core)
+add_test(NAME test_check COMMAND test_check)

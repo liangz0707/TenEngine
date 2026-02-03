@@ -6,6 +6,7 @@
 #include "te/core/thread.h"
 #include <cassert>
 #include <atomic>
+#include <thread>
 
 using namespace te::core;
 
@@ -48,6 +49,14 @@ int main() {
   TLS<int> tls;
   tls.Set(100);
   assert(tls.Get() != nullptr && *tls.Get() == 100);
+
+  // GetThreadPool: non-null, SubmitTask runs callback on worker thread
+  IThreadPool* pool = GetThreadPool();
+  assert(pool != nullptr);
+  std::atomic<int> callback_ran{0};
+  pool->SubmitTask([](void* p) { *static_cast<std::atomic<int>*>(p) = 1; }, &callback_ran);
+  while (callback_ran.load() == 0) { std::this_thread::yield(); }
+  assert(callback_ran.load() == 1);
 
   return 0;
 }

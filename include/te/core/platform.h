@@ -12,22 +12,45 @@
 #include <vector>
 #include <optional>
 
-#if defined(_WIN32) || defined(_WIN64)
-#define TE_PLATFORM_WINDOWS 1
+#if defined(__ANDROID__)
+#define TE_PLATFORM_WINDOWS 0
 #define TE_PLATFORM_LINUX 0
 #define TE_PLATFORM_MACOS 0
+#define TE_PLATFORM_ANDROID 1
+#define TE_PLATFORM_IOS 0
 #elif defined(__APPLE__) && defined(__MACH__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#define TE_PLATFORM_WINDOWS 0
+#define TE_PLATFORM_LINUX 0
+#define TE_PLATFORM_MACOS 0
+#define TE_PLATFORM_ANDROID 0
+#define TE_PLATFORM_IOS 1
+#else
 #define TE_PLATFORM_WINDOWS 0
 #define TE_PLATFORM_LINUX 0
 #define TE_PLATFORM_MACOS 1
+#define TE_PLATFORM_ANDROID 0
+#define TE_PLATFORM_IOS 0
+#endif
 #elif defined(__linux__)
 #define TE_PLATFORM_WINDOWS 0
 #define TE_PLATFORM_LINUX 1
 #define TE_PLATFORM_MACOS 0
+#define TE_PLATFORM_ANDROID 0
+#define TE_PLATFORM_IOS 0
+#elif defined(_WIN32) || defined(_WIN64)
+#define TE_PLATFORM_WINDOWS 1
+#define TE_PLATFORM_LINUX 0
+#define TE_PLATFORM_MACOS 0
+#define TE_PLATFORM_ANDROID 0
+#define TE_PLATFORM_IOS 0
 #else
 #define TE_PLATFORM_WINDOWS 0
 #define TE_PLATFORM_LINUX 0
 #define TE_PLATFORM_MACOS 0
+#define TE_PLATFORM_ANDROID 0
+#define TE_PLATFORM_IOS 0
 #endif
 
 namespace te {
