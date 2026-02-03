@@ -69,6 +69,8 @@
 | **metal** | Metal | Apple 图形与计算 API | [metal.md](./metal.md) | 008-RHI（Metal 后端） |
 | **glslang** | glslang | GLSL/HLSL 编译为 SPIR-V | [glslang.md](./glslang.md) | 010-Shader、离线编译 |
 | **spirv-cross** | SPIRV-Cross | SPIR-V 转 MSL/HLSL 等 | [spirv-cross.md](./spirv-cross.md) | 010-Shader、跨后端 |
+| **dxc** | DirectX Shader Compiler | HLSL 编译为 DXIL（D3D12） | [dxc.md](./dxc.md) | 010-Shader（D3D12 后端） |
+| **spirv-tools** | SPIRV-Tools | SPIR-V 验证与优化（glslang 依赖） | [spirv-tools.md](./spirv-tools.md) | 010-Shader（经 glslang 间接） |
 | **imgui** | Dear ImGui | 即时模式 GUI（编辑器/工具） | [imgui.md](./imgui.md) | 024-Editor、025-Tools、调试 UI |
 | **miniaudio** | miniaudio | 跨平台音频采集与播放 | [miniaudio.md](./miniaudio.md) | 016-Audio（可选后端） |
 | **openal** | OpenAL Soft | 3D 音频 API | [openal.md](./openal.md) | 016-Audio（可选后端） |
@@ -85,6 +87,12 @@
 - **D3D11**：d3d11（Windows SDK）。  
 - **D3D12**：d3d12（Windows SDK）。  
 - **Metal**：metal（Xcode / Apple 系统框架）。
+
+**010-Shader 编译链依赖一览**（详见各 md）  
+- **SPIR-V**：glslang（GLSL/HLSL→SPIR-V）+ vulkan-headers + spirv-tools。  
+- **DXIL（D3D12）**：dxc（HLSL→DXIL，按 TE_RHI_D3D12 启用）。  
+- **MSL（Metal）**：spirv-cross（SPIR-V→MSL）。  
+- **HLSL（D3D11）**：spirv-cross（SPIR-V→HLSL）。
 
 **其他平台/系统级**（不单独建 md）  
 - **Vulkan SDK**：开发机安装；运行时可选。  

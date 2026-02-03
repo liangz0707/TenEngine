@@ -106,9 +106,43 @@ TenEngine 推荐 **FetchContent 优先**（配置时自动下载）；**自动�
 
 ---
 
-## 七、引用与维护
+## 七、共享第三方依赖（多模块同依赖时的 FetchContent 约定）
 
-- 第三方库一览与单库字段定义：`docs/third_party/README.md`。  
+当**上游模块**（如 008-RHI）与**本模块**（如 010-Shader）都依赖同一第三方库（如 vulkan-headers）时，若各模块各自 `FetchContent_Declare` / `FetchContent_MakeAvailable`，可能出现以下问题：
+
+### 7.1 常见问题
+
+| 问题 | 说明 | 后果 |
+|------|------|------|
+| **FetchContent 内容名不一致** | CMake FetchContent 的**内容名**（Declare 第一个参数）**大小写敏感**。若 008-RHI 用 `Vulkan-Headers`、文档写 `vulkan-headers`，会视为**两个不同**的 FetchContent 条目 | 同一仓库被拉取两次、重复 include 路径、潜在 ODR 冲突 |
+| **GIT_TAG 版本不一致** | 先执行者生效；后执行者的 `FetchContent_Declare` 若版本不同，仍使用**先声明者**的版本 | 下游可能拿到非预期版本，与 glslang 等期望版本不匹配 |
+| **build 顺序不确定** | `add_subdirectory` 顺序决定谁先 FetchContent | 版本不可控，难以复现 |
+
+### 7.2 推荐做法
+
+1. **统一 FetchContent 内容名**：所有模块对同一第三方库使用**完全相同**的内容名（含大小写），与 Khronos 等上游 `project()` 名一致，例如 `Vulkan-Headers`。
+2. **集中版本管理**：在根 CMake 或 `cmake/ThirdPartyVersions.cmake` 中定义版本变量，各模块引用同一变量：
+   ```cmake
+   set(TENENGINE_VULKAN_HEADERS_TAG "v1.3.280" CACHE STRING "Vulkan-Headers version")
+   FetchContent_Declare(Vulkan-Headers
+     GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+     GIT_TAG        ${TENENGINE_VULKAN_HEADERS_TAG}
+   )
+   ```
+3. **优先复用已拉取内容**：下游模块在引入 vulkan-headers 前，先检查 `TARGET Vulkan::Headers`（或对应 target）是否已存在；若存在则 `target_link_libraries` 直接使用，不再 `FetchContent_MakeAvailable`。
+4. **文档与实现一致**：`docs/third_party/vulkan-headers.md` 的 CMake 示例应与 008-RHI 等已实现模块**完全一致**（内容名、GIT_TAG）。
+
+### 7.3 vulkan-headers 约定（跨 008-RHI、010-Shader、glslang）
+
+- **FetchContent 内容名**：`Vulkan-Headers`（与 Khronos 仓库 project 名一致）
+- **Target**：`Vulkan::Headers`
+- **版本**：与 008-RHI、glslang 兼容的 tag（如 `v1.3.280`）；各模块共用同一版本变量
+
+---
+
+## 八、引用与维护
+
+- 第三方库一览与单库字段定义：`docs/third_party/README.md`。
 - 单库文档模板（含「引入方式」「CMake 集成」）：见 README §四。  
 - Plan 模板：`.specify/templates/plan-template.md`（含「第三方依赖」表）。  
 - Plan 指令：`.cursor/commands/speckit.plan.md`。  

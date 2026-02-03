@@ -11,7 +11,7 @@
 ## 仓库/来源
 
 - **URL**：https://github.com/KhronosGroup/Vulkan-Headers  
-- **推荐版本**：与 Vulkan SDK 或目标驱动兼容的 tag（如 `v1.3.268`）
+- **推荐版本**：与 Vulkan SDK、008-RHI、glslang 兼容的 tag（如 `v1.3.280`，须与 008-RHI 等已用版本一致）
 
 ## 许可证
 
@@ -19,14 +19,16 @@ Apache-2.0。
 
 ## CMake 集成
 
+**注意**：FetchContent 内容名必须为 `Vulkan-Headers`（与 008-RHI、glslang 一致），避免多模块重复拉取。详见 `third_party-integration-workflow.md` §七。
+
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
-  vulkan-headers
+  Vulkan-Headers
   GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
-  GIT_TAG        v1.3.268
+  GIT_TAG        v1.3.280
 )
-FetchContent_MakeAvailable(vulkan-headers)
+FetchContent_MakeAvailable(Vulkan-Headers)
 # 使用: Vulkan::Headers（INTERFACE，仅 include）
 ```
 

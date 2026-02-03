@@ -37,6 +37,18 @@
 4. **Hot Reload（可选）**：**实时更新 Shader**；ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游（Material/Pipeline），无需重启应用。
 5. **Graph（可选）**：NodeGraph、ExportSource/IR；与 Material 联动，导出 Shader 或中间表示。
 
+## 第三方依赖
+
+| 第三方 ID | 引入方式 | 文档 | 说明 |
+|-----------|----------|------|------|
+| glslang | source | [glslang.md](../../docs/third_party/glslang.md) | GLSL/HLSL 编译为 SPIR-V |
+| spirv-cross | source | [spirv-cross.md](../../docs/third_party/spirv-cross.md) | SPIR-V 转 MSL/HLSL，跨后端产出 |
+| vulkan-headers | header-only | [vulkan-headers.md](../../docs/third_party/vulkan-headers.md) | Vulkan 头文件，glslang 依赖 |
+| dxc | sdk | [dxc.md](../../docs/third_party/dxc.md) | HLSL→DXIL（D3D12 后端，按 TE_RHI_D3D12 启用） |
+| spirv-tools | source | [spirv-tools.md](../../docs/third_party/spirv-tools.md) | SPIR-V 验证/优化，glslang 依赖（通常随 glslang 拉取） |
+
+**平台相关**：Metal 后端 MSL 由 SPIRV-Cross 从 SPIR-V 转译；D3D12 后端 DXIL 由 DXC 直接编译 HLSL；GLSL 由 glslang 编译为 SPIR-V。
+
 ## 调用顺序与约束
 
 - 须在 Core、RHI、RenderCore 初始化之后使用；Uniform 布局须与 RenderCore 约定一致。
@@ -48,3 +60,4 @@
 |------|----------|
 | T0 新增 | 按 010-Shader 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/010-shader.md 一致 |
 | 2026-01-28 | 根据 010-shader-ABI 反向更新：补充参考与命名约定、导出形式列；能力与类型与 ABI 表一致 |
+| 2026-02-03 | 新增「第三方依赖」小节：glslang、spirv-cross、vulkan-headers、dxc、spirv-tools |
