@@ -18,8 +18,9 @@
 | 010-Shader | te::shader | MacroSet | struct | 宏名-值集合 | te/shader/types.hpp | 用于宏切换代码路径 |
 | 010-Shader | te::shader | VariantKey | struct | 变体键 | te/shader/types.hpp | 关键字/宏组合；变体枚举与预编译 |
 | 010-Shader | te::shader | CompileOptions | struct | 编译选项 | te/shader/types.hpp | 编译参数描述 |
-| 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL };` 与 RHI 后端对应 |
+| 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL, HLSL_SOURCE };` HLSL_SOURCE 为 SPIRV-Cross 产出 |
 | 010-Shader | te::shader | IVariantEnumerator | 抽象接口 | 变体枚举回调 | te/shader/types.hpp | 虚析构；用于 EnumerateVariants 输出 |
+| 010-Shader | te::shader | SourceChangedCallback | 类型别名 | 源码变更回调 | te/shader/types.hpp | `using SourceChangedCallback = void (*)(char const* path, void* userData);` |
 
 ### 编译器（te/shader/compiler.hpp）
 
@@ -34,6 +35,21 @@
 | 010-Shader | te::shader | IShaderCompiler::DefineKeyword | 成员函数 | 定义宏 | te/shader/compiler.hpp | `void DefineKeyword(char const* name, char const* value) = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::EnumerateVariants | 成员函数 | 枚举变体 | te/shader/compiler.hpp | `void EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::Precompile | 成员函数 | 预编译 | te/shader/compiler.hpp | `bool Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::SetCache | 成员函数 | 设置缓存 | te/shader/compiler.hpp | `void SetCache(IShaderCache* cache);` 可选 |
+| 010-Shader | te::shader | IShaderCompiler::LoadSourceFromMemory | 成员函数 | 从内存加载 | te/shader/compiler.hpp | `IShaderHandle* LoadSourceFromMemory(void const* data, size_t size, ShaderSourceFormat format) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::ReleaseHandle | 成员函数 | 释放句柄 | te/shader/compiler.hpp | `void ReleaseHandle(IShaderHandle* handle) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::GetReflection | 成员函数 | 取 Uniform 反射 | te/shader/compiler.hpp | `bool GetReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::UniformLayoutDesc* |
+
+### 工厂（te/shader/factory.hpp）
+
+| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
+|--------|----------|------|----------|----------|--------|------|
+| 010-Shader | te::shader | CreateShaderCompiler | 自由函数 | 创建编译器 | te/shader/factory.hpp | `IShaderCompiler* CreateShaderCompiler();` |
+| 010-Shader | te::shader | DestroyShaderCompiler | 自由函数 | 销毁编译器 | te/shader/factory.hpp | `void DestroyShaderCompiler(IShaderCompiler* c);` |
+| 010-Shader | te::shader | CreateShaderCache | 自由函数 | 创建缓存 | te/shader/factory.hpp | `IShaderCache* CreateShaderCache();` |
+| 010-Shader | te::shader | DestroyShaderCache | 自由函数 | 销毁缓存 | te/shader/factory.hpp | `void DestroyShaderCache(IShaderCache* c);` |
+| 010-Shader | te::shader | CreateShaderHotReload | 自由函数 | 创建热重载 | te/shader/factory.hpp | `IShaderHotReload* CreateShaderHotReload(IShaderCompiler* compiler, IShaderCache* cache);` |
+| 010-Shader | te::shader | DestroyShaderHotReload | 自由函数 | 销毁热重载 | te/shader/factory.hpp | `void DestroyShaderHotReload(IShaderHotReload* h);` |
 
 ### 句柄与变体（te/shader/handle.hpp）
 
@@ -59,15 +75,16 @@
 |--------|----------|------|----------|----------|--------|------|
 | 010-Shader | te::shader | IShaderHotReload | 抽象接口 | 热重载 | te/shader/hot_reload.hpp | 可选；见下表 IShaderHotReload 成员 |
 | 010-Shader | te::shader | IShaderHotReload::ReloadShader | 成员函数 | 重载 Shader | te/shader/hot_reload.hpp | `bool ReloadShader(IShaderHandle* handle) = 0;` |
-| 010-Shader | te::shader | IShaderHotReload::OnSourceChanged | 成员函数 | 源码变更回调 | te/shader/hot_reload.hpp | `void OnSourceChanged(char const* path, SourceChangedCallback callback) = 0;` |
+| 010-Shader | te::shader | IShaderHotReload::OnSourceChanged | 成员函数 | 源码变更回调 | te/shader/hot_reload.hpp | `void OnSourceChanged(char const* path, SourceChangedCallback callback, void* userData = nullptr) = 0;` |
 | 010-Shader | te::shader | IShaderHotReload::NotifyShaderUpdated | 成员函数 | 通知 Shader 已更新 | te/shader/hot_reload.hpp | `void NotifyShaderUpdated(IShaderHandle* handle) = 0;` 运行中实时生效 |
 
 ### 头文件与包含关系
 
 | 头文件 | 依赖 | 说明 |
 |--------|------|------|
-| te/shader/types.hpp | \<cstddef\> | ShaderSourceFormat, MacroSet, VariantKey, CompileOptions |
-| te/shader/compiler.hpp | te/shader/types.hpp, te/shader/handle.hpp | IShaderCompiler |
+| te/shader/types.hpp | \<cstddef\> | ShaderSourceFormat, MacroSet, VariantKey, CompileOptions, SourceChangedCallback |
+| te/shader/compiler.hpp | te/shader/types.hpp, te/shader/handle.hpp, te/shader/cache.hpp（前向声明） | IShaderCompiler |
+| te/shader/factory.hpp | te/shader/compiler.hpp, te/shader/cache.hpp, te/shader/hot_reload.hpp | Create/Destroy 工厂 |
 | te/shader/handle.hpp | te/shader/types.hpp | IShaderHandle |
 | te/shader/cache.hpp | te/shader/handle.hpp | IShaderCache |
 | te/shader/hot_reload.hpp | te/shader/handle.hpp | IShaderHotReload（可选） |
