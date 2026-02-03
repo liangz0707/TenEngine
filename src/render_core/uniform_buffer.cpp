@@ -1,174 +1,83 @@
-// 009-RenderCore UniformBuffer Implementation
-// Contract: specs/_contracts/009-rendercore-public-api.md §4. UniformBuffer
+// 009-RenderCore UniformBuffer (te::rendercore)
+// Direct 008-RHI calls: CreateBuffer, UpdateBuffer, SetUniformBuffer, DestroyBuffer
 
-#include "uniform_buffer.hpp"
-#include <cstring>
+#include <te/rendercore/uniform_buffer.hpp>
+#include <te/rhi/device.hpp>
+#include <te/rhi/resources.hpp>
+#include <te/rhi/command_list.hpp>
+#include <cstddef>
 #include <new>
 
-namespace TenEngine::RenderCore {
+namespace te {
+namespace rendercore {
 
-// ============================================================================
-// Internal implementation
-// ============================================================================
+constexpr uint32_t kRingBufferSlots = 3;
 
-constexpr uint32_t kRingBufferSlots = 3; // Triple buffering
+struct UniformBufferAdapter : public IUniformBuffer {
+    IUniformLayout const* layout_ = nullptr;
+    te::rhi::IDevice* device_ = nullptr;
+    te::rhi::IBuffer* buffer_ = nullptr;
+    size_t slotSize_ = 0;
+    uint32_t currentSlot_ = 0;
 
-struct UniformBufferImpl {
-    UniformLayout layout;
-    uint8_t* data = nullptr;
-    size_t size = 0;
+    ~UniformBufferAdapter() override {
+        if (device_ && buffer_) {
+            device_->DestroyBuffer(buffer_);
+            buffer_ = nullptr;
+        }
+    }
 
-    // Ring buffer state
-    uint32_t currentSlot = 0;
-    uint32_t slotsInFlight = 0;  // Slots still in use by GPU
+    void Update(void const* src, size_t sz) override {
+        if (!buffer_ || !device_ || !src) return;
+        size_t copySize = (sz < slotSize_) ? sz : slotSize_;
+        size_t offset = currentSlot_ * slotSize_;
+        device_->UpdateBuffer(buffer_, offset, src, copySize);
+    }
 
-    // Bound slot (for tracking)
-    BindSlot boundSlot{};
-    bool isBound = false;
+    void Bind(te::rhi::ICommandList* cmd, uint32_t slot) override {
+        if (!cmd || !buffer_) return;
+        size_t offset = currentSlot_ * slotSize_;
+        cmd->SetUniformBuffer(slot, buffer_, offset);
+    }
+
+    size_t GetRingBufferOffset(FrameSlotId slot) const override {
+        if (slot >= kRingBufferSlots) return 0;
+        return slot * slotSize_;
+    }
+
+    void SetCurrentFrameSlot(FrameSlotId slot) override {
+        if (slot < kRingBufferSlots) currentSlot_ = slot;
+    }
 };
 
-// ============================================================================
-// T014: CreateUniformBuffer (CreateLayout)
-// ============================================================================
+IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, te::rhi::IDevice* device) {
+    if (!layout || !device) return nullptr;
+    size_t slotSize = layout->GetTotalSize();
+    if (slotSize == 0) slotSize = 256;
 
-UniformBufferHandle CreateUniformBuffer(UniformLayout layout) {
-    UniformBufferHandle result{};
+    te::rhi::BufferDesc desc{};
+    desc.size = slotSize * kRingBufferSlots;
+    desc.usage = static_cast<uint32_t>(te::rhi::BufferUsage::Uniform);
 
-    // Validate layout
-    if (!layout.IsValid()) {
-        return result; // Invalid layout: reject
-    }
+    te::rhi::IBuffer* buf = device->CreateBuffer(desc);
+    if (!buf) return nullptr;
 
-    // Get layout size (access impl for totalSize)
-    // For simplicity, use a fixed buffer size; in production, read from layout.impl
-    size_t bufferSize = 256; // Default; should be layout.impl->totalSize
-
-    // Allocate impl
-    UniformBufferImpl* impl = new (std::nothrow) UniformBufferImpl{};
+    UniformBufferAdapter* impl = new (std::nothrow) UniformBufferAdapter{};
     if (!impl) {
-        return result;
+        device->DestroyBuffer(buf);
+        return nullptr;
     }
-
-    impl->layout = layout;
-    impl->size = bufferSize;
-
-    // Allocate ring buffer data (slots * size)
-    impl->data = new (std::nothrow) uint8_t[bufferSize * kRingBufferSlots];
-    if (!impl->data) {
-        delete impl;
-        return result;
-    }
-
-    std::memset(impl->data, 0, bufferSize * kRingBufferSlots);
-
-    result.impl = impl;
-    return result;
+    impl->layout_ = layout;
+    impl->device_ = device;
+    impl->buffer_ = buf;
+    impl->slotSize_ = slotSize;
+    impl->currentSlot_ = 0;
+    return impl;
 }
 
-// ============================================================================
-// T015: Update
-// ============================================================================
-
-void Update(UniformBufferHandle handle, void const* data, size_t size) {
-    if (!handle.IsValid() || data == nullptr || size == 0) {
-        return;
-    }
-
-    UniformBufferImpl* impl = handle.impl;
-
-    // Clamp size to buffer size
-    size_t copySize = size < impl->size ? size : impl->size;
-
-    // Write to current slot
-    uint8_t* slotData = impl->data + (impl->currentSlot * impl->size);
-    std::memcpy(slotData, data, copySize);
+void ReleaseUniformBuffer(IUniformBuffer* buffer) {
+    delete buffer;
 }
 
-// ============================================================================
-// T016: RingBufferAdvance / RingBufferAllocSlot
-// ============================================================================
-
-bool RingBufferAdvance(UniformBufferHandle handle) {
-    if (!handle.IsValid()) {
-        return false;
-    }
-
-    UniformBufferImpl* impl = handle.impl;
-
-    // Check if next slot is available
-    // If slotsInFlight >= kRingBufferSlots - 1, we must Block (return false to signal caller wait/retry)
-    if (impl->slotsInFlight >= kRingBufferSlots - 1) {
-        // RingBuffer exhausted: Block semantics - caller should wait/retry
-        return false;
-    }
-
-    // Advance to next slot
-    impl->currentSlot = (impl->currentSlot + 1) % kRingBufferSlots;
-    impl->slotsInFlight++;
-
-    return true;
-}
-
-uint32_t RingBufferAllocSlot(UniformBufferHandle handle) {
-    if (!handle.IsValid()) {
-        return UINT32_MAX;
-    }
-
-    UniformBufferImpl* impl = handle.impl;
-
-    // Check if slot available
-    if (impl->slotsInFlight >= kRingBufferSlots - 1) {
-        // Exhausted: return UINT32_MAX (caller should wait/retry)
-        return UINT32_MAX;
-    }
-
-    uint32_t slot = impl->currentSlot;
-    impl->currentSlot = (impl->currentSlot + 1) % kRingBufferSlots;
-    impl->slotsInFlight++;
-
-    return slot;
-}
-
-/// Called when GPU is done with a slot (for frame synchronization).
-void RingBufferReleaseSlot(UniformBufferHandle handle) {
-    if (!handle.IsValid()) {
-        return;
-    }
-
-    UniformBufferImpl* impl = handle.impl;
-    if (impl->slotsInFlight > 0) {
-        impl->slotsInFlight--;
-    }
-}
-
-// ============================================================================
-// T017: Bind
-// ============================================================================
-
-void Bind(UniformBufferHandle handle, BindSlot slot) {
-    if (!handle.IsValid()) {
-        return;
-    }
-
-    UniformBufferImpl* impl = handle.impl;
-    impl->boundSlot = slot;
-    impl->isBound = true;
-
-    // In full implementation: call RHI to bind buffer to descriptor set/slot.
-    // This is a contract-level placeholder; actual RHI binding via 008-RHI API.
-}
-
-// ============================================================================
-// ReleaseUniformBuffer
-// ============================================================================
-
-void ReleaseUniformBuffer(UniformBufferHandle& handle) {
-    if (handle.impl) {
-        UniformBufferImpl* impl = handle.impl;
-        delete[] impl->data;
-        delete impl;
-        handle.impl = nullptr;
-    }
-}
-
-} // namespace TenEngine::RenderCore
+} // namespace rendercore
+} // namespace te

@@ -11,9 +11,19 @@
 namespace te {
 namespace rhi {
 
+/// Buffer usage bits (008-rhi-ABI); BufferDesc.usage is bitmask of these.
+enum class BufferUsage : uint32_t {
+  Vertex   = 1u << 0,
+  Index    = 1u << 1,
+  Uniform  = 1u << 2,
+  Storage  = 1u << 3,
+  CopySrc  = 1u << 4,
+  CopyDst  = 1u << 5,
+};
+
 struct BufferDesc {
   size_t  size;
-  uint32_t usage;
+  uint32_t usage;  // bitmask of BufferUsage
 };
 
 struct TextureDesc {

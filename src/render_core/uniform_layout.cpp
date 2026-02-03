@@ -1,16 +1,14 @@
-// 009-RenderCore ShaderParams Implementation
-// Contract: specs/_contracts/009-rendercore-public-api.md §1. ShaderParams
+// 009-RenderCore UniformLayout (te::rendercore)
+// Merges layout logic from shader_params and UniformLayoutAdapter
 
-#include "shader_params.hpp"
+#include <te/rendercore/uniform_layout.hpp>
 #include <cstring>
 #include <new>
 
-namespace TenEngine::RenderCore {
+namespace te {
+namespace rendercore {
 
-// ============================================================================
 // Internal implementation
-// ============================================================================
-
 struct UniformLayoutImpl {
     UniformMember members[kMaxUniformMembers];
     uint32_t memberCount = 0;
@@ -19,15 +17,14 @@ struct UniformLayoutImpl {
 
 namespace {
 
-/// Get byte size for UniformMemberType.
 uint32_t GetMemberTypeSize(UniformMemberType type) {
     switch (type) {
         case UniformMemberType::Float:  return 4;
         case UniformMemberType::Float2: return 8;
         case UniformMemberType::Float3: return 12;
         case UniformMemberType::Float4: return 16;
-        case UniformMemberType::Mat3:   return 36; // 3x3 floats
-        case UniformMemberType::Mat4:   return 64; // 4x4 floats
+        case UniformMemberType::Mat3:   return 36;
+        case UniformMemberType::Mat4:   return 64;
         case UniformMemberType::Int:    return 4;
         case UniformMemberType::Int2:   return 8;
         case UniformMemberType::Int3:   return 12;
@@ -38,36 +35,23 @@ uint32_t GetMemberTypeSize(UniformMemberType type) {
 
 } // namespace
 
-// ============================================================================
-// T009: DefineLayout
-// ============================================================================
-
-UniformLayout DefineLayout(UniformLayoutDesc const& desc) {
+static UniformLayout DefineLayout(UniformLayoutDesc const& desc) {
     UniformLayout result{};
 
-    // Validate input
-    if (desc.members == nullptr || desc.memberCount == 0) {
-        return result; // Invalid: empty handle
-    }
-    if (desc.memberCount > kMaxUniformMembers) {
-        return result; // Too many members: reject
-    }
+    if (desc.members == nullptr || desc.memberCount == 0) return result;
+    if (desc.memberCount > kMaxUniformMembers) return result;
 
-    // Allocate impl
     UniformLayoutImpl* impl = new (std::nothrow) UniformLayoutImpl{};
-    if (!impl) {
-        return result; // Allocation failed
-    }
+    if (!impl) return result;
 
     uint32_t currentOffset = 0;
 
     for (uint32_t i = 0; i < desc.memberCount; ++i) {
         auto const& src = desc.members[i];
 
-        // Validate member
         if (src.type == UniformMemberType::Unknown) {
             delete impl;
-            return UniformLayout{}; // Invalid type: reject
+            return UniformLayout{};
         }
 
         UniformMember& dst = impl->members[i];
@@ -75,16 +59,13 @@ UniformLayout DefineLayout(UniformLayoutDesc const& desc) {
         dst.name[sizeof(dst.name) - 1] = '\0';
         dst.type = src.type;
 
-        // Calculate offset if not provided
         if (src.offset == 0 && i > 0) {
             dst.offset = currentOffset;
         } else {
             dst.offset = src.offset;
         }
 
-        // Calculate size if not provided
         dst.size = src.size > 0 ? src.size : GetMemberTypeSize(src.type);
-
         currentOffset = dst.offset + dst.size;
     }
 
@@ -95,14 +76,8 @@ UniformLayout DefineLayout(UniformLayoutDesc const& desc) {
     return result;
 }
 
-// ============================================================================
-// T010: GetOffset
-// ============================================================================
-
-size_t GetOffset(UniformLayout layout, char const* memberName) {
-    if (!layout.IsValid() || memberName == nullptr) {
-        return 0; // Invalid: return 0 per contract
-    }
+static size_t LayoutGetOffset(UniformLayout layout, char const* memberName) {
+    if (!layout.IsValid() || memberName == nullptr) return 0;
 
     UniformLayoutImpl* impl = layout.impl;
     for (uint32_t i = 0; i < impl->memberCount; ++i) {
@@ -110,19 +85,47 @@ size_t GetOffset(UniformLayout layout, char const* memberName) {
             return static_cast<size_t>(impl->members[i].offset);
         }
     }
-
-    return 0; // Member not found: return 0 per contract
+    return 0;
 }
 
-// ============================================================================
-// ReleaseLayout (cleanup)
-// ============================================================================
-
-void ReleaseLayout(UniformLayout& layout) {
+static void ReleaseLayout(UniformLayout& layout) {
     if (layout.impl) {
         delete layout.impl;
         layout.impl = nullptr;
     }
 }
 
-} // namespace TenEngine::RenderCore
+static size_t GetLayoutTotalSize(UniformLayout const& layout) {
+    if (!layout.IsValid()) return 0;
+    return static_cast<size_t>(layout.impl->totalSize);
+}
+
+// Adapter implementing IUniformLayout
+class UniformLayoutAdapter : public IUniformLayout {
+public:
+    explicit UniformLayoutAdapter(UniformLayout layout) : layout_(layout) {}
+    ~UniformLayoutAdapter() override { ReleaseLayout(layout_); }
+
+    size_t GetOffset(char const* name) const override {
+        return LayoutGetOffset(layout_, name);
+    }
+    size_t GetTotalSize() const override {
+        return GetLayoutTotalSize(layout_);
+    }
+
+private:
+    UniformLayout layout_;
+};
+
+IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc) {
+    UniformLayout L = DefineLayout(desc);
+    if (!L.IsValid()) return nullptr;
+    return new UniformLayoutAdapter(L);
+}
+
+void ReleaseUniformLayout(IUniformLayout* layout) {
+    delete layout;
+}
+
+} // namespace rendercore
+} // namespace te

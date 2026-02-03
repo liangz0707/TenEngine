@@ -32,6 +32,7 @@ struct IDevice {
   virtual ICommandList* CreateCommandList() = 0;
   virtual void DestroyCommandList(ICommandList* cmd) = 0;
   virtual IBuffer* CreateBuffer(BufferDesc const& desc) = 0;
+  virtual void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) = 0;
   virtual ITexture* CreateTexture(TextureDesc const& desc) = 0;
   virtual ISampler* CreateSampler(SamplerDesc const& desc) = 0;
   virtual ViewHandle CreateView(ViewDesc const& desc) = 0;
