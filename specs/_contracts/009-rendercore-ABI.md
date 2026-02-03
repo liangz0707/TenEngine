@@ -94,3 +94,20 @@
 
 *来源：契约能力 ResourceDesc、UniformLayout、PassProtocol、UniformBuffer；与 010-Shader、019-PipelineCore、008-RHI 对接。*
 *命名空间与头文件路径与 008-RHI (te::rhi, te/rhi/) 及 001-Core (te::core, te/core/) 保持一致。*
+
+---
+
+## TODO（010-Shader 反射对接）
+
+010-Shader 需产出 Uniform 布局描述供本模块创建 IUniformLayout；本模块需提供以下能力：
+
+| 待实现 | 说明 |
+|--------|------|
+| te/rendercore/uniform_layout.hpp | 新建头文件，定义 UniformMemberType、UniformMember、UniformLayoutDesc、IUniformLayout |
+| CreateUniformLayout | `IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc);` 接受 010-Shader 反射产出的 desc |
+| ReleaseUniformLayout | `void ReleaseUniformLayout(IUniformLayout* layout);` |
+| IUniformLayout::GetOffset | 按成员名返回字节偏移 |
+| IUniformLayout::GetTotalSize | 返回布局总大小（满足 std140 对齐） |
+
+- [ ] 实现 te/rendercore/uniform_layout.hpp 及 CreateUniformLayout/ReleaseUniformLayout
+- [ ] 与 010-Shader GetReflection 产出的 UniformLayoutDesc 格式对齐（成员类型映射、偏移、命名）
