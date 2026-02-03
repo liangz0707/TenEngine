@@ -1,4 +1,4 @@
-﻿# Branch: T0-010-shader
+# Branch: T0-010-shader
 
 This branch contains only **constraint files**, **module description**, and **global dependency** for module **010-shader**.
 
