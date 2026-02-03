@@ -24,14 +24,14 @@
 | EventCallback | 事件回调；OnClick、OnDrag、OnInput、Bubble、Capture | 由调用方注册 |
 | StyleRef | 主题、颜色/字体/边距、与 Resource 资源引用 | 与控件或画布绑定 |
 
-下游仅通过上述类型与句柄访问；与 UICore 的布局/绘制/命中一一对应，与 Resource 纹理/图集/字体通过 UICore 或直接对接。
+下游仅通过上述类型与句柄访问；与 UICore 的布局/绘制/命中一一对应，与 Resource 纹理/图集/字体通过 UICore 或直接对接。**ABI 显式表**：[018-ui-ABI.md](./018-ui-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Widgets**：Button、Slider、Text、Image、List、Container、SetStyle；基础与复合控件、样式。
-2. **Canvas**：CreateCanvas、AddChild；与 UICore Layout/Draw/HitTest 对接。
-3. **Events**：OnClick、OnDrag、OnInput、Bubble、Capture；与 Input 解耦的抽象事件。
-4. **Style**：Theme、Color、Font、Margin、ResourceRef。
+1. **Widgets**：IWidget::GetLayoutNode、AddChild、RemoveChild、SetStyle；CreateButton、CreateSlider、CreateText、CreateImage、CreateList、CreateContainer；基础与复合控件、样式。
+2. **Canvas**：CreateCanvas、ICanvas::AddChild、Layout、Draw、HitTest；与 UICore Layout/Draw/HitTest 对接。
+3. **Events**：IWidget::SetOnClick、SetOnDrag、SetOnInput；EventPhase::Bubble、Capture；与 Input 解耦的抽象事件。
+4. **Style**：StyleRef、SetTheme；主题、颜色、字体、边距、ResourceRef。
 
 ## 调用顺序与约束
 
@@ -43,3 +43,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：018-UI 对应本契约；与 docs/module-specs/018-ui.md 一致 |
+| 2026-01-28 | 根据 018-ui-ABI 反向更新：ICanvas、IWidget、CreateCanvas、CreateButton/Slider/Text/Image/List/Container、SetStyle、SetOnClick/SetOnDrag/SetOnInput、StyleRef、SetTheme；能力与类型与 ABI 表一致 |

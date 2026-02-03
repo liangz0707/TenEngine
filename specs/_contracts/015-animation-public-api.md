@@ -26,14 +26,14 @@
 | PlaybackHandle | 播放控制；Play、Pause、SetTime、Blend、AttachToEntity | 创建后直至显式释放 |
 | SkinMatrixBuffer | 蒙皮矩阵（Uniform 或缓冲）；与 Pipeline/Mesh 对接 | 每帧或按需更新 |
 
-下游仅通过上述类型与句柄访问；与 Mesh 骨骼/蒙皮、Pipeline 蒙皮矩阵提交须协同。
+下游仅通过上述类型与句柄访问；与 Mesh 骨骼/蒙皮、Pipeline 蒙皮矩阵提交须协同。**ABI 显式表**：[015-animation-ABI.md](./015-animation-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Clip**：LoadClip、Sample、Interpolate、Loop、ClipRange。
-2. **Skeleton**：GetBoneHierarchy、BindPose、BoneIndexFromName；与 Mesh 对应。
-3. **Playback**：Play、Pause、SetTime、Blend、AttachToEntity。
-4. **StateMachine（可选）**：AddState、AddTransition、SetParameter、BlendTree。
+1. **Clip**：IAnimationClip::Load、Sample、GetDuration、IsLooping、GetClipRange；CreateAnimationClip。
+2. **Skeleton**：ISkeleton::GetBoneHierarchy、GetBindPose、GetBoneIndexFromName、GetBoneCount；CreateSkeleton；与 Mesh 对应。
+3. **Playback**：IAnimator::Play、Pause、SetTime、Blend、AttachToEntity、SetClip；CreateAnimator(ISkeleton*)。
+4. **SkinMatrixBuffer**：IAnimator::GetSkinMatrixBuffer；UpdateSkinMatrices（可选）；与 Pipeline/Mesh 对接。
 
 ## 调用顺序与约束
 
@@ -45,3 +45,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：015-Animation 对应本契约；与 docs/module-specs/015-animation.md 一致 |
+| 2026-01-28 | 根据 015-animation-ABI 反向更新：IAnimationClip、ISkeleton、IAnimator、CreateAnimationClip、CreateSkeleton、CreateAnimator、GetSkinMatrixBuffer、UpdateSkinMatrices；能力与类型与 ABI 表一致 |

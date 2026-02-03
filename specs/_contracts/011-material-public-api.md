@@ -19,7 +19,7 @@
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| MaterialHandle | 材质资源句柄；Load、GetParameters、GetShaderRef | 创建后直至显式释放 |
+| MaterialHandle | 材质资源句柄（**引擎自有格式**）；Load、GetParameters、GetShaderRef、GetTextureRefs；**材质中保存了 Shader**，并引用贴图与材质参数 | 创建后直至显式释放 |
 | MaterialInstanceHandle | 材质实例句柄；CreateInstance、SetOverride、Release、Pool | 创建后直至显式释放 |
 | ParameterSlot | 参数槽位；SetScalar、SetTexture、SetBuffer、与 RenderCore Uniform/纹理槽对接 | 与材质或实例绑定 |
 | VariantKey | 与 Shader 变体对应；BindToPSO、GetVariantKey、SubmitToPipeline | 由调用方管理 |
@@ -28,7 +28,7 @@
 
 ## 能力列表（提供方保证）
 
-1. **MaterialDef**：Load、GetParameters、GetDefaultValues、GetShaderRef；材质资源与 Shader 引用。
+1. **MaterialDef**：Load、GetParameters、GetDefaultValues、GetShaderRef、GetTextureRefs；材质为**引擎自有格式**，**保存 Shader 引用**，并引用贴图与材质参数（渲染 Shader 的参数值）。
 2. **Parameters**：SetScalar、SetTexture、SetBuffer、GetSlotMapping；与 RenderCore Uniform/纹理槽对接。
 3. **Instancing**：CreateInstance、SetOverride、Release、Pool；实例池与生命周期。
 4. **Binding**：BindToPSO、GetVariantKey、SubmitToPipeline；与 Shader 变体、RHI PSO、Pipeline 提交接口对接。
