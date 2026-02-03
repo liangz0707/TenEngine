@@ -6,6 +6,9 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 
 # Must depend on upstream modules; standalone build is not allowed.
+# Do not introduce upstream modules' tests when building this module.
+set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
+
 set(MY_DEPS "")
 if(NOT DEFINED TENENGINE_CMAKE_DIR)
   set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
