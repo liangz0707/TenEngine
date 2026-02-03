@@ -18,6 +18,7 @@
 | **完整 ABI 实现** | 各模块必须实现其 ABI 文件（`specs/_contracts/NNN-modulename-ABI.md`）中列出的**全部**符号与能力；禁止长期以 stub 或代替方案作为正式实现。 |
 | **契约约束接口** | 构建脚本只暴露契约（`specs/_contracts/`）中声明的头文件路径与目标；内部实现不对外导出。 |
 | **跨平台** | CMake 脚本须兼容 Windows、Linux、macOS；避免平台特定硬编码路径。 |
+| **Target 命名一致性** | 各模块的 CMake target 名称以其 ABI 文档顶部「CMake Target 名称」小节为准（如 001-Core → **`te_core`**，008-RHI → **`te_rhi`**，009-RenderCore → **`te_rendercore`**）。下游在 `target_link_libraries` 中必须使用**实际 target 名称**，不得臆测（如不能用 `TenEngine_Core` 代替 `te_core`）。详见各模块 ABI（`specs/_contracts/NNN-modulename-ABI.md`）。 |
 
 ---
 

@@ -2,6 +2,7 @@
 
 - **契约**：[008-rhi-public-api.md](./008-rhi-public-api.md)（能力与类型描述）
 - **本文件**：008-RHI 对外 ABI 显式表。
+- **CMake Target 名称**：**`te_rhi`**（project name `te_rhi`，不是 `TenEngine_RHI`）。下游在 `target_link_libraries` 中应使用 **`te_rhi`**，不是 `TenEngine_RHI`。依赖 `te_core`。
 - **平台与接口**：引擎支持 **Android、iOS** 等平台（见 001-Core）；RHI 支持 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口，及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端实现路径。
 - **参考**：Vulkan（vkCmd*、VkBuffer/VkImage/VkDescriptorSet、vkCmdPipelineBarrier）、Metal（MTLCommandEncoder、MTLBuffer/MTLTexture、setVertexBuffer/setFragmentTexture、drawIndexedPrimitives）、D3D12（ID3D12GraphicsCommandList、ResourceBarrier、DrawIndexedInstanced）、Unreal FRHICommandList、Unity 底层图形封装。
 - **渲染资源显式控制位置**：**准备/创建/更新 GPU 资源**（**CreateDeviceResource**、**UpdateDeviceResource**）由本模块提供；**提交到实际 GPU Command**（**SubmitCommandBuffer**）见 ExecuteLogicalCommandBuffer / SubmitCommandList。创建逻辑渲染资源、CollectCommandBuffer、PrepareRenderMaterial/Mesh 见 019-PipelineCore/020-Pipeline。
@@ -27,7 +28,8 @@
 
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
-| 008-RHI | te::rhi | BufferDesc | struct | 缓冲创建描述 | te/rhi/resources.hpp | `size_t size; uint32_t usage;` |
+| 008-RHI | te::rhi | BufferUsage | 枚举 | 缓冲用途位 | te/rhi/resources.hpp | `enum class BufferUsage : uint32_t { Vertex = 1u << 0, Index = 1u << 1, Uniform = 1u << 2, Storage = 1u << 3, CopySrc = 1u << 4, CopyDst = 1u << 5 };` BufferDesc.usage 使用此位掩码；CreateUniformBuffer 等须传 Uniform 位 |
+| 008-RHI | te::rhi | BufferDesc | struct | 缓冲创建描述 | te/rhi/resources.hpp | `size_t size; uint32_t usage;` **usage 为 BufferUsage 位掩码；含 Uniform 时表示可用于 Uniform 缓冲** |
 | 008-RHI | te::rhi | TextureDesc | struct | 纹理创建描述 | te/rhi/resources.hpp | `uint32_t width, height, depth, format;` |
 | 008-RHI | te::rhi | SamplerDesc | struct | 采样器创建描述 | te/rhi/resources.hpp | `uint32_t filter;` |
 | 008-RHI | te::rhi | ViewDesc | struct | 视图创建描述 | te/rhi/resources.hpp | `void* resource; uint32_t type;` |
@@ -61,6 +63,7 @@
 | 008-RHI | te::rhi | IDevice::CreateCommandList | 成员函数 | 创建命令列表 | te/rhi/device.hpp | `ICommandList* CreateCommandList() = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::DestroyCommandList | 成员函数 | 销毁命令列表 | te/rhi/device.hpp | `void DestroyCommandList(ICommandList* cmd) = 0;` |
 | 008-RHI | te::rhi | IDevice::CreateBuffer | 成员函数 | 创建缓冲 | te/rhi/device.hpp | `IBuffer* CreateBuffer(BufferDesc const& desc) = 0;` 失败返回 nullptr |
+| 008-RHI | te::rhi | IDevice::UpdateBuffer | 成员函数 | CPU 写入 GPU 缓冲 | te/rhi/device.hpp | `void UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) = 0;` 满足 009 UniformBuffer::Update |
 | 008-RHI | te::rhi | IDevice::CreateTexture | 成员函数 | 创建纹理 | te/rhi/device.hpp | `ITexture* CreateTexture(TextureDesc const& desc) = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::CreateSampler | 成员函数 | 创建采样器 | te/rhi/device.hpp | `ISampler* CreateSampler(SamplerDesc const& desc) = 0;` 失败返回 nullptr |
 | 008-RHI | te::rhi | IDevice::CreateView | 成员函数 | 创建视图 | te/rhi/device.hpp | `ViewHandle CreateView(ViewDesc const& desc) = 0;` |
@@ -104,6 +107,7 @@
 | 008-RHI | te::rhi | ICommandList::DrawIndexed | 成员函数 | 索引绘制 | te/rhi/command_list.hpp | `void DrawIndexed(uint32_t index_count, uint32_t instance_count = 1, uint32_t first_index = 0, int32_t vertex_offset = 0, uint32_t first_instance = 0) = 0;` |
 | 008-RHI | te::rhi | ICommandList::SetViewport | 成员函数 | 设置视口 | te/rhi/command_list.hpp | `void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) = 0;` |
 | 008-RHI | te::rhi | ICommandList::SetScissor | 成员函数 | 设置裁剪 | te/rhi/command_list.hpp | `void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) = 0;` |
+| 008-RHI | te::rhi | ICommandList::SetUniformBuffer | 成员函数 | 将 IBuffer 绑定到 slot | te/rhi/command_list.hpp | `void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) = 0;` 满足 009 IUniformBuffer::Bind；slot 越界或 buffer==nullptr 行为由实现约定 |
 | 008-RHI | te::rhi | ICommandList::BeginRenderPass | 成员函数 | 开始渲染通道（P2） | te/rhi/command_list.hpp | `void BeginRenderPass(RenderPassDesc const& desc) = 0;` |
 | 008-RHI | te::rhi | ICommandList::EndRenderPass | 成员函数 | 结束渲染通道（P2） | te/rhi/command_list.hpp | `void EndRenderPass() = 0;` |
 | 008-RHI | te::rhi | ICommandList::CopyBuffer | 成员函数 | 缓冲间拷贝（P2） | te/rhi/command_list.hpp | `void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) = 0;` |
@@ -165,6 +169,16 @@
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
 | 008-RHI | te::rhi | RaytracingAccelerationStructureDesc, DispatchRaysDesc | struct | 加速结构/派发描述 | te/rhi/raytracing.hpp | 映射 D3D12 BLAS/TLAS、D3D12_DISPATCH_RAYS_DESC |
+
+
+## 已实现（原 TODO，008-rhi-fullmodule-006）
+
+以下能力已在 008-rhi-fullmodule-006 中实现并写入本 ABI 表：
+
+- **Buffer CPU 写入**：IDevice::UpdateBuffer(IBuffer* buf, size_t offset, void const* data, size_t size) 已实现；满足 009 UniformBuffer::Update。
+- **Uniform 绑定到命令列表 slot**：ICommandList::SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) 已实现；满足 009 IUniformBuffer::Bind。
+- **BufferDesc 的 Uniform 用途**：BufferUsage 枚举（含 Uniform 位）与 BufferDesc.usage 语义已补充；CreateBuffer(BufferDesc{ usage 含 Uniform }) 可创建 Uniform 缓冲。
+- **描述符与 RHI 对接**：009 与 008 的 BufferDesc/TextureDesc、VertexFormat/IndexFormat 对接约定见 specs/008-rhi-fullmodule-006/009-008-descriptor-convention.md。
 
 ---
 

@@ -19,7 +19,9 @@
 ## 版本 / ABI
 
 - 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
+- **命名空间**：`te::rendercore`（与 008-RHI `te::rhi`、001-Core `te::core` 风格一致）。
+- **头文件**：`#include <te/rendercore/api.hpp>`
+- **CMake Target**：`te_rendercore`
 
 ## 类型与句柄（跨边界）
 

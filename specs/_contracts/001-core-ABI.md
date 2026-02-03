@@ -2,6 +2,7 @@
 
 - **契约**：[001-core-public-api.md](./001-core-public-api.md)（能力与类型描述）
 - **本文件**：001-Core 对外 ABI 显式表，供实现与下游统一命名空间、头文件与符号。
+- **CMake Target 名称**：**`te_core`**（project name `te_core`，不是 `TenEngine_Core`）。下游在 `target_link_libraries` 中应使用 **`te_core`**，不是 `TenEngine_Core`。
 - **统一分配接口**：**所有内容分配**均通过 **IAllocator/Allocator** 进行；**现成分配**（默认分配器、池、预分配等）也通过**同一套** **Allocator** 暴露（如 GetDefaultAllocator() 返回 Allocator*），调用方仅依赖 Allocator。
 - **命名**：成员方法与自由函数采用**首字母大写的驼峰**（PascalCase）；所有方法在说明列给出**完整函数签名**。
 - **命名空间**：TenEngine::core（实现可用 te::core，头文件路径 te/core/ = TenEngine/core/）。

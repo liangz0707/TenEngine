@@ -183,7 +183,7 @@ plan 执行时需生成全量 ABI 内容（包括原始 ABI、新增、修改）
 ```
 请从当前工作目录推断模块标识 NNN-modulename（如 TenEngine-001-core → 001-core）。规约见 docs/module-specs/NNN-modulename.md，契约见 specs/_contracts/NNN-modulename-public-api.md。
 
-执行 /speckit.specify，描述：本 feature 的完整模块规约见上述规约，契约见 specs/_contracts/NNN-modulename-public-api.md；**本 feature 实现完整模块内容**。spec.md 中引用规约与契约，描述本模块范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]）。
+执行 /speckit.specify，描述：本 feature 的完整模块规约见上述规约，契约见 specs/_contracts/NNN-modulename-public-api.md；**本 feature 实现完整模块内容**。spec.md 中引用规约与契约，描述本模块范围。创建的分支名须为 NNN- 开头的 feature 分支（如 NNN-modulename-[feature]-XXX）[不使用已有分支]。
 
 若本模块有上游依赖：在 spec 中明确依赖的上游 API 见各上游契约；实现时只使用上游契约已声明的类型与 API。
 ```
