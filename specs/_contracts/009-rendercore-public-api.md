@@ -57,3 +57,4 @@
 | 2026-01-29 | contract(009-rendercore): sync API sketch from plan 009-render-core-full |
 | 2026-01-29 | contract(009-rendercore): add PassHandle and ResourceHandle to types table |
 | 2026-02-03 | contract(009-rendercore): sync from plan 009-render-core-shader-reflection-abi；TODO 010-Shader 反射对接已实现 |
+| 2026-02-03 | 新增 shader_reflection.hpp：ShaderResourceKind、ShaderResourceBinding、ShaderReflectionDesc；支持 Uniform、Texture、Sampler 完整反射 |
