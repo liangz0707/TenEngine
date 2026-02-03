@@ -77,3 +77,16 @@
 
 *来源：契约能力 Source & Compilation、Macros & Variants、Cache、Hot Reload；与 008-RHI、009-RenderCore、011-Material、020-Pipeline 对接。*
 *命名空间与头文件路径与 008-RHI (te::rhi, te/rhi/) 及 009-RenderCore (te::rendercore, te/rendercore/) 保持一致。*
+
+## 001-Core 接口使用
+
+本模块**必须**使用 001-Core 下列接口（当链接 te_core 时，TE_SHADER_USE_CORE=1）：
+
+| 用途 | 符号 | 头文件 |
+|------|------|--------|
+| LoadSource 读文件 | te::core::FileRead | te/core/platform.h |
+| 错误日志 | te::core::Log | te/core/log.h |
+| 工厂内存分配 | te::core::Alloc, te::core::Free | te/core/alloc.h |
+| LoadCache/SaveCache | te::core::FileRead, te::core::FileWrite | te/core/platform.h |
+
+STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
