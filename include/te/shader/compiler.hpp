@@ -29,6 +29,9 @@ public:
 
     /** Fill UniformLayoutDesc for 009-rendercore integration. Requires te_rendercore. \a outDesc points to te::rendercore::UniformLayoutDesc. Returns false if no SPIR-V or reflection unavailable. */
     virtual bool GetReflection(IShaderHandle* handle, void* outDesc) { (void)handle; (void)outDesc; return false; }
+
+    /** Fill ShaderReflectionDesc (Uniform + Texture + Sampler). \a outDesc points to te::rendercore::ShaderReflectionDesc. Returns false if no SPIR-V or reflection unavailable. */
+    virtual bool GetShaderReflection(IShaderHandle* handle, void* outDesc) { (void)handle; (void)outDesc; return false; }
 };
 
 }  // namespace te::shader

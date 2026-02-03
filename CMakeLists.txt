@@ -5,21 +5,18 @@ project(te_shader LANGUAGES CXX)
 enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 
-# Option: build without upstream (for CI or when siblings missing)
-option(TENENGINE_SHADER_STANDALONE "Build te_shader without 001-core, 008-rhi, 009-rendercore" OFF)
-
+# Must depend on upstream modules; standalone build is not allowed.
 set(MY_DEPS "")
-if(NOT TENENGINE_SHADER_STANDALONE)
-  if(NOT DEFINED TENENGINE_CMAKE_DIR)
-    set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
-  endif()
-  if(EXISTS "${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake")
-    include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
-    tenengine_resolve_my_dependencies("010-shader" OUT_DEPS MY_DEPS)
-  endif()
+if(NOT DEFINED TENENGINE_CMAKE_DIR)
+  set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
+endif()
+if(EXISTS "${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake")
+  include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
+  tenengine_resolve_my_dependencies("010-shader" OUT_DEPS MY_DEPS)
 endif()
 if(NOT MY_DEPS)
-  message(STATUS "te_shader: Standalone build (no upstream te_core, te_rhi, te_rendercore)")
+  message(FATAL_ERROR "te_shader: Upstream modules (001-core, 008-rhi, 009-rendercore) are required. "
+    "TenEngineHelpers not found at TENENGINE_CMAKE_DIR=${TENENGINE_CMAKE_DIR} or dependencies could not be resolved.")
 endif()
 
 # Third-party: vulkan-headers (shared with 008-RHI), glslang, spirv-cross
@@ -95,26 +92,12 @@ if(TE_RHI_D3D12 AND WIN32)
   endif()
 endif()
 
-if(TENENGINE_SHADER_STANDALONE)
-  add_executable(te_shader_compile_test tests/test_compile.cpp)
-  target_link_libraries(te_shader_compile_test PRIVATE te_shader)
-  add_test(NAME te_shader_compile_test COMMAND te_shader_compile_test)
-  add_executable(te_shader_variants_test tests/test_variants.cpp)
-  target_link_libraries(te_shader_variants_test PRIVATE te_shader)
-  add_test(NAME te_shader_variants_test COMMAND te_shader_variants_test)
-  add_executable(te_shader_cache_test tests/test_cache.cpp)
-  target_link_libraries(te_shader_cache_test PRIVATE te_shader)
-  add_test(NAME te_shader_cache_test COMMAND te_shader_cache_test)
-  add_executable(te_shader_hot_reload_test tests/test_hot_reload.cpp)
-  target_link_libraries(te_shader_hot_reload_test PRIVATE te_shader)
-  add_test(NAME te_shader_hot_reload_test COMMAND te_shader_hot_reload_test)
-else()
-  tenengine_add_module_test(
-    NAME te_shader_compile_test
-    MODULE_TARGET te_shader
-    SOURCES tests/test_compile.cpp
-    ENABLE_CTEST
-  )
+tenengine_add_module_test(
+  NAME te_shader_compile_test
+  MODULE_TARGET te_shader
+  SOURCES tests/test_compile.cpp
+  ENABLE_CTEST
+)
   tenengine_add_module_test(
     NAME te_shader_variants_test
     MODULE_TARGET te_shader
@@ -133,4 +116,3 @@ else()
     SOURCES tests/test_hot_reload.cpp
     ENABLE_CTEST
   )
-endif()

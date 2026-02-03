@@ -10,6 +10,7 @@
 #include <te/core/platform.h>
 #include <te/core/log.h>
 #include <te/rendercore/uniform_layout.hpp>
+#include <te/rendercore/shader_reflection.hpp>
 #endif
 #if defined(TENENGINE_USE_SPIRV_CROSS) && TENENGINE_USE_SPIRV_CROSS
 #include <spirv_cross.hpp>
@@ -22,6 +23,10 @@
 #include <string>
 
 namespace te::shader {
+
+#if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE && defined(TENENGINE_USE_SPIRV_CROSS) && TENENGINE_USE_SPIRV_CROSS
+static void ExtractReflectionFromSpirv(ShaderHandleImpl* impl);
+#endif
 
 IShaderHandle* ShaderCompilerImpl::LoadSource(char const* path, ShaderSourceFormat format) {
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
@@ -185,15 +190,20 @@ uint64_t hashMacroSet(MacroSet const& m) {
     return h;
 }
 
+}  // anonymous namespace
+
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE && defined(TENENGINE_USE_SPIRV_CROSS) && TENENGINE_USE_SPIRV_CROSS
 
-void ExtractReflectionFromSpirv(ShaderHandleImpl* impl) {
+static void ExtractReflectionFromSpirv(ShaderHandleImpl* impl) {
     if (!impl || impl->bytecode_.empty()) return;
     try {
         spirv_cross::Compiler comp(impl->bytecode_.data(), impl->bytecode_.size());
         auto res = comp.get_shader_resources();
         impl->reflectionMembers_.clear();
         impl->reflectionTotalSize_ = 0;
+        impl->reflectionResourceBindings_.clear();
+
+        // Uniform buffer members
         for (auto const& ub : res.uniform_buffers) {
             auto const& type = comp.get_type(ub.base_type_id);
             if (type.basetype != spirv_cross::SPIRType::Struct) continue;
@@ -228,12 +238,67 @@ void ExtractReflectionFromSpirv(ShaderHandleImpl* impl) {
             }
             break;
         }
+
+        // Sampled images (Textures)
+        for (auto const& img : res.sampled_images) {
+            te::rendercore::ShaderResourceBinding b{};
+            if (img.name.size() >= 64) {
+                std::memcpy(b.name, img.name.c_str(), 63);
+                b.name[63] = '\0';
+            } else {
+                std::memcpy(b.name, img.name.c_str(), img.name.size() + 1);
+            }
+            b.kind = te::rendercore::ShaderResourceKind::SampledImage;
+            b.set = comp.has_decoration(img.id, spv::DecorationDescriptorSet)
+                ? static_cast<uint32_t>(comp.get_decoration(img.id, spv::DecorationDescriptorSet))
+                : 0u;
+            b.binding = comp.has_decoration(img.id, spv::DecorationBinding)
+                ? static_cast<uint32_t>(comp.get_decoration(img.id, spv::DecorationBinding))
+                : 0u;
+            impl->reflectionResourceBindings_.push_back(b);
+        }
+
+        // Separate images (Vulkan separate image/sampler)
+        for (auto const& img : res.separate_images) {
+            te::rendercore::ShaderResourceBinding b{};
+            if (img.name.size() >= 64) {
+                std::memcpy(b.name, img.name.c_str(), 63);
+                b.name[63] = '\0';
+            } else {
+                std::memcpy(b.name, img.name.c_str(), img.name.size() + 1);
+            }
+            b.kind = te::rendercore::ShaderResourceKind::SampledImage;
+            b.set = comp.has_decoration(img.id, spv::DecorationDescriptorSet)
+                ? static_cast<uint32_t>(comp.get_decoration(img.id, spv::DecorationDescriptorSet))
+                : 0u;
+            b.binding = comp.has_decoration(img.id, spv::DecorationBinding)
+                ? static_cast<uint32_t>(comp.get_decoration(img.id, spv::DecorationBinding))
+                : 0u;
+            impl->reflectionResourceBindings_.push_back(b);
+        }
+
+        // Samplers
+        for (auto const& s : res.separate_samplers) {
+            te::rendercore::ShaderResourceBinding b{};
+            if (s.name.size() >= 64) {
+                std::memcpy(b.name, s.name.c_str(), 63);
+                b.name[63] = '\0';
+            } else {
+                std::memcpy(b.name, s.name.c_str(), s.name.size() + 1);
+            }
+            b.kind = te::rendercore::ShaderResourceKind::Sampler;
+            b.set = comp.has_decoration(s.id, spv::DecorationDescriptorSet)
+                ? static_cast<uint32_t>(comp.get_decoration(s.id, spv::DecorationDescriptorSet))
+                : 0u;
+            b.binding = comp.has_decoration(s.id, spv::DecorationBinding)
+                ? static_cast<uint32_t>(comp.get_decoration(s.id, spv::DecorationBinding))
+                : 0u;
+            impl->reflectionResourceBindings_.push_back(b);
+        }
     } catch (...) {}
 }
 
 #endif
-
-}  // namespace
 
 void ShaderCompilerImpl::EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) {
     if (!handle || !out) return;
@@ -274,6 +339,37 @@ bool ShaderCompilerImpl::GetReflection(IShaderHandle* handle, void* outDesc) {
     desc->members = impl->reflectionMembers_.data();
     desc->memberCount = static_cast<uint32_t>(impl->reflectionMembers_.size());
     desc->totalSize = impl->reflectionTotalSize_;
+    return true;
+#else
+    (void)handle;
+    (void)outDesc;
+    return false;
+#endif
+}
+
+bool ShaderCompilerImpl::GetShaderReflection(IShaderHandle* handle, void* outDesc) {
+#if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
+    if (!handle || !outDesc) return false;
+    auto* impl = static_cast<ShaderHandleImpl*>(handle);
+    // Success if we have uniform block OR resource bindings
+    bool hasUniform = !impl->reflectionMembers_.empty();
+    bool hasResources = !impl->reflectionResourceBindings_.empty();
+    if (!hasUniform && !hasResources) return false;
+    auto* desc = static_cast<te::rendercore::ShaderReflectionDesc*>(outDesc);
+    if (hasUniform) {
+        desc->uniformBlock.members = impl->reflectionMembers_.data();
+        desc->uniformBlock.memberCount = static_cast<uint32_t>(impl->reflectionMembers_.size());
+        desc->uniformBlock.totalSize = impl->reflectionTotalSize_;
+    } else {
+        desc->uniformBlock = {};
+    }
+    if (hasResources) {
+        desc->resourceBindings = impl->reflectionResourceBindings_.data();
+        desc->resourceBindingCount = static_cast<uint32_t>(impl->reflectionResourceBindings_.size());
+    } else {
+        desc->resourceBindings = nullptr;
+        desc->resourceBindingCount = 0;
+    }
     return true;
 #else
     (void)handle;

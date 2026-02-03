@@ -34,6 +34,7 @@ public:
     void EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) override;
     bool Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) override;
     bool GetReflection(IShaderHandle* handle, void* outDesc) override;
+    bool GetShaderReflection(IShaderHandle* handle, void* outDesc) override;
 };
 
 }  // namespace te::shader
