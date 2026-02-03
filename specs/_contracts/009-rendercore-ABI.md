@@ -58,6 +58,14 @@
 | 009-RenderCore | te::rendercore | CreateUniformLayout | 自由函数 | 创建布局 | te/rendercore/uniform_layout.hpp | `IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc);` 失败返回 nullptr |
 | 009-RenderCore | te::rendercore | ReleaseUniformLayout | 自由函数 | 释放布局 | te/rendercore/uniform_layout.hpp | `void ReleaseUniformLayout(IUniformLayout* layout);` nullptr 为 no-op |
 
+### Shader 反射（te/rendercore/shader_reflection.hpp）
+
+| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
+|--------|----------|------|----------|----------|--------|------|
+| 009-RenderCore | te::rendercore | ShaderResourceKind | 枚举 | 资源类型 | te/rendercore/shader_reflection.hpp | UniformBuffer, SampledImage, Sampler, StorageBuffer, StorageImage, Unknown |
+| 009-RenderCore | te::rendercore | ShaderResourceBinding | struct | 资源绑定 | te/rendercore/shader_reflection.hpp | `char name[64]; ShaderResourceKind kind; uint32_t set; uint32_t binding;` Texture/Sampler 槽位 |
+| 009-RenderCore | te::rendercore | ShaderReflectionDesc | struct | 完整反射描述 | te/rendercore/shader_reflection.hpp | uniformBlock (UniformLayoutDesc), resourceBindings, resourceBindingCount；010-Shader GetShaderReflection 产出 |
+
 ### Pass 协议（te/rendercore/pass_protocol.hpp）
 
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
@@ -86,6 +94,7 @@
 | te/rendercore/types.hpp | \<cstdint\>, \<cstddef\> | ResultCode, PassHandle, ResourceHandle, FrameSlotId, ResourceLifetime, BindSlot |
 | te/rendercore/resource_desc.hpp | te/rendercore/types.hpp | VertexFormat, IndexFormat, TextureDesc, BufferDesc 及 Create* 函数 |
 | te/rendercore/uniform_layout.hpp | te/rendercore/types.hpp | IUniformLayout, UniformLayoutDesc, CreateUniformLayout, ReleaseUniformLayout |
+| te/rendercore/shader_reflection.hpp | te/rendercore/uniform_layout.hpp, te/rendercore/types.hpp | ShaderResourceKind, ShaderResourceBinding, ShaderReflectionDesc |
 | te/rendercore/pass_protocol.hpp | te/rendercore/types.hpp | PassResourceDecl, DeclareRead, DeclareWrite, SetResourceLifetime |
 | te/rendercore/uniform_buffer.hpp | te/rendercore/types.hpp, te/rendercore/uniform_layout.hpp, te/rhi/device.hpp, te/rhi/command_list.hpp | IUniformBuffer, CreateUniformBuffer, ReleaseUniformBuffer |
 | te/rendercore/api.hpp | 以上所有 | 聚合头，下游只需 `#include <te/rendercore/api.hpp>` |
