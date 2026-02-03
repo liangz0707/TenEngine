@@ -38,6 +38,7 @@ add_library(te_rendercore STATIC
     src/render_core/uniform_buffer.cpp
     src/render_core/uniform_layout.cpp
     src/render_core/api.hpp
+    include/te/rendercore/shader_reflection.hpp
 )
 
 target_include_directories(te_rendercore
