@@ -39,6 +39,7 @@
 | 010-Shader | te::shader | IShaderCompiler::LoadSourceFromMemory | 成员函数 | 从内存加载 | te/shader/compiler.hpp | `IShaderHandle* LoadSourceFromMemory(void const* data, size_t size, ShaderSourceFormat format) = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::ReleaseHandle | 成员函数 | 释放句柄 | te/shader/compiler.hpp | `void ReleaseHandle(IShaderHandle* handle) = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::GetReflection | 成员函数 | 取 Uniform 反射 | te/shader/compiler.hpp | `bool GetReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::UniformLayoutDesc* |
+| 010-Shader | te::shader | IShaderCompiler::GetShaderReflection | 成员函数 | 取完整反射 | te/shader/compiler.hpp | `bool GetShaderReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::ShaderReflectionDesc*；含 Uniform、Texture、Sampler |
 
 ### 工厂（te/shader/factory.hpp）
 

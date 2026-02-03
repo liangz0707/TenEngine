@@ -62,3 +62,4 @@
 | 2026-01-28 | 根据 010-shader-ABI 反向更新：补充参考与命名约定、导出形式列；能力与类型与 ABI 表一致 |
 | 2026-02-03 | 新增「第三方依赖」小节：glslang、spirv-cross、vulkan-headers、dxc、spirv-tools |
 | 2026-02-03 | 契约同步 plan 010-shader-fullmodule-001：SourceChangedCallback、工厂 Create/Destroy、LoadSourceFromMemory、ReleaseHandle、SetCache、GetReflection、OnSourceChanged(userData) |
+| 2026-02-03 | 新增 GetShaderReflection：产出 ShaderReflectionDesc（Uniform + Texture + Sampler 完整反射） |
