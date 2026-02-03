@@ -20,6 +20,7 @@ std::optional<std::vector<std::uint8_t>> FileRead(std::string const& path) {
   std::ifstream f(path, std::ios::binary | std::ios::ate);
   if (!f) return std::nullopt;
   auto size = f.tellg();
+  if (size <= 0) return std::nullopt;
   f.seekg(0);
   std::vector<std::uint8_t> buf(static_cast<std::size_t>(size));
   if (!f.read(reinterpret_cast<char*>(buf.data()), size)) return std::nullopt;
