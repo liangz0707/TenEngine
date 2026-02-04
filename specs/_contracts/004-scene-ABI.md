@@ -61,3 +61,14 @@
 | 004-Scene | TenEngine::scene | ISceneWorld | 抽象接口 | 创建子节点 | TenEngine/scene/SceneWorld.h | ISceneWorld::CreateNode | `ISceneNode* CreateNode(ISceneNode* parent, char const* name);` parent 可为 nullptr 表示根下；名称可空 |
 
 *来源：用户故事 US-scene-001（场景加载与切换）、US-scene-002（场景图与节点）；参考 Unity SceneManager、Transform 层级；UE UWorld/Level 流式与 Actor 层级。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/004-scene-data-model.md](../../docs/assets/004-scene-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **LevelAssetDesc、SceneNodeDesc**：与 docs/assets/004-scene-data-model.md 一致；002-Object 已注册类型；含 formatVersion、debugDescription、rootNodes、localTransform、children、modelGuid、entityPrefabGuid、components、active 等。
+- [ ] **LoadScene/LoadLevel**：支持入参 **ResourceId** 或 path；若入参为 ResourceId，按 013 §3.1（GUID→路径）解析 Level 资源子目录；读 .level 后 002 Deserialize 得到 LevelAssetDesc。
+- [ ] **场景加载后**：按节点 **modelGuid** 向 013 **RequestLoadAsync(modelGuid, Model)** 或 LoadSync，将得到的 **IModelResource*** 挂到节点（或挂到该节点下实体的 Renderable 等组件）；与 005-Entity、013 约定挂接方式。
+- [ ] **UnloadScene**：卸载时释放对 **IModelResource*** 的引用（IResource::Release 或 013 Unload）；与 013 协同，由 013 按引用计数决定是否卸载 Model 及下游 Mesh/Material。

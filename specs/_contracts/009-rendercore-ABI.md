@@ -112,3 +112,14 @@
 
 - [x] te/rendercore/uniform_layout.hpp 及 CreateUniformLayout/ReleaseUniformLayout
 - [x] 与 010-Shader GetReflection 产出的 UniformLayoutDesc 格式对齐（成员类型映射、偏移、命名，std140）
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §Material 的 UniformBuffer、[011-material-data-model.md](../../docs/assets/011-material-data-model.md)。）
+
+- [ ] **UniformBuffer.Create(Layout)**：011-Material 在 CreateMaterial 或按需阶段调用，009 内部调 008 CreateBuffer(Usage=Uniform)，返回句柄给 011 存入 MaterialHandle；布局与 Shader uniform block、011 scalarParams 一一对应。
+- [ ] **UniformBuffer.Update(cpuData, size)** 或 **SetParam(name, value)**：011 或 020-Pipeline 在提交绘制前将材质 scalarParams 上传到 GPU；009 内部 Map/Update/Unmap 或 008 UpdateBuffer。
+- [ ] **UniformBuffer.Bind**：020-Pipeline 或 009 在 Draw 前将材质的 UniformBuffer 绑定到 Shader 对应 slot；与 008 SetConstantBuffer 对接。
+- [ ] **ShaderParams/Uniform 布局**：与 010-Shader 反射或手写布局一致；保证 011 scalarParams 与 Uniform 成员一一对应（对齐、偏移由 009 或 010 约定）。

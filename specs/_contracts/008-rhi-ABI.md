@@ -183,3 +183,14 @@
 ---
 
 *本 ABI 表已合并 008-rhi-fullmodule-004 增量；已补充 LoadOp/StoreOp/kMaxColorAttachments 及按后端的实现状态表；Copy/RenderPass/DescriptorSet 实现说明已更新；新增「不能实现或保留占位及原因」小节。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **CreateTexture(texdata, descriptor)**：013 在按需阶段（或 Load 时若同步创建）调用，创建 GPU 纹理，返回 **DResource**（IBuffer/ITexture 等）；供 TextureRResource 内持。
+- [ ] **CreateBuffer(size, usage)**：**012** 创建顶点/索引缓冲（Usage=Vertex/Index）时调用；**011/009** 创建材质 Uniform 缓冲（Usage=Uniform）时调用；返回 DResource。
+- [ ] **UpdateBuffer(buffer, offset, data, size)**：011 或 Pipeline 在提交绘制前将材质 **scalarParams** 按布局上传到 GPU 缓冲；与 009 UniformBuffer::Update 或 011 直接对接。
+- [ ] **SetConstantBuffer(slot, buffer)**：020-Pipeline 或 009 在 Draw 前将材质的 UniformBuffer（DResource）绑定到 Shader 对应 slot；与 009 IUniformBuffer::Bind 对接。

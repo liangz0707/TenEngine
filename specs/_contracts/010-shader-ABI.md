@@ -108,3 +108,13 @@
 | LoadCache/SaveCache | te::core::FileRead, te::core::FileWrite | te/core/platform.h |
 
 STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/resource-serialization.md](../../docs/assets/resource-serialization.md)、[011-material-data-model.md](../../docs/assets/011-material-data-model.md)。）
+
+- [ ] **按 shaderGuid 加载**：提供按 **GUID** 解析路径并返回 Shader 句柄的接口；若 Shader 由 013 管理则 013 按 §3.1 解析路径并加载，若由 010 管理则由 010 提供按 shaderGuid 的解析与加载接口（与 013 契约约定）。
+- [ ] **GetReflection/GetShaderReflection**：产出 **Uniform 布局描述**（UniformLayoutDesc、ShaderReflectionDesc）供 009-RenderCore、011-Material 创建 UniformBuffer 布局；与 009 ShaderParams 布局、011 scalarParams 一一对应。
+- [ ] **Uniform 名称/类型**：与 011 MaterialAssetDesc.scalarParams、009 IUniformLayout 成员名与类型一致；010 反射或手写布局须与 009/011 约定对齐。

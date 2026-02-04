@@ -40,3 +40,18 @@
 | 013-Resource | TenEngine::resource | IResourceManager | 抽象接口 | 流式请求与优先级 | TenEngine/resource/ResourceManager.h | IResourceManager::RequestStreaming, SetStreamingPriority | `StreamingHandle RequestStreaming(ResourceId id, int priority);` `void SetStreamingPriority(StreamingHandle h, int priority);` 与 LOD/Terrain 对接 |
 
 *来源：用户故事 US-resource-001/002/003。契约能力：Import、Load、Unload、Streaming、Addressing（ResourceId/GUID）。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/resource-serialization.md](../../docs/assets/resource-serialization.md)、[013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **RequestLoadAsync(ResourceId, type)/LoadSync(ResourceId, type)**：入参为 **GUID（ResourceId）** 与 **ResourceType**，不传入文件路径；内部完成 **GUID→资源路径** 解析（§3.1 方案 A 或 B），再按类型加载。
+- [ ] **GUID→路径**：实现 resource-serialization §3.1 方案 A（约定派生：`<根路径>/<类型子路径>/<GUID 字符串>`）或方案 B（Manifest 注册表）；在本文或 013 契约中写明策略与主文件命名。
+- [ ] **Load 阶段仅建 RResource**：默认不在此阶段创建 DResource；RResource 内持描述/源数据，**DResource 槽位为空**；DResource 在场景收集到该 Model 时**异步按需创建**。
+- [ ] **EnsureDeviceResourcesAsync(IModelResource*)**：当 020-Pipeline 或场景**收集到该 Model** 时触发；对该 Model 及其下所有 Mesh/Material/Texture **异步**创建 DResource 并填入对应 RResource/MeshHandle/MaterialHandle。
+- [ ] **IsDeviceReady()/HasDResource()**：提供查询接口；Pipeline 在提交 Draw 前查询，未就绪时跳过/等待/占位；绑定/上传时若 DResource 为空须安全返回或跳过。
+- [ ] **无引擎格式回退**：Texture/Mesh 若目录内无 .texture/.texdata 或 .mesh，先在该目录内用原始文件执行 **Import→Save**，再按正常 Load。
+- [ ] **磁盘目录**：每资源一子目录；与 resource-serialization §7 一致；Import 时原始资源一并放入该目录。
+- [ ] **Import/Save**：若采用方案 B，Import/Save 时更新注册表（GUID→path）；写出引擎格式（.texture、.texdata、.mesh、.material、.model、.level）。

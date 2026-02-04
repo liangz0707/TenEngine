@@ -47,3 +47,13 @@
 **ResultCode**：使用 009-RenderCore 的 `te::rendercore::ResultCode`。
 
 *来源：用户故事 US-004（流水线式多帧渲染）、US-rendering-003（FrameGraph AddPass）、US-rendering-004（多线程管线阶段；线程 D = 唯一 GPU/Device 线程，所有 GPU 操作与资源创建须在线程 D）。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **收集到 Model 时触发 DResource 创建**：在 CollectRenderItemsParallel 或合并后的 RenderItem 列表中，对每个涉及 **IModelResource*** 的项，在提交绘制前（或约定时机）触发 013 **EnsureDeviceResourcesAsync(IModelResource*)**（或单资源 Texture/Mesh/Material）；与 013、020 契约约定由谁调用、何时调用。
+- [ ] **PrepareRenderMaterial/PrepareRenderMesh**：在线程 D 调用时，若 013 提供 **IsDeviceReady()**，未就绪则返回“未就绪”或等待/跳过；与 013 设备层“可能暂无 DResource”兼容。
+- [ ] **与 013 契约**：收集阶段与 DResource 按需创建时机（先收集再触发 EnsureDeviceResourcesAsync，或收集时即触发）；多帧在途与异步完成回调的对接。

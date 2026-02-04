@@ -21,3 +21,13 @@
 | 005-Entity | TenEngine::entity | — | 自由函数 | 获取组件类型注册表 | TenEngine/entity/ComponentRegistry.h | GetComponentRegistry | `IComponentRegistry* GetComponentRegistry();` 或由 Subsystems 注册；调用方不拥有指针 |
 
 *来源：用户故事 US-entity-001（场景通过 ECS 组织，Entity 为场景单元，多种 Component，程序员可快速定义与扩展类型）。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §Entity/Component 如何引用资源、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **Component 内资源引用**：对 Mesh/Material/Texture/Model 的引用存 **ResourceId（GUID）**，不长期持有 IResource*；需要时由 Pipeline 或系统通过 013 的 LoadSync(ResourceId) 或 GetCached(ResourceId) 取得 IResource*，用毕可不持有或仅缓存到下一帧。
+- [ ] **ModelComponent 等**：若挂载模型，字段为 **modelGuid**（ResourceId）或 013 提供的不透明句柄；运行时由 013 解析为 IModelResource* 再提交绘制。
+- [ ] **预制体 entityPrefabGuid**：与 004-Scene、013-Resource 约定预制体资源的加载与实例化接口（若预制体定义为 ResourceType，004/005 向 013 请求加载后实例化到场景）。

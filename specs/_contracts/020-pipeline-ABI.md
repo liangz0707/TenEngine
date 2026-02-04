@@ -26,3 +26,14 @@
 | 020-Pipeline | TenEngine::pipeline | IRenderPipeline | 抽象接口 | **提交到实际 GPU Command**（SubmitCommandBuffer，须在线程 D 调用） | TenEngine/pipeline/RenderPipeline.h | IRenderPipeline::SubmitLogicalCommandBuffer | `void SubmitLogicalCommandBuffer(ILogicalCommandBuffer* logical_cb);` 即 SubmitCommandBuffer；**必须在线程 D 调用**；将 logical_cb 交给 RHI 在同一线程 D 录制并 submit 到实际 GPU |
 
 *来源：用户故事 US-002（一帧渲染）、US-004（流水线式多帧渲染）、US-editor-001（编辑器内配置渲染设置并保存）、US-rendering-003（FrameGraph AddPass）、US-rendering-004（多线程管线阶段）。*
+
+---
+
+## 数据相关 TODO
+
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §设备层可能无 DResource 的兼容、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+
+- [ ] **从 004/005 取待渲染项**：从 Scene/Entity 拿到待渲染节点或实体列表；每个节点/实体可能挂 **modelGuid** 或已解析的 **IModelResource***；若为 ResourceId，先通过 013 LoadSync(ResourceId) 或 GetCached(ResourceId) 取得 IModelResource*。
+- [ ] **提交绘制前查询 IsDeviceReady()**：若 Model/Mesh/Material/Texture 的 **IsDeviceReady() 为 false**，可选择**跳过该次绘制**、**等待异步完成**（下一帧再试）或**使用占位资源**（默认白贴图、简单几何）；策略与 013 约定。
+- [ ] **绑定材质 UniformBuffer**：在 Draw 前将材质的 UniformBuffer（DResource 或 009 句柄）绑定到 Shader 对应 slot（008 SetConstantBuffer 或 009 IUniformBuffer::Bind）。
+- [ ] **可选 RequestStreaming/SetStreamingPriority**：与 013 对接流式加载与优先级；Pipeline 根据视距或重要性向 013 请求流式加载或调整优先级。
