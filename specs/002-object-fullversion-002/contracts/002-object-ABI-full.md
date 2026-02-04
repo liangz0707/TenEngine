@@ -1,10 +1,10 @@
-# 002-Object 模块 ABI
+# 002-Object 全量 ABI（实现参考）
 
-- **契约**：[002-object-public-api.md](./002-object-public-api.md)（能力与类型描述）
-- **本文件**：002-Object 对外 ABI 显式表。
-- **更新来源**：002-object-fullversion-002 全量 ABI 写回（2026-01-29）。
+> **用途**：tasks 与 implement 阶段**必须基于本全量 ABI 内容**进行实现。plan.md「契约更新」小节仅保存相对现有 `specs/_contracts/002-object-ABI.md` 的新增/修改部分。
+>
+> **来源**：原始 ABI + `specs/_contracts/002-object-ABI.md` 数据相关 TODO + `specs/_contracts/002-object-public-api.md` 完整功能集。
 
-## ABI 表
+## 全量 ABI 表
 
 列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
 
@@ -13,7 +13,7 @@
 | 002-Object | te::object | — | 类型 | 类型标识 | te/object/TypeId.hpp | TypeId | `using TypeId = uint32_t;` 0 或 kInvalidTypeId 表示无效 |
 | 002-Object | te::object | TypeDescriptor | 类型 | 类型描述 | te/object/TypeDescriptor.hpp | TypeDescriptor | struct: id, name, size, properties, propertyCount, methods, methodCount, baseTypeId |
 | 002-Object | te::object | PropertyDescriptor | 类型 | 属性描述 | te/object/PropertyDescriptor.hpp | PropertyDescriptor | struct: name, valueTypeId, defaultValue |
-| 002-Object | te::object | MethodDescriptor | 类型 | 方法描述（占位） | te/object/TypeId.hpp | MethodDescriptor | struct（本切片可为占位或最小集） |
+| 002-Object | te::object | MethodDescriptor | 类型 | 方法描述（占位） | te/object/TypeDescriptor.hpp | MethodDescriptor | struct（本切片可为占位或最小集） |
 | 002-Object | te::object | TypeRegistry | 类 | 类型注册 | te/object/TypeRegistry.hpp | RegisterType | `static bool RegisterType(TypeDescriptor const& desc);` 重复 TypeId 拒绝 |
 | 002-Object | te::object | TypeRegistry | 类 | 类型查询 | te/object/TypeRegistry.hpp | GetTypeByName | `static TypeDescriptor const* GetTypeByName(char const* name);` 未找到返回 nullptr |
 | 002-Object | te::object | TypeRegistry | 类 | 类型查询 | te/object/TypeRegistry.hpp | GetTypeById | `static TypeDescriptor const* GetTypeById(TypeId id);` 未找到返回 nullptr |
@@ -42,10 +42,3 @@
 - **formatVersion**：由各描述类型所属模块与本契约约定；序列化时写出，反序列化前可 Migrate
 - **跨资源引用**：仅读写 16 字节 GUID，不存指针或路径
 - **上游调用**：类型元数据分配使用 001-Core `Alloc`/`Free`
-
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 按 002-Object 模块规格与 resource-serialization 约定 ABI 与 TODO |
-| 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
