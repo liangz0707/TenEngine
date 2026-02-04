@@ -1,4 +1,4 @@
-# T0 模块 ABI 总索引
+﻿# T0 模块 ABI 总索引
 
 本文件为 **TenEngine T0 架构（27 模块）** 的 **ABI 总索引**：汇总各模块对外符号的命名空间、头文件与符号列表，供实现与下游消费时统一查阅。
 
@@ -13,10 +13,10 @@
 | 列 | 含义 | 示例 |
 |----|------|------|
 | **模块名** | 模块 ID（如 001-Core） | 001-Core |
-| **命名空间** | C++ 命名空间，下游 include 后使用的限定前缀 | TenEngine::core |
+| **命名空间** | C++ 命名空间，下游 include 后使用的限定前缀 | te::core |
 | **类名** | 所属类型名；自由函数/全局枚举/全局常量填 **—** | IAllocator、— |
 | **接口说明** | 一句话职责 | 全局堆分配、日志级别枚举 |
-| **头文件** | 相对 include 路径（下游以该路径 include） | TenEngine/core/Alloc.h |
+| **头文件** | 相对 include 路径（下游以该路径 include） | te/core/Alloc.h |
 | **符号** | 下游使用的符号名：自由函数/枚举名/常量名，或 类型名、类型名::方法、类型名::枚举值（**首字母大写的驼峰 PascalCase**） | Alloc、LogLevel、TypeRegistry::RegisterType |
 | **说明** | **完整函数签名**、线程安全、生命周期等 | `void* Alloc(size_t size, size_t alignment);` 失败 nullptr |
 
@@ -47,10 +47,10 @@
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
-| 001-Core | TenEngine::core | — | 自由函数 | 全局堆分配 | TenEngine/core/Alloc.h | Alloc | `void* Alloc(size_t size, size_t alignment);` 失败 nullptr |
-| 001-Core | TenEngine::core | — | 全局枚举 | 日志级别 | TenEngine/core/Log.h | LogLevel | `enum class LogLevel { Debug, Info, Warn, Error };` |
-| 002-Object | TenEngine::object | TypeRegistry | 单例 | 类型注册表 | TenEngine/object/TypeRegistry.h | TypeRegistry::Instance, RegisterType, GetTypeByName | 单例；`TypeRegistry& Instance();` `void RegisterType\<T\>(char const* name);` `ITypeInfo const* GetTypeByName(char const* name);` |
-| 008-RHI | TenEngine::rhi | IDevice | 抽象接口 | 图形设备 | TenEngine/rhi/Device.h | CreateDevice, DestroyDevice | `IDevice* CreateDevice(DeviceDesc const& desc);` `void DestroyDevice(IDevice* device);` 工厂函数返回 IDevice*；不直接构造 |
+| 001-Core | te::core | — | 自由函数 | 全局堆分配 | te/core/Alloc.h | Alloc | `void* Alloc(size_t size, size_t alignment);` 失败 nullptr |
+| 001-Core | te::core | — | 全局枚举 | 日志级别 | te/core/Log.h | LogLevel | `enum class LogLevel { Debug, Info, Warn, Error };` |
+| 002-Object | te::object | TypeRegistry | 单例 | 类型注册表 | te/object/TypeRegistry.h | TypeRegistry::Instance, RegisterType, GetTypeByName | 单例；`TypeRegistry& Instance();` `void RegisterType\<T\>(char const* name);` `ITypeInfo const* GetTypeByName(char const* name);` |
+| 008-RHI | te::rhi | IDevice | 抽象接口 | 图形设备 | te/rhi/Device.h | CreateDevice, DestroyDevice | `IDevice* CreateDevice(DeviceDesc const& desc);` `void DestroyDevice(IDevice* device);` 工厂函数返回 IDevice*；不直接构造 |
 
 各模块 ABI 文件可保留原有 7 列（不强制加「导出形式」），在 **说明** 列中写出调用方式与导出形式即可；若希望机器可解析或统一检索，可增加 **导出形式** 列。
 

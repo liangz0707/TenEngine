@@ -1,10 +1,10 @@
-# 契约：008-RHI 渲染抽象层对外 API（RCI）
+﻿# 契约：008-RHI 渲染抽象层对外 API（RCI）
 
 ## 适用模块
 
 - **实现方**：**008-RHI**（Render Hardware Interface，T0 图形 API 抽象层）
 - **对应规格**：`docs/module-specs/008-rhi.md`
-- **角色**：向上层提供统一渲染接口，向下对接 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口（及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口，与 010-Shader 对接）；RCI 与 RHI 同义，本契约即 RHI 对外 API。**引擎统一使用 TenEngine 命名空间**，本模块 API 位于 `TenEngine::rhi`。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端相关实现路径。
+- **角色**：向上层提供统一渲染接口，向下对接 **Vulkan**、**Metal（MTL）**、**D3D12/DXIL** 等图形接口（及 **GLSL**、**HLSL/DXIL**、**MSL** 等 Shader 接口，与 010-Shader 对接）；RCI 与 RHI 同义，本契约即 RHI 对外 API。**引擎统一使用 te 命名空间**，本模块 API 位于 `te::rhi`。**可以通过宏来判断执行哪一段代码**（如 TE_RHI_VULKAN、TE_RHI_METAL、TE_RHI_D3D12），编译时选择后端相关实现路径。
 
 ## 消费者（T0 下游）
 
@@ -65,7 +65,7 @@
 
 - 渲染管线（020-Pipeline）按 PipelineCore（019）协议构建 Pass 图与命令缓冲，最终通过本契约的**提交接口 Submit(ICommandList*, IQueue*)** 交给 RHI 执行；命令缓冲格式与资源状态约定见 `pipeline-to-rci.md`。
 
-## API 雏形（简化声明，命名空间 TenEngine::rhi）
+## API 雏形（简化声明，命名空间 te::rhi）
 
 与 `docs/module-specs/008-rhi.md` §5.2 及 `specs/_contracts/008-rhi-ABI.md` 对齐。
 
@@ -143,6 +143,6 @@
 |------|----------|
 | （初始） | 从 002-rendering-rci-interface spec 提炼，供多 Agent 引用 |
 | T0 更新 | 对齐 T0 架构 008-RHI：实现方改为 008-RHI，消费者改为 T0 模块列表；类型与能力与 docs/module-specs/008-rhi.md 一致 |
-| 2026-01-29 | 契约与模块规约 §5.2 对齐：统一使用 TenEngine::rhi、CreateDevice/GetQueue/CreateBuffer/CreateTexture 等 API；能力 3 改为 CreateBuffer/CreateTexture/CreateSampler/CreateView；类型表补充 IQueue、IFence、ISemaphore、ViewHandle；新增 API 雏形 |
+| 2026-01-29 | 契约与模块规约 §5.2 对齐：统一使用 te::rhi、CreateDevice/GetQueue/CreateBuffer/CreateTexture 等 API；能力 3 改为 CreateBuffer/CreateTexture/CreateSampler/CreateView；类型表补充 IQueue、IFence、ISemaphore、ViewHandle；新增 API 雏形 |
 | 2026-01-29 | contract(008-rhi): sync from plan 008-rhi-fullmodule-001；ABI 表新增 Phase 1 实现小节，与 public-api API 雏形及 docs/module-specs/008-rhi.md §5.2 对齐 |
 | 2026-01-31 | 与 008-rhi-ABI.md 同步：Backend 增加 D3D11；DeviceLimits/GetLimits；CreateFence(bool)；Submit 重载（Fence/Semaphore）；Viewport/ScissorRect、DrawIndexed、SetViewport/SetScissor；LoadOp/StoreOp/kMaxColorAttachments、RenderPassDesc、BeginRenderPass/EndRenderPass；BufferRegion/TextureRegion、CopyBuffer/CopyBufferToTexture/CopyTextureToBuffer；描述符集（P2）；光追 BuildAccelerationStructure/DispatchRays；类型表补充 IDescriptorSetLayout/IDescriptorSet |

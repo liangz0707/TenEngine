@@ -1,110 +1,65 @@
-# T0 模块依赖图（27 模块）
+﻿# 模块依赖图（Module Dependency Map）
 
-用于多 Agent 协作时快速查看：**谁依赖谁**、**改某个模块会影响谁**。接口边界以 `specs/_contracts/` 下契约为准。  
-**完整依赖图（Mermaid、矩阵、边列表）** 见 **`docs/engine-modules-and-architecture.md`** §4。
+用于多 Agent 协作时快速查看：**谁依赖谁**、**改某个模块会影响谁**。接口边界以 `specs/_contracts/` 下契约为准。
 
-## 层级与模块（T0 最新架构）
+## 依赖关系图（文字版）
 
-- **L0 基础**：001-Core, 002-Object, 003-Application  
-- **L1**：004-Scene, 005-Entity, 006-Input, 007-Subsystems, 008-RHI  
-- **L2**：009-RenderCore, 010-Shader, 011-Material, 012-Mesh, 013-Resource, 014-Physics, 015-Animation, 016-Audio, 017-UICore, 018-UI  
-- **L3**：019-PipelineCore, 020-Pipeline, 021-Effects, 022-2D, 023-Terrain  
-- **L4**：024-Editor, 025-Tools, 026-Networking, 027-XR  
+```
+                     ┌─────────────────────────────────────┐
+                     │  003-editor-system                  │
+                     │  (依赖: RCI, Core/平台)              │
+                     └──────────────┬──────────────────────┘
+                                    │
+┌───────────────────┐               │               ┌───────────────────┐
+│ 004-resource-system│               │               │ 005-shader-system  │
+│ (依赖: Core/平台)  │               │               │ (依赖: RCI, Core)  │
+└─────────┬─────────┘               │               └─────────┬─────────┘
+          │                         │                         │
+          │                         ▼                         │
+          │              ┌─────────────────────┐             │
+          │              │ 006-render-pipeline  │             │
+          │              │ (依赖: RCI 契约)     │◄────────────┘
+          │              │ 输出: 命令缓冲→RCI    │
+          │              └──────────┬────────────┘
+          │                         │
+          │                         ▼
+          │              ┌─────────────────────┐
+          └─────────────►│ 002-rendering-rci   │
+                         │ (依赖: Core/平台)   │
+                         │ 契约: rci-public-api│
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │ 001-engine-core     │
+                         │ 契约: core-public-api│
+                         └─────────────────────┘
+```
 
-## 依赖表（下游 → 上游，直接依赖）
+## 依赖表（下游 → 上游）
 
-**每模块一契约**：每行「本模块契约」即该模块对外提供的契约文件名；「契约文件」为该模块所依赖的上游契约。
+| 模块 (spec) | 依赖的上游模块 | 依赖的契约文件 |
+|-------------|----------------|----------------|
+| 001-engine-core-module | — | 无（根模块） |
+| 002-rendering-rci-interface | Core | core-public-api.md |
+| 003-editor-system | Core, RCI | core-public-api.md, rci-public-api.md |
+| 004-resource-system | Core | core-public-api.md |
+| 005-shader-system | Core, RCI | core-public-api.md, rci-public-api.md |
+| 006-render-pipeline-system | RCI（命令缓冲消费方） | rci-public-api.md, pipeline-to-rci.md |
+| 006-thirdparty-integration-tool | 视实现而定 | 按实际依赖填写 |
 
-| 模块 | 直接依赖 | 契约文件（依赖） | 本模块契约 |
-|------|----------|------------------|------------|
-| 001-Core | — | 无（根） | 001-core-public-api |
-| 002-Object | Core | 001-core-public-api | 002-object-public-api |
-| 003-Application | Core | 001-core-public-api | 003-application-public-api |
-| 004-Scene | Core, Object | 001-core-public-api, 002-object-public-api | 004-scene-public-api |
-| 005-Entity | Core, Object, Scene | 001-core-public-api, 002-object-public-api, 004-scene-public-api | 005-entity-public-api |
-| 006-Input | Core, Application | 001-core-public-api, 003-application-public-api | 006-input-public-api |
-| 007-Subsystems | Core, Object | 001-core-public-api, 002-object-public-api | 007-subsystems-public-api |
-| 008-RHI | Core | 001-core-public-api | 008-rhi-public-api |
-| 009-RenderCore | Core, RHI | 001-core-public-api, 008-rhi-public-api | 009-rendercore-public-api |
-| 010-Shader | Core, RHI, RenderCore | 001-core-public-api, 008-rhi-public-api, 009-rendercore-public-api | 010-shader-public-api |
-| 011-Material | RenderCore, Shader | 009-rendercore-public-api, 010-shader-public-api | 011-material-public-api |
-| 012-Mesh | Core, RenderCore | 001-core-public-api, 009-rendercore-public-api | 012-mesh-public-api |
-| 013-Resource | Core, Object | 001-core-public-api, 002-object-public-api | 013-resource-public-api |
-| 014-Physics | Core, Scene, Entity | 001-core-public-api, 004-scene-public-api, 005-entity-public-api | 014-physics-public-api |
-| 015-Animation | Core, Object, Entity | 001-core-public-api, 002-object-public-api, 005-entity-public-api | 015-animation-public-api |
-| 016-Audio | Core, Resource | 001-core-public-api, 013-resource-public-api | 016-audio-public-api |
-| 017-UICore | Core, Application, Input | 001-core-public-api, 003-application-public-api, 006-input-public-api | 017-uicore-public-api |
-| 018-UI | UICore | 017-uicore-public-api | 018-ui-public-api |
-| 019-PipelineCore | RHI, RenderCore | 008-rhi-public-api, 009-rendercore-public-api | 019-pipelinecore-public-api |
-| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource, **Effects**, Animation（可选） | 001/004/005/019/009/010/011/012/013/021 等；015 可选 | 020-pipeline-public-api |
-| 021-Effects | PipelineCore, RenderCore, Shader | 019-pipelinecore-public-api, 009-rendercore-public-api, 010-shader-public-api | 021-effects-public-api |
-| 022-2D | Core, Resource, Physics, Pipeline, RenderCore | 001, 013, 014, 020-pipeline-public-api, 009 等 | 022-2d-public-api |
-| 023-Terrain | Core, Resource, Mesh, Pipeline, RenderCore | 001, 013, 012, 020-pipeline-public-api, 009 等 | 023-terrain-public-api |
-| 024-Editor | Core, Application, Input, RHI, Resource, Scene, Entity, Pipeline, UI | 多个 L0–L3 契约 | 024-editor-public-api |
-| 025-Tools | 按需 | 按实际依赖 | 025-tools-public-api |
-| 026-Networking | Core, Entity | 001-core-public-api, 005-entity-public-api | 026-networking-public-api |
-| 027-XR | Core, Subsystems, Input, Pipeline | 001, 007, 006, 020-pipeline-public-api | 027-xr-public-api |
+## 谁被谁依赖（上游 → 下游）
 
-## 谁被谁依赖（上游 → 下游，修改接口时需通知）
+修改某模块的**对外接口**时，需考虑以下**下游**模块的兼容性：
 
-| 提供方 | 依赖它的下游（节选） |
-|--------|----------------------|
-| 001-Core | 几乎所有模块 |
-| 002-Object | Scene, Entity, Subsystems, Resource, Animation 等 |
-| 003-Application | Input, UICore, Pipeline, Editor 等 |
-| 004-Scene | Entity, Physics, Pipeline, Editor 等 |
-| 005-Entity | Physics, Animation, Pipeline, Editor, Networking 等 |
-| 006-Input | UICore, Editor, XR 等 |
-| 007-Subsystems | XR 等 |
-| 008-RHI | RenderCore, Shader, PipelineCore, Pipeline, Editor, XR |
-| 009-RenderCore | Shader, Material, Mesh, PipelineCore, Pipeline, Effects, 2D, Terrain |
-| 010-Shader | Material, Pipeline, Effects |
-| 011-Material | Pipeline |
-| 012-Mesh | Pipeline, Terrain, Animation |
-| 013-Resource | Audio, Pipeline, 2D, Terrain, Editor |
-| 014-Physics | 2D |
-| 015-Animation | Pipeline, Mesh, Editor |
-| 017-UICore | UI, Editor |
-| 018-UI | Editor |
-| 019-PipelineCore | Pipeline, Effects |
-| 020-Pipeline | Effects, 2D, Terrain, Editor, XR |
-| 021-Effects | Pipeline, Editor |
-| 022-2D | Editor |
-| 023-Terrain | Editor |
+| 提供方模块 | 依赖它的下游 |
+|------------|--------------|
+| 001-engine-core-module | 002, 003, 004, 005 |
+| 002-rendering-rci-interface | 003, 005, 006 |
+| 006-render-pipeline-system | 002（通过 pipeline-to-rci 契约） |
 
-**边界契约**：020-Pipeline ↔ 008-RHI 的命令缓冲与提交约定见 `pipeline-to-rci.md`，020、008 实现须遵循。
-
-**流程**：修改某模块的公开 API → 在 **T0-contracts** 分支更新对应契约 → 在 `000-module-dependency-map.md` 中确认下游 → 通知或创建下游适配任务。
-
-## 依赖合理性检查与调整建议
-
-以下为对当前依赖图的检查结论与可选调整，供实现与多 Agent 协作时参考。
-
-### 1. 循环依赖与层级违反
-
-- **结论**：未发现**循环依赖**；L0→L1→L2→L3→L4 层级未被违反（低层未依赖高层）。
-- **建议**：保持现状；新增模块时继续遵守「仅依赖同层或下层」规则。
-
-### 2. 可能缺失的直接依赖（建议补充或显式约定）
-
-| 模块 | 现状 | 建议 | 理由 |
-|------|------|------|------|
-| **020-Pipeline** | ~~直接依赖未包含 021-Effects~~ | **已调整**：021-Effects 已列入 020 直接依赖（管线内建后处理/粒子 Pass）。 | — |
-| **020-Pipeline** | ~~直接依赖未包含 015-Animation~~ | **已约定**：015-Animation 列为**可选**直接依赖；仅当管线渲染蒙皮/骨骼时依赖。 | 表中已标 Animation（可选）；实现时按需链接 015。 |
-| **024-Editor** | 依赖 UI，未直接写 UICore | 保持现状即可 | 018-UI 已依赖 017-UICore，Editor 经 UI 间接使用 UICore，无需重复声明。 |
-| **025-Tools** | 「按需」无具体依赖 | 实现具体工具时再填写**具体依赖**（如 Core, Resource, 013 等） | 避免长期处于「按需」导致构建/契约不明确。 |
-
-### 3. 不完整或不一致处
-
-- **021-Effects ↔ 020-Pipeline**：**已调整**。020-Pipeline 已将 021-Effects 列为直接依赖（管线内建后处理/粒子 Pass）。
-- **027-XR**：已依赖 Core, Subsystems, Input, Pipeline；若 XR 使用 024-Editor 的视口或仅由 Editor 启动，可不增加对 Editor 的依赖（Editor 为 L4 消费端）。
-
-### 4. 建议的后续动作
-
-1. ~~**020-Pipeline**：……增加 021-Effects。~~ **已做**：020 已增加 Effects 与 Animation（可选）。
-2. **025-Tools**：首个 Tools 子功能落地时，在依赖表中将「按需」替换为具体依赖列表。
-3. **同步**：上述任一项调整后，同步更新 `docs/engine-modules-and-architecture.md` 中 §3 依赖表与 §4 依赖图。
+**流程**：修改 Core 的公开 API → 更新 `core-public-api.md` → 检查 002/003/004/005 的 spec 或实现是否需要同步修改。
 
 ---
 
-*本文件与 `docs/engine-modules-and-architecture.md` 保持一致；任一 Agent 修改依赖关系时请同步更新。*
+*本文件与 specs 下各 spec 的 Dependencies 应保持一致；任一 Agent 修改依赖关系时请同步更新此表。*

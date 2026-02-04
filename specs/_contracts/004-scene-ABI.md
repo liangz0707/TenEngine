@@ -1,4 +1,4 @@
-# 004-Scene 模块 ABI
+﻿# 004-Scene 模块 ABI
 
 - **契约**：[004-scene-public-api.md](./004-scene-public-api.md)（能力与类型描述）
 - **本文件**：004-Scene 对外 ABI 显式表。

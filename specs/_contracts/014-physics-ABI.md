@@ -1,4 +1,4 @@
-# 014-Physics 模块 ABI
+﻿# 014-Physics 模块 ABI
 
 - **契约**：[014-physics-public-api.md](./014-physics-public-api.md)（能力与类型描述）
 - **本文件**：014-Physics 对外 ABI 显式表。

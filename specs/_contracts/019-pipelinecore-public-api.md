@@ -1,4 +1,4 @@
-# 契约：019-PipelineCore 模块对外 API
+﻿# 契约：019-PipelineCore 模块对外 API
 
 ## 适用模块
 
