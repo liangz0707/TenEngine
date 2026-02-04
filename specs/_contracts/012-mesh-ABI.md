@@ -15,9 +15,30 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §Mesh；本模块上游：001-Core、009-RenderCore。）
 
-- [ ] **.mesh 二进制格式**：与 013 约定 formatVersion、debugDescription、vertexLayout、vertexData、indexData、indexFormat、submeshes（及可选 LOD、蒙皮）；013 解析 .mesh 后交本模块，本模块不直接读文件。
-- [ ] **CreateMesh(vertexData, indexData, layout, submeshes)**：013 在 Load 或按需阶段调用；内部调 **008-RHI CreateBuffer**（Usage=Vertex/Index）创建顶点/索引缓冲（**DResource**），组装 **MeshHandle**（内持 DResource）返回 013。
-- [ ] **MeshHandle**：支持“先有 MeshHandle、后填 DResource”（按需阶段）；013 调用 EnsureDeviceResourcesAsync 时，012 创建 DResource 并填入已有 MeshHandle。
-- [ ] **Unload**：013 Unload(IMeshResource*) 时通知 012 释放对应 MeshHandle；012 释放顶点/索引缓冲（008 资源），与 013 协调。
+### 数据
+
+- [ ] **Mesh 输入格式约定**：与 013 约定 .mesh 解析后的结构（formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮）
+- [ ] **MeshHandle**：内持顶点/索引 IBuffer*（DResource）、子网格信息
+
+### 需提供的对外接口
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `CreateMesh(vertexData, indexData, layout, submeshes, device) → MeshHandle*` | 创建 Mesh；device 由调用方（013）传入 |
+| [ ] `EnsureDeviceResources(handle, device) → bool` | 按需创建 DResource；返回是否就绪 |
+| [ ] `ReleaseMesh(handle)` | 释放 MeshHandle 及 GPU 缓冲 |
+
+### 需调用上游
+
+| 场景 | 调用 009 / 设备接口 |
+|------|---------------------|
+| CreateMesh | 使用 009.VertexFormat、IndexFormat、BufferDesc 描述；调用设备 CreateBuffer(Vertex/Index) |
+| ReleaseMesh | 调用设备 DestroyBuffer |
+
+### 调用流程
+
+1. 013 解析 .mesh → 得到 vertexData、indexData、layout、submeshes → 012.CreateMesh(..., device)
+2. 013 EnsureDeviceResourcesAsync → 012.EnsureDeviceResources(handle, device)
+3. 013 Unload → 012.ReleaseMesh(handle)

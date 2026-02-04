@@ -31,9 +31,35 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §设备层可能无 DResource 的兼容、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+（本模块上游：001-Core、004-Scene、005-Entity、019-PipelineCore、009-RenderCore、010-Shader、011-Material、012-Mesh、013-Resource、021-Effects 等。）
 
-- [ ] **从 004/005 取待渲染项**：从 Scene/Entity 拿到待渲染节点或实体列表；每个节点/实体可能挂 **modelGuid** 或已解析的 **IModelResource***；若为 ResourceId，先通过 013 LoadSync(ResourceId) 或 GetCached(ResourceId) 取得 IModelResource*。
-- [ ] **提交绘制前查询 IsDeviceReady()**：若 Model/Mesh/Material/Texture 的 **IsDeviceReady() 为 false**，可选择**跳过该次绘制**、**等待异步完成**（下一帧再试）或**使用占位资源**（默认白贴图、简单几何）；策略与 013 约定。
-- [ ] **绑定材质 UniformBuffer**：在 Draw 前将材质的 UniformBuffer（DResource 或 009 句柄）绑定到 Shader 对应 slot（008 SetConstantBuffer 或 009 IUniformBuffer::Bind）。
-- [ ] **可选 RequestStreaming/SetStreamingPriority**：与 013 对接流式加载与优先级；Pipeline 根据视距或重要性向 013 请求流式加载或调整优先级。
+### 数据
+
+- [ ] **FrameContext**：含 scene、camera、viewport、frameSlotId
+- [ ] 待渲染项来源：004 节点 modelGuid、005 实体 ModelComponent.modelGuid
+
+### 需提供的对外接口
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `IRenderPipeline::RenderFrame(ctx)` / `TriggerRender(ctx)` | 一帧渲染入口 |
+| [ ] `IRenderPipeline::SubmitLogicalCommandBuffer(logical_cb)` | 在线程 D 提交到 GPU |
+
+### 需调用上游
+
+| 场景 | 调用上游接口 |
+|------|--------------|
+| 取待渲染项 | 004.`GetNodeModelGuid(node)`；005.`GetModelGuid(entity)` |
+| 按 GUID 加载 Model | 013.`LoadSync(ResourceId, Model)` 或 `RequestLoadAsync` |
+| 收集 RenderItem | 019.`CollectRenderItemsParallel` |
+| 准备资源 | 019.`PrepareRenderMaterial`, `PrepareRenderMesh` |
+| 提交绘制前 | 013.`IsDeviceReady(resource)`；false 则跳过/等待/占位 |
+| Draw 时绑定 Uniform | 009.`IUniformBuffer::Bind(cmd, slot)` 或 008.`SetUniformBuffer` |
+| 流式加载（可选） | 013.`RequestStreaming`, `SetStreamingPriority` |
+
+### 调用流程
+
+1. **TriggerRender(ctx)** → 从 004/005 取 modelGuid → 013.LoadSync(modelGuid) 取得 IModelResource* → 构造 FrameContext.scene
+2. **019.CollectRenderItemsParallel** → 产出 RenderItem 列表
+3. **线程 D**：019.PrepareRenderMaterial/Mesh → 019.ConvertToLogicalCommandBuffer → 录制 Draw（009.Bind / 008.SetUniformBuffer）→ SubmitLogicalCommandBuffer
+4. **Draw 前**：013.IsDeviceReady 为 false 则跳过该次绘制或使用占位

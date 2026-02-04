@@ -52,8 +52,32 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+（本模块上游：008-RHI、009-RenderCore。）
 
-- [ ] **收集到 Model 时触发 DResource 创建**：在 CollectRenderItemsParallel 或合并后的 RenderItem 列表中，对每个涉及 **IModelResource*** 的项，在提交绘制前（或约定时机）触发 013 **EnsureDeviceResourcesAsync(IModelResource*)**（或单资源 Texture/Mesh/Material）；与 013、020 契约约定由谁调用、何时调用。
-- [ ] **PrepareRenderMaterial/PrepareRenderMesh**：在线程 D 调用时，若 013 提供 **IsDeviceReady()**，未就绪则返回“未就绪”或等待/跳过；与 013 设备层“可能暂无 DResource”兼容。
-- [ ] **与 013 契约**：收集阶段与 DResource 按需创建时机（先收集再触发 EnsureDeviceResourcesAsync，或收集时即触发）；多帧在途与异步完成回调的对接。
+### 数据
+
+- [ ] **RenderItem**：含 Model/Mesh/Material 句柄引用、排序 key 等
+- [ ] **IRenderItemList**：RenderItem 列表
+
+### 需提供的对外接口
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `CollectRenderItemsParallel(pipeline, ctx, out)` | 从 FrameContext.scene 收集可渲染项，产出 IRenderItemList |
+| [ ] `PrepareRenderMaterial(handle, device) → ResultCode` | 在线程 D 调用；确保 Material 句柄具备 DResource |
+| [ ] `PrepareRenderMesh(handle, device) → ResultCode` | 在线程 D 调用；确保 Mesh 句柄具备 DResource |
+| [ ] `ConvertToLogicalCommandBuffer(items, pipeline, out)` | 产出 ILogicalCommandBuffer；Draw 录制时绑定 Uniform 等 |
+
+### 需调用上游
+
+| 场景 | 调用 008 / 009 接口 |
+|------|---------------------|
+| CollectRenderItemsParallel | 使用 FrameContext.scene（ISceneWorld）遍历 |
+| PrepareRenderMaterial/Mesh | 若句柄提供 IsDeviceReady 且为 false → 返回 ResultCode（未就绪）；否则触发句柄的 EnsureDeviceResources（011/012） |
+| ConvertToLogicalCommandBuffer | 009.`IUniformBuffer::Bind(cmd, slot)`；008.`SetUniformBuffer` 等 |
+
+### 调用流程
+
+1. 020 调用 CollectRenderItemsParallel → 019 从 ctx.scene 遍历 → 产出 RenderItem 列表（含 IModelResource* 等）
+2. 020 在线程 D 调用 PrepareRenderMaterial/Mesh → 019 确保句柄就绪；若 IsDeviceReady 为 false 返回未就绪
+3. 020 调用 ConvertToLogicalCommandBuffer → 019 录制 Draw；绑定材质 Uniform（009.Bind）

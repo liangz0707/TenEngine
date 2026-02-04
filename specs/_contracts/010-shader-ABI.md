@@ -113,8 +113,30 @@ STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/resource-serialization.md](../../docs/assets/resource-serialization.md)、[011-material-data-model.md](../../docs/assets/011-material-data-model.md)。）
+（本模块上游：001-Core、008-RHI、009-RenderCore。）
 
-- [ ] **按 shaderGuid 加载**：提供按 **GUID** 解析路径并返回 Shader 句柄的接口；若 Shader 由 013 管理则 013 按 §3.1 解析路径并加载，若由 010 管理则由 010 提供按 shaderGuid 的解析与加载接口（与 013 契约约定）。
-- [ ] **GetReflection/GetShaderReflection**：产出 **Uniform 布局描述**（UniformLayoutDesc、ShaderReflectionDesc）供 009-RenderCore、011-Material 创建 UniformBuffer 布局；与 009 ShaderParams 布局、011 scalarParams 一一对应。
-- [ ] **Uniform 名称/类型**：与 011 MaterialAssetDesc.scalarParams、009 IUniformLayout 成员名与类型一致；010 反射或手写布局须与 009/011 约定对齐。
+### 数据
+
+- [ ] **UniformLayoutDesc**（te::rendercore 类型）：供 009 创建 IUniformLayout
+- [ ] **ShaderReflectionDesc**：含 Uniform、Texture、Sampler 槽位；成员名与 011 scalarParams、009 IUniformLayout 约定一致
+
+### 需提供的对外接口
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `LoadSource(path, format)` / `LoadSourceFromMemory(data, size, format)` | 加载 Shader 源码；路径由调用方解析 |
+| [ ] `Compile(handle, options)` | 编译为 SPIR-V/DXIL/MSL |
+| [ ] `GetBytecode(handle, outSize) → void const*` | 供 008 创建 PSO |
+| [ ] `GetReflection(handle, outDesc)` / `GetShaderReflection(handle, outDesc)` | 产出 UniformLayoutDesc、ShaderReflectionDesc |
+
+### 需调用上游
+
+| 场景 | 调用 001 接口 |
+|------|---------------|
+| LoadSource | `te::core::FileRead` |
+| LoadCache/SaveCache | `te::core::FileRead`, `te::core::FileWrite` |
+
+### 调用流程
+
+1. 013/011 加载材质 → 取得 shader 路径 → 010.LoadSource(path) → Compile → GetReflection
+2. 011 创建 UniformBuffer → 用 010.GetReflection 产出的 UniformLayoutDesc 调用 009.CreateUniformLayout

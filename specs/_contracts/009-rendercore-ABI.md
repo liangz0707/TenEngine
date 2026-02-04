@@ -117,9 +117,30 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §Material 的 UniformBuffer、[011-material-data-model.md](../../docs/assets/011-material-data-model.md)。）
+（本模块上游：001-Core、008-RHI。）
 
-- [ ] **UniformBuffer.Create(Layout)**：011-Material 在 CreateMaterial 或按需阶段调用，009 内部调 008 CreateBuffer(Usage=Uniform)，返回句柄给 011 存入 MaterialHandle；布局与 Shader uniform block、011 scalarParams 一一对应。
-- [ ] **UniformBuffer.Update(cpuData, size)** 或 **SetParam(name, value)**：011 或 020-Pipeline 在提交绘制前将材质 scalarParams 上传到 GPU；009 内部 Map/Update/Unmap 或 008 UpdateBuffer。
-- [ ] **UniformBuffer.Bind**：020-Pipeline 或 009 在 Draw 前将材质的 UniformBuffer 绑定到 Shader 对应 slot；与 008 SetConstantBuffer 对接。
-- [ ] **ShaderParams/Uniform 布局**：与 010-Shader 反射或手写布局一致；保证 011 scalarParams 与 Uniform 成员一一对应（对齐、偏移由 009 或 010 约定）。
+### 数据
+
+- [ ] **IUniformLayout**：与 010 GetReflection 产出的 UniformLayoutDesc 对齐；成员名、类型、偏移与 std140 约定一致
+
+### 需提供的对外接口
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `CreateUniformBuffer(layout, device) → IUniformBuffer*` | 创建 Uniform 缓冲 |
+| [ ] `IUniformBuffer::Update(data, size)` | 上传 CPU 数据到 GPU |
+| [ ] `IUniformBuffer::Bind(cmd, slot)` | 绑定到命令列表 slot |
+
+### 需调用上游
+
+| 场景 | 调用 008 接口 |
+|------|---------------|
+| CreateUniformBuffer | `IDevice::CreateBuffer(BufferDesc{ usage=Uniform })` |
+| IUniformBuffer::Update | `IDevice::UpdateBuffer(buffer, offset, data, size)` |
+| IUniformBuffer::Bind | `ICommandList::SetUniformBuffer(slot, buffer, offset)` |
+
+### 调用流程
+
+1. 011 创建材质 → 调用 009.CreateUniformBuffer(layout, device)
+2. 011 提交绘制前 → 调用 009.IUniformBuffer::Update(scalarParams)
+3. 020 录制 Draw → 调用 009.IUniformBuffer::Bind(cmd, slot)

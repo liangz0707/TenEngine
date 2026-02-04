@@ -66,9 +66,41 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/004-scene-data-model.md](../../docs/assets/004-scene-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+（依据 [docs/assets/004-scene-data-model.md](../../docs/assets/004-scene-data-model.md)；本模块上游：001-Core、002-Object。）
 
-- [ ] **LevelAssetDesc、SceneNodeDesc**：与 docs/assets/004-scene-data-model.md 一致；002-Object 已注册类型；含 formatVersion、debugDescription、rootNodes、localTransform、children、modelGuid、entityPrefabGuid、components、active 等。
-- [ ] **LoadScene/LoadLevel**：支持入参 **ResourceId** 或 path；若入参为 ResourceId，按 013 §3.1（GUID→路径）解析 Level 资源子目录；读 .level 后 002 Deserialize 得到 LevelAssetDesc。
-- [ ] **场景加载后**：按节点 **modelGuid** 向 013 **RequestLoadAsync(modelGuid, Model)** 或 LoadSync，将得到的 **IModelResource*** 挂到节点（或挂到该节点下实体的 Renderable 等组件）；与 005-Entity、013 约定挂接方式。
-- [ ] **UnloadScene**：卸载时释放对 **IModelResource*** 的引用（IResource::Release 或 013 Unload）；与 013 协同，由 013 按引用计数决定是否卸载 Model 及下游 Mesh/Material。
+### 注册
+
+| 需提供 | 需调用上游 |
+|--------|------------|
+| [ ] 在引擎启动时完成 LevelAssetDesc、SceneNodeDesc 的类型注册（通过 002） | 002：`RegisterType<LevelAssetDesc>`, `RegisterType<SceneNodeDesc>` |
+
+### 序列化
+
+| 需提供 | 需调用上游 |
+|--------|------------|
+| —（004 不直接序列化 Level；由 013 或工具在 Save 时调用 002） | — |
+
+### 反序列化
+
+| 需提供 | 需调用上游 |
+|--------|------------|
+| [ ] `LoadScene(pathOrResourceId, mode)`：读 .level 后反序列化得到 LevelAssetDesc | 002：`GetTypeByName("LevelAssetDesc")` → `Deserialize(buf, &desc, typeId)` |
+| [ ] 若入参为 ResourceId：内部完成 GUID→路径解析（与 resource-serialization §3.1 约定） | 001：`FileRead`（读 .level 文件） |
+
+### 数据
+
+- [ ] **LevelAssetDesc**：formatVersion、debugDescription、rootNodes、defaultWorldSettings
+- [ ] **SceneNodeDesc**：name、localTransform、children、**modelGuid**、**entityPrefabGuid**、components、active
+- [ ] **TransformDesc**：position、rotation、scale
+
+### 需提供的对外接口
+
+- [ ] `GetNodeModelGuid(ISceneNode*) → ResourceId`
+- [ ] `GetNodeEntityPrefabGuid(ISceneNode*) → ResourceId`
+- [ ] `UnloadScene(scene)`：销毁场景图与节点数据
+
+### 调用流程
+
+1. `LoadScene(pathOrResourceId, mode)` → 解析路径 → 001.FileRead 读 .level → 002.Deserialize 得到 LevelAssetDesc
+2. 从 LevelAssetDesc 构建 ISceneWorld、ISceneNode 树；节点存储 modelGuid、entityPrefabGuid
+3. 下游通过 `GetNodeModelGuid`、`GetNodeEntityPrefabGuid` 取得 GUID 后自行加载资源并挂接

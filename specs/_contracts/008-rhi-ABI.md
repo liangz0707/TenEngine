@@ -188,9 +188,22 @@
 
 ## 数据相关 TODO
 
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md)、[resource-loading-flow.md](../../docs/assets/resource-loading-flow.md)。）
+（本模块上游：001-Core；无资产注册/序列化职责。）
 
-- [ ] **CreateTexture(texdata, descriptor)**：013 在按需阶段（或 Load 时若同步创建）调用，创建 GPU 纹理，返回 **DResource**（IBuffer/ITexture 等）；供 TextureRResource 内持。
-- [ ] **CreateBuffer(size, usage)**：**012** 创建顶点/索引缓冲（Usage=Vertex/Index）时调用；**011/009** 创建材质 Uniform 缓冲（Usage=Uniform）时调用；返回 DResource。
-- [ ] **UpdateBuffer(buffer, offset, data, size)**：011 或 Pipeline 在提交绘制前将材质 **scalarParams** 按布局上传到 GPU 缓冲；与 009 UniformBuffer::Update 或 011 直接对接。
-- [ ] **SetConstantBuffer(slot, buffer)**：020-Pipeline 或 009 在 Draw 前将材质的 UniformBuffer（DResource）绑定到 Shader 对应 slot；与 009 IUniformBuffer::Bind 对接。
+### 数据
+
+- [ ] **BufferDesc**：size、usage（Vertex/Index/Uniform 等）
+- [ ] **TextureDesc**：width、height、format、mipLevels 等
+
+### 需提供的对外接口（供下游创建 DResource 与录制命令）
+
+| 接口 | 说明 |
+|------|------|
+| [ ] `IDevice::CreateTexture(TextureDesc) → ITexture*` | 创建 GPU 纹理；支持从 texdata 或像素数据初始化 |
+| [ ] `IDevice::CreateBuffer(BufferDesc) → IBuffer*` | 创建 GPU 缓冲；Usage=Vertex/Index/Uniform |
+| [ ] `IDevice::UpdateBuffer(buffer, offset, data, size)` | CPU 数据上传到 GPU 缓冲 |
+| [ ] `ICommandList::SetUniformBuffer(slot, buffer, offset)` | 将 IBuffer 绑定到 Shader slot；Draw 前绑定材质 Uniform |
+
+### 需调用上游
+
+- 001：`Alloc`/`Free`（设备/资源内部分配）
