@@ -1,4 +1,4 @@
-# 模块依赖图（Module Dependency Map）
+﻿# 模块依赖图（Module Dependency Map）
 
 用于多 Agent 协作时快速查看：**谁依赖谁**、**改某个模块会影响谁**。接口边界以 `specs/_contracts/` 下契约为准。
 

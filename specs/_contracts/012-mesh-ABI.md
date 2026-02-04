@@ -1,4 +1,4 @@
-# 012-Mesh 模块 ABI
+﻿# 012-Mesh 模块 ABI
 
 - **契约**：[012-mesh-public-api.md](./012-mesh-public-api.md)（能力与类型描述）
 - **本文件**：012-Mesh 对外 ABI 显式表。

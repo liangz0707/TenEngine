@@ -1,4 +1,4 @@
-# 跨模块接口契约（Contracts）
+﻿# 跨模块接口契约（Contracts）
 
 本目录存放 **TenEngine 各模块之间的接口契约**，供多 Agent 协作时作为接口的单一事实来源。
 

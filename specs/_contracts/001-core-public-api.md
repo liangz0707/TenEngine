@@ -1,4 +1,4 @@
-# 契约：001-Core 模块对外 API
+﻿# 契约：001-Core 模块对外 API
 
 - **ABI 显式表**：[001-core-ABI.md](./001-core-ABI.md)（命名空间、头文件、符号列表；下游 include/link 以 ABI 为准）。
 
@@ -48,7 +48,7 @@
 
 对外接口的**命名空间、头文件、符号与完整签名**以 **ABI 文件** [001-core-ABI.md](./001-core-ABI.md) 为准；本小节为概要。
 
-- **命名空间**：TenEngine::core（实现可用 te::core；头文件路径 te/core/ = TenEngine/core/）。
+- **命名空间**：te::core（头文件路径 te/core/）。
 - **头文件**：alloc.h（Memory）、engine.h（Init/Shutdown/InitParams）、thread.h（Thread/TLS/Atomic/Mutex/LockGuard/ConditionVariable/TaskQueue/IThreadPool/GetThreadPool/TaskCallback）、platform.h（TE_PLATFORM_*、FileRead/Write、DirectoryEnumerate、Time、HighResolutionTimer、GetEnv、PathNormalize）、log.h（LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler）、check.h（CheckWarning、CheckError）、math.h（Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize）、containers.h（Array、Map、String、UniquePtr、SharedPtr）、module_load.h（ModuleHandle、LoadLibrary、UnloadLibrary、GetSymbol、ModuleInitFn/ModuleShutdownFn、RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown）。
 - **符号与签名**：见 [001-core-ABI.md](./001-core-ABI.md) ABI 表；下游 include 与 link 以 ABI 为准。
 

@@ -34,3 +34,8 @@ add_test(NAME test_engine COMMAND test_engine)
 add_executable(test_check unit/test_check.cpp)
 target_link_libraries(test_check PRIVATE te_core)
 add_test(NAME test_check COMMAND test_check)
+
+# ABI contract consistency: includes and symbols must match specs/_contracts/001-core-ABI.md
+add_executable(test_abi_contract unit/test_abi_contract.cpp)
+target_link_libraries(test_abi_contract PRIVATE te_core)
+add_test(NAME test_abi_contract COMMAND test_abi_contract)
