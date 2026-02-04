@@ -25,13 +25,13 @@
 | VFXHandle | 高级 VFX 句柄（可选）；VFXGraph、CustomPass、与 Shader 对接 | 创建后直至显式释放 |
 | EffectParams | 后处理/粒子参数；Bloom、TAA、ToneMapping、DOF、Intensity 等 | 与 Pass 或系统绑定 |
 
-下游仅通过上述类型与句柄访问；GPU 资源通过 PipelineCore/RHI 的 RT、Buffer、PSO 使用。
+下游仅通过上述类型与句柄访问；GPU 资源通过 PipelineCore/RHI 的 RT、Buffer、PSO 使用。**ABI 显式表**：[021-effects-ABI.md](./021-effects-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **PostProcess**：AddPass、Bloom、TAA、ToneMapping、DOF、Intensity；与 PipelineCore Fullscreen Pass 对接。
-2. **Particles**：Emit、Update、ParticleBuffer、Atlas；与 Shader/RenderCore 粒子绘制对接。
-3. **VFX（可选）**：VFXGraph、CustomPass；与 Shader 对接。
+1. **PostProcess**：IPostProcessStack::AddPass、SetIntensity；EffectParams、PostProcessPassType；与 PipelineCore Fullscreen Pass 对接；RenderingConfig 由 Pipeline 下发。
+2. **Particles**：IParticleSystem::Emit、Update、GetParticleBuffer、GetAtlas；CreateParticleSystem；与 Shader/RenderCore 粒子绘制对接。
+3. **VFX（可选）**：IVFXGraph、RegisterCustomPass；与 Shader 对接。
 4. **Lighting（可选）**：VolumetricLight、Bloom；与 Pipeline 光照管线配合。
 
 ## 调用顺序与约束
@@ -44,3 +44,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：021-Effects 对应本契约；与 docs/module-specs/021-effects.md 一致 |
+| 2026-01-28 | 根据 021-effects-ABI 反向更新：IPostProcessStack、IParticleSystem、EffectParams、CreateParticleSystem、IVFXGraph、RegisterCustomPass；能力与类型与 ABI 表一致 |

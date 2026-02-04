@@ -1,4 +1,4 @@
-﻿# Branch: T0-004-scene
+# Branch: T0-004-scene
 
 This branch contains only **constraint files**, **module description**, and **global dependency** for module **004-scene**.
 

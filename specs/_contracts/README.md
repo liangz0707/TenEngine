@@ -6,17 +6,37 @@
 - **主分支仅用于配置**：**master**（或 main）仅用于仓库与工程配置；**契约内容不以主分支为来源**。Agent 不得以主分支上的 `specs/_contracts/` 作为契约依据。
 - **契约必须从 T0-contracts 拉取**：**`T0-contracts`**（远程：`origin/T0-contracts`）是契约的**唯一权威维护分支**。所有契约更新合并到该分支；各 **T0-NNN-modulename** 分支的 Agent 在工作前**必须**从该分支拉取最新契约（`git pull origin T0-contracts` 或 `git fetch origin T0-contracts` + `git merge origin/T0-contracts`）。
 
+## 契约更新流程（ABI 先行）
+
+- **接口须在 ABI 文件中增补或替换对应 ABI 条目**：修改某模块对外接口时，**必须**在对应 **ABI 文件**（`NNN-modulename-ABI.md`）中**增补**新行或**按符号/头文件匹配替换**已有行；每行须为完整 ABI 表行（模块名、命名空间、类名、接口说明、头文件、符号、说明/完整函数签名）。不得仅在 `NNN-modulename-public-api.md` 中描述而 ABI 表缺失或不全。plan 只产出新增/修改部分，写回时也仅写入该部分。契约（public-api）描述能力与类型，**接口符号与签名的权威来源是 ABI 文件**。
+- **下游所需接口在上游 ABI 中以 TODO 登记**：若**下游模块**需要某接口而**上游模块**尚未提供，须在**上游模块的 ABI 文件**中增加该接口的 **TODO** 条目（标明「下游 NNN-xxx 需要」及拟议签名/说明），待上游实现时转为正式 ABI 行并移除 TODO 标记。下游不得长期依赖未在上游 ABI 中登记（含 TODO）的接口。
+
+以上与 **`docs/agent-interface-sync.md`** §4.2、**`specs/_contracts/000-module-ABI.md`** 中的契约更新流程一致。
+
+- **第三方依赖声明**：若本模块需集成第三方库，须在 **`NNN-modulename-public-api.md`** 的「依赖」「技术栈」或「第三方依赖」中列出第三方 ID（与 `docs/third_party/` 表一致）。Plan 从 public-api 读取并自动填入「第三方依赖」小节，Task 将生成 7 步集成任务。详见 `docs/third_party-integration-workflow.md`。
+
 ## 使用方式
 
 - **在任意 T0-* 模块分支上开始工作前**：先拉取最新契约：`git pull origin T0-contracts`（或 `git fetch origin T0-contracts` 后 `git merge origin/T0-contracts`）。
-- **实现某模块前**：阅读本模块 **Dependencies** 中列出的契约文件（见 `000-module-dependency-map.md`），只使用契约中声明的类型与接口。
-- **修改某模块对外接口时**：在 **`T0-contracts` 分支**上更新本目录下该模块对应的契约，并在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。
+- **实现某模块前**：阅读本模块 **Dependencies** 中列出的契约文件（见 `000-module-dependency-map.md`），只使用契约中声明的类型与接口；接口符号以各模块 **ABI 文件**为准。
+- **修改某模块对外接口时**：在 **`T0-contracts` 分支**上**在对应 ABI 文件中增补或替换**新增/修改的 ABI 条目，再同步更新本目录下该模块的 `NNN-modulename-public-api.md`；在 `000-module-dependency-map.md` 中确认下游模块，必要时创建跟进任务。若下游提出所需接口，在上游 ABI 中增加 TODO 条目。plan 只产出新增/修改部分，写回时也仅写入该部分。
+
+## ABI 实现与构建要求（强制）
+
+- **完整 ABI 实现**：各模块**必须**实现其 ABI 文件（`NNN-modulename-ABI.md`）中列出的**全部**符号与能力；不得仅实现部分或预留「待补充」长期存在。
+- **构建须引入子模块代码**：构建过程**必须**通过引入**真实子模块源码**（如 `add_subdirectory`、`FetchContent` 拉取对应模块仓库）来满足依赖；不得在未引入上游模块源码的情况下，用本模块内自写的 stub、mock 或占位实现代替上游模块。
+- **禁止 stub/代替方案**：**禁止**为通过编译或联调而提供仅返回空/默认值的 stub 实现、或与 ABI/契约不一致的代替实现作为长期方案；仅允许在**明确标注为临时、且有计划替换为真实实现**的过渡期使用占位，且须在任务/计划中跟踪替换。
+- **头文件可见性（IDE）**：构建脚本应将**公开头文件**加入对应 CMake target（如 `target_sources` 或 `add_library` 源列表），并设置 `target_include_directories`，以确保 IDE 工程（VS/Xcode）能正确显示与包含头文件；避免出现“头文件未加入工程或无法 include”的问题。
+
+以上与 **`.specify/memory/constitution.md`** §VI 及 **`docs/engine-build-module-convention.md`** 一致；违反则不符合契约与构建规约。
 
 ## 契约与依赖关系
 
 **本目录内容以 T0-contracts 分支为准**；主分支上的 `_contracts/` 仅作配置或镜像，不作为契约来源。
 
 - **依赖关系总览**：[000-module-dependency-map.md](./000-module-dependency-map.md)（27 模块依赖表与上下游）。
+- **ABI 总索引**：[000-module-ABI.md](./000-module-ABI.md)（汇总各模块显式 ABI；引用全部 `NNN-modulename-ABI.md`）。各契约引用本模块对应的 ABI 文件（如 001-core-public-api 引用 [001-core-ABI.md](./001-core-ABI.md)）；接口符号以 ABI 文件为准。从用户故事派生的接口须按 **`docs/engine-abi-interface-generation-spec.md`** 的代码/命名/注释规范生成；用户故事见 **`specs/user-stories/`**。
+- **数据相关 TODO**：与资源/资产数据模型、序列化、加载流程、RResource/DResource、GUID→路径等相关的实现项已拆解为 **「数据相关 TODO」** 小节，分布在相关模块的 ABI 文件中。**结构**：按 **注册**、**序列化**、**反序列化**、**数据**、**调用流程** 分类；每类明确 **需提供的接口** 与 **需向上游调用的接口**。**编写原则**：仅描述本模块职责；可引用上游；不引用非上游。依据文档见 **`docs/assets/`**。实现时按各 ABI 内 TODO 逐项完成并勾选。
 - **完整依赖图（Mermaid、矩阵、边列表）**：**T0-contracts** 分支下的 **`docs/engine-modules-and-architecture.md`** §4。
 - **模块详细规格**：**T0-contracts** 或各 T0-NNN-modulename 分支下的 **`docs/module-specs/`**（001-core.md … 027-xr.md）；各 T0-NNN-modulename 分支仅含对应单模块描述 + 本目录 + 全局依赖图。
 

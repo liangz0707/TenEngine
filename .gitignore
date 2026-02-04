@@ -14,5 +14,3 @@ out/
 .vscode/
 .DS_Store
 Thumbs.db
-*.tmp
-*.swp

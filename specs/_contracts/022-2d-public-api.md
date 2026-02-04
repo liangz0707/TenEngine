@@ -24,14 +24,14 @@
 | Physics2DHandle | 2D 碰撞体/刚体桥接；Create2DBody、Create2DShape、与 Physics 对接 | 创建后直至显式释放 |
 | 2DCamera / SortingLayer | 2D 相机、排序层；与 Pipeline 2D Pass、RenderCore 格式对接 | 由调用方或场景管理 |
 
-下游仅通过上述类型与句柄访问；与 Resource 精灵/图集/瓦片集、Physics 2D、Pipeline 2D Pass、RenderCore 顶点格式对接。
+下游仅通过上述类型与句柄访问；与 Resource 精灵/图集/瓦片集、Physics 2D、Pipeline 2D Pass、RenderCore 顶点格式对接。**ABI 显式表**：[022-2d-ABI.md](./022-2d-ABI.md)。
 
 ## 能力列表（提供方保证）
 
-1. **Sprite**：LoadSprite、Atlas、Slice、SortOrder、SubmitToPipeline；与 Resource、Pipeline 2D 绘制对接。
-2. **Tilemap**：TileSet、Tilemap、Layer、CollisionLayer、Draw；与 Pipeline 绘制对接。
-3. **Physics2D**：Create2DBody、Create2DShape；与 Physics 模块 2D 对接。
-4. **Rendering2D**：Camera2D、SortingLayer、2DPass；与 Pipeline、RenderCore 对接。
+1. **Sprite**：ISprite::Load、GetAtlas、GetSlice、SetSortOrder、GetSortOrder、SubmitToPipeline；CreateSprite；与 Resource、Pipeline 2D 绘制对接。
+2. **Tilemap**：ITilemap::GetTileSet、GetLayerCount、GetLayer、Draw、SetCollisionLayer、GetCollisionLayer；CreateTilemap；与 Pipeline 绘制对接。
+3. **Physics2D**：Create2DBody、Create2DShape；与 014-Physics 2D 对接。
+4. **Rendering2D**：ICamera2D、SortingLayer；与 Pipeline、RenderCore 对接。
 
 ## 调用顺序与约束
 
@@ -42,3 +42,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 每模块一契约：022-2D 对应本契约；与 docs/module-specs/022-2d.md 一致 |
+| 2026-01-28 | 根据 022-2d-ABI 反向更新：ISprite、ITilemap、CreateSprite、CreateTilemap、Create2DBody、Create2DShape、ICamera2D、SortingLayer；能力与类型与 ABI 表一致 |

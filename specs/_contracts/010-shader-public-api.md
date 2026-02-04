@@ -22,7 +22,8 @@
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
 | ShaderHandle | 着色器或 Shader 模块句柄；用于 PSO 创建与绑定 | 创建后直至显式释放 |
-| VariantKey | 变体键（关键字/宏组合）；变体枚举与预编译 | 由调用方管理 |
+| ShaderSourceFormat | 源码格式枚举；HLSL、GLSL；按扩展名或显式指定 | 编译时 |
+| VariantKey / MacroSet | 变体键（关键字/宏组合）；变体枚举与预编译；运行时可动态切换 | 由调用方管理 |
 | Bytecode | 编译产物（SPIR-V/DXIL/MSL）；提交给 RHI 创建 PSO/ShaderModule | 由调用方或缓存管理 |
 | Reflection（可选） | 反射信息；Uniform 布局、槽位、与 RenderCore 对接 | 与 Shader 或缓存绑定 |
 
@@ -30,10 +31,23 @@
 
 ## 能力列表（提供方保证）
 
-1. **Compilation**：Compile、GetBytecode、TargetBackend、ErrorReport；多后端编译与错误报告。
-2. **Variants**：DefineKeyword、GetVariantKey、EnumerateVariants、Precompile；变体管理与预编译。
-3. **Cache**：LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选）。
-4. **Graph（可选）**：NodeGraph、ExportSource/IR；与 Material 联动，导出 Shader 或中间表示。
+1. **Source & Compilation**：支持 **HLSL**、**GLSL** 两种源码格式加载；Compile、GetBytecode、TargetBackend、ErrorReport；多后端编译与错误报告。
+2. **Macros & Variants**：支持**宏**切换代码路径；DefineKeyword、SetMacros、GetVariantKey、EnumerateVariants、Precompile；**游戏中可动态切换宏**（SetMacros/SelectVariant），按新宏组合选择或编译变体并生效。
+3. **Cache**：LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选）；热重载时按需失效。
+4. **Hot Reload（可选）**：**实时更新 Shader**；ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游（Material/Pipeline），无需重启应用。
+5. **Graph（可选）**：NodeGraph、ExportSource/IR；与 Material 联动，导出 Shader 或中间表示。
+
+## 第三方依赖
+
+| 第三方 ID | 引入方式 | 文档 | 说明 |
+|-----------|----------|------|------|
+| glslang | source | [glslang.md](../../docs/third_party/glslang.md) | GLSL/HLSL 编译为 SPIR-V |
+| spirv-cross | source | [spirv-cross.md](../../docs/third_party/spirv-cross.md) | SPIR-V 转 MSL/HLSL，跨后端产出 |
+| vulkan-headers | header-only | [vulkan-headers.md](../../docs/third_party/vulkan-headers.md) | Vulkan 头文件，glslang 依赖 |
+| dxc | sdk | [dxc.md](../../docs/third_party/dxc.md) | HLSL→DXIL（D3D12 后端，按 TE_RHI_D3D12 启用） |
+| spirv-tools | source | [spirv-tools.md](../../docs/third_party/spirv-tools.md) | SPIR-V 验证/优化，glslang 依赖（通常随 glslang 拉取） |
+
+**平台相关**：Metal 后端 MSL 由 SPIRV-Cross 从 SPIR-V 转译；D3D12 后端 DXIL 由 DXC 直接编译 HLSL；GLSL 由 glslang 编译为 SPIR-V。
 
 ## 调用顺序与约束
 
@@ -45,3 +59,7 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 010-Shader 模块规格与依赖表新增契约；类型与能力与 docs/module-specs/010-shader.md 一致 |
+| 2026-01-28 | 根据 010-shader-ABI 反向更新：补充参考与命名约定、导出形式列；能力与类型与 ABI 表一致 |
+| 2026-02-03 | 新增「第三方依赖」小节：glslang、spirv-cross、vulkan-headers、dxc、spirv-tools |
+| 2026-02-03 | 契约同步 plan 010-shader-fullmodule-001：SourceChangedCallback、工厂 Create/Destroy、LoadSourceFromMemory、ReleaseHandle、SetCache、GetReflection、OnSourceChanged(userData) |
+| 2026-02-03 | 新增 GetShaderReflection：产出 ShaderReflectionDesc（Uniform + Texture + Sampler 完整反射） |

@@ -27,6 +27,20 @@
 
 下游仅通过上述类型与句柄访问；命令缓冲最终通过 RHI 提交，具体格式与提交约定见契约 `pipeline-to-rci.md`。
 
+## 渲染资源显式控制位置
+
+渲染资源有**显式的控制位置**，便于理解与调试：
+
+| 控制位置 | 说明 | 本模块符号 |
+|----------|------|------------|
+| **创建逻辑渲染资源** | 创建逻辑上的可渲染项 | **CreateRenderItem**（或由收集阶段产出 RenderItem） |
+| **创建/收集逻辑上的 CommandBuffer** | 由 RenderItem 列表产出逻辑命令缓冲 | **CollectCommandBuffer**（即 convertToLogicalCommandBuffer） |
+| **准备渲染资源** | 准备材质、网格等 GPU 资源（PSO、缓冲、纹理绑定等） | **PrepareRenderMaterial**、**PrepareRenderMesh**、prepareRenderResources |
+| **提交到实际 GPU Command** | 将逻辑 CommandBuffer 提交到实际 GPU | 见 020-Pipeline（submitLogicalCommandBuffer）、008-RHI（executeLogicalCommandBuffer），即 **SubmitCommandBuffer** |
+| **创建/更新 GPU 资源** | 创建或更新 Device 侧 GPU 资源 | 见 008-RHI：**CreateDeviceResource**、**UpdateDeviceResource** |
+
+上述接口须在约定线程（如线程 D）调用，见 US-rendering-004 与各模块契约。
+
 ## 能力列表（提供方保证）
 
 1. **PassGraph**：AddPass、DeclareRead、DeclareWrite、TopologicalSort、ExecuteOrder；RDG 风格 Pass 图与 RenderCore Pass 协议一致。
