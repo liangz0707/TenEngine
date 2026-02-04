@@ -6,7 +6,7 @@
 #include "scene/types.hpp"
 #include <cstddef>
 
-namespace ten {
+namespace te {
 namespace scene {
 
 NodeId CreateNode(WorldRef world);
@@ -22,6 +22,6 @@ void SetDirty(NodeId node);
 void UpdateTransforms(WorldRef world);
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif

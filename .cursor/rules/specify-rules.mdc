@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-02
 - 文件（shader 源码、缓存）；内存（bytecode） (010-shader-fullmodule-001)
 - C++17 + 008-RHI (te_rhi)、009-RenderCore (te_rendercore) (019-pipelinecore-implement-full)
 - N/A（运行时管线数据结构） (019-pipelinecore-implement-full)
+- C++17 + 001-Core（数学、容器、内存、日志）、002-Object（序列化、类型信息）；013-Resource、005-Entity 接口在对接时约定 (004-scene-fullmodule-001)
+- 内存；场景图节点、变换缓存、层级索引；关卡数据通过 Resource 加载 (004-scene-fullmodule-001)
 
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (002-fullmodule)
 
@@ -28,9 +30,9 @@ cd src; pytest; ruff check .
 [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]: Follow standard conventions
 
 ## Recent Changes
+- 004-scene-fullmodule-001: Added C++17 + 001-Core（数学、容器、内存、日志）、002-Object（序列化、类型信息）；013-Resource、005-Entity 接口在对接时约定
 - 019-pipelinecore-implement-full: Added C++17 + 008-RHI (te_rhi)、009-RenderCore (te_rendercore)
 - 010-shader-fullmodule-001: Added C++17 + te_core, te_rhi, te_rendercore；glslang, spirv-cross, vulkan-headers, dxc, spirv-tools
-- 008-rhi-fullmodule-005: Added C++17 + 001-Core（源码）；volk、vulkan-headers（Vulkan 后端，FetchContent）；d3d11、d3d12、metal（system，平台 SDK）
 
 
 <!-- MANUAL ADDITIONS START -->

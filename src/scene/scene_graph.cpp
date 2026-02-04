@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace ten {
+namespace te {
 namespace scene {
 
 namespace {
@@ -190,4 +190,4 @@ void SetNodeActive(NodeId node, bool active) {
 }  // namespace detail
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te

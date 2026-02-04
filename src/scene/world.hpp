@@ -5,7 +5,7 @@
 
 #include "scene/types.hpp"
 
-namespace ten {
+namespace te {
 namespace scene {
 
 WorldRef GetCurrentWorld();
@@ -16,6 +16,6 @@ WorldRef AddWorld();
 void ApplyPendingActiveWorld();
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif

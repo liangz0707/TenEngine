@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-namespace ten {
+namespace te {
 namespace scene {
 
 namespace {
@@ -112,4 +112,4 @@ bool GetActive(NodeId node) {
 }
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te

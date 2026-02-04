@@ -6,7 +6,7 @@
 #include "scene/types.hpp"
 #include <cstddef>
 
-namespace ten {
+namespace te {
 namespace scene {
 namespace detail {
 
@@ -21,6 +21,6 @@ void SetNodeActive(NodeId node, bool active);
 
 }  // namespace detail
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif

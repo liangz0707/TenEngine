@@ -5,13 +5,13 @@
 
 #include "scene/types.hpp"
 
-namespace ten {
+namespace te {
 namespace scene {
 
 LevelHandle LoadLevel(WorldRef world, void* resourceHandleOrPath);
 void UnloadLevel(WorldRef world, LevelHandle level);
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif

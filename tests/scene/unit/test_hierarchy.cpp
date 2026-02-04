@@ -9,7 +9,7 @@
 #include <cstring>
 #include <utility>
 
-using namespace ten::scene;
+using namespace te::scene;
 
 static void test_traverse_order() {
   WorldRef w = GetCurrentWorld();

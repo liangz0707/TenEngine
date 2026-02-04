@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdlib>
 
-namespace ten {
+namespace te {
 namespace scene {
 
 struct WorldImpl {
@@ -40,4 +40,4 @@ void ApplyPendingActiveWorld() {
 }
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te

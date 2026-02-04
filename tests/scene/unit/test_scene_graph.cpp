@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstring>
 
-using namespace ten::scene;
+using namespace te::scene;
 
 static void test_create_and_parent() {
   WorldRef w = GetCurrentWorld();

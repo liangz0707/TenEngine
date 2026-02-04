@@ -6,7 +6,7 @@
 
 #include "scene/types.hpp"
 
-namespace ten {
+namespace te {
 namespace scene {
 
 // Single-use iterator for hierarchy traverse / find. Move-only; invalid after traverse ends.
@@ -44,6 +44,6 @@ void SetActive(NodeId node, bool active);
 bool GetActive(NodeId node);
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif

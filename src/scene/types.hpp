@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace ten {
+namespace te {
 namespace scene {
 
 // Opaque handle: scene/world container. Lifecycle: until unload.
@@ -28,6 +28,6 @@ struct Transform {
 };
 
 }  // namespace scene
-}  // namespace ten
+}  // namespace te
 
 #endif
