@@ -32,49 +32,9 @@
 3. **手柄**：GetGamepadCount、GetButton、GetAxis、SetVibration、DeviceId。
 4. **触摸**：GetTouchCount、GetTouch(id)、Phase；与平台触摸事件对接。
 
-## API 雏形（本切片：ActionId / AxisId / BindingTable）
-
-**来源**：plan 006-input-abstraction-001。技术栈 C++17、CMake；本切片仅暴露以下类型与 API。
-
-### 类型（跨边界）
-
-| 类型名 | 语义 | 说明 |
-|--------|------|------|
-| `te_input::ActionId` | 动作标识 | 值类型，`from_name(std::string_view)` 构造；支持 `operator==`/`operator!=`、可拷贝。无中央注册表。 |
-| `te_input::AxisId` | 轴标识 | 同上，用于逻辑轴。 |
-| `te_input::DeviceKind` | 设备种类 | 枚举：`Keyboard`, `Mouse`, `Gamepad`, `Touch`。 |
-| `te_input::KeyCode` | 抽象键/轴码 | `std::uint32_t`，与设备解耦。 |
-| `te_input::BindingEntry` | 单条绑定 | `struct { DeviceKind kind; KeyCode code; }`。 |
-| `te_input::BindingTable` | 绑定表 | 动作/轴 到 (DeviceKind, KeyCode) 的映射集合；同一 ActionId/AxisId 允许多绑定。 |
-
-### 函数签名（C++17，仅本切片）
-
-**ActionId**（`include/te_input/ActionId.hpp`）
-
-- `static ActionId ActionId::from_name(std::string_view name);`
-- `bool operator==(const ActionId& a, const ActionId& b);`
-- `bool operator!=(const ActionId& a, const ActionId& b);`
-
-**AxisId**（`include/te_input/AxisId.hpp`）
-
-- `static AxisId AxisId::from_name(std::string_view name);`
-- `bool operator==(const AxisId& a, const AxisId& b);`
-- `bool operator!=(const AxisId& a, const AxisId& b);`
-
-**BindingTable**（`include/te_input/BindingTable.hpp`）
-
-- `void BindingTable::add_binding(ActionId action, DeviceKind kind, KeyCode code);`
-- `void BindingTable::add_axis_binding(AxisId axis, DeviceKind kind, KeyCode code);`
-- `void BindingTable::remove_binding(ActionId action, DeviceKind kind, KeyCode code);`
-- `void BindingTable::remove_axis_binding(AxisId axis, DeviceKind kind, KeyCode code);`
-- `void BindingTable::remove_all_for_action(ActionId action);`
-- `void BindingTable::remove_all_for_axis(AxisId axis);`
-- `std::vector<BindingEntry> BindingTable::get_bindings_for_action(ActionId action) const;`
-- `std::vector<BindingEntry> BindingTable::get_bindings_for_axis(AxisId axis) const;`
-
 ## 调用顺序与约束
 
-- 须在 Core、Application 可用之后使用；与 Application 事件泵的对接须明确（事件源由 Application 提供、Input 消费或转发）。
+- 须在 Core、Application 可用之后使用；Input 通过 Application 的 RegisterTickCallback 注册，在每帧 TickCallback 内从 Application 拉取本帧事件并更新状态；下游 GetKey/GetMouse/GetActionState 等返回本帧已更新状态。
 - 多设备与多平台行为由实现定义并文档化；下游（UICore、Editor、XR）仅依赖本契约抽象。
 
 ## 变更记录
@@ -82,4 +42,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 006-Input 模块规格与依赖表新增契约 |
-| 2026-01-29 | API 雏形：由 plan 006-input-abstraction-001 同步（ActionId、AxisId、BindingTable、DeviceKind、KeyCode、BindingEntry） |
+| 2026-01-29 | 契约更新由 plan 006-input-fullversion-001 同步 |

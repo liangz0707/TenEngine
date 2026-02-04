@@ -6,9 +6,11 @@ Animation 提供**动画剪辑与播放**：关键帧、骨骼动画、Timeline�
 
 ## 2. 详细功能描述
 
-- **动画剪辑**：关键帧数据、骨骼/属性轨道、采样与插值、循环与裁剪。
-- **骨骼动画**：骨骼层级、蒙皮矩阵、与 Mesh 蒙皮数据对接。
-- **Timeline**：时间轴、多轨道、与 Sequencer/Cutscene 风格对接。
+对外接口以 **ABI** 为准：`specs/_contracts/015-animation-ABI.md`；契约：`specs/_contracts/015-animation-public-api.md`。
+
+- **动画剪辑**：IAnimationClip::Load、Sample、GetDuration、IsLooping、GetClipRange；CreateAnimationClip；关键帧、采样与插值、循环与裁剪。
+- **骨骼动画**：ISkeleton::GetBoneHierarchy、GetBindPose、GetBoneIndexFromName、GetBoneCount；CreateSkeleton；与 Mesh 蒙皮数据对接。
+- **播放**：IAnimator::Play、Pause、SetTime、Blend、AttachToEntity、SetClip；CreateAnimator；蒙皮矩阵 GetSkinMatrixBuffer、UpdateSkinMatrices。
 - **状态机（可选）**：动画状态机、混合树、过渡、与 Entity 状态联动。
 
 ## 3. 实现难度
@@ -33,12 +35,12 @@ Animation 提供**动画剪辑与播放**：关键帧、骨骼动画、Timeline�
 | Playback | 播放控制、时间、混合、与 Entity 挂接 |
 | StateMachine（可选） | 状态、过渡、混合树、参数驱动 |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-Clip：LoadClip、Sample、Interpolate、Loop、ClipRange。  
-Skeleton：GetBoneHierarchy、BindPose、BoneIndexFromName、与 Mesh 对应。  
-Playback：Play、Pause、SetTime、Blend、AttachToEntity。  
-StateMachine：AddState、AddTransition、SetParameter、BlendTree。
+Clip：IAnimationClip::Load、Sample、GetDuration、IsLooping、GetClipRange；CreateAnimationClip。  
+Skeleton：ISkeleton::GetBoneHierarchy、GetBindPose、GetBoneIndexFromName、GetBoneCount；CreateSkeleton。  
+Playback：IAnimator::Play、Pause、SetTime、Blend、AttachToEntity、SetClip；CreateAnimator；GetSkinMatrixBuffer、UpdateSkinMatrices。  
+StateMachine（可选）：AddState、AddTransition、SetParameter、BlendTree。
 
 ### 5.3 子模块依赖图
 
@@ -87,5 +89,5 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
 - **待办**：需随 `002-object` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化），及 plan 002-object-fullversion-001 同步（完整功能集））。

@@ -27,7 +27,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
-   - **Build convention (TenEngine)**：若本 feature 涉及 CMake/构建，**必须**在 plan.md 中填写「依赖引入方式」小节（见 `.specify/templates/plan-template.md`）：每个直接依赖为 **源码** / **DLL** / **不引入外部库**，默认源码。规约见 `docs/engine-build-module-convention.md`。
+   - **Build convention (TenEngine)**：若本 feature 涉及 CMake/构建，**必须**在 plan.md 中填写「依赖引入方式」小节（见 `.specify/templates/plan-template.md`）：各直接依赖均按**源码**方式引入（无外部库则可不列）；当前所有子模块构建均使用源码方式，规约见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。
+   - **第三方依赖 (TenEngine)**：若本 feature 涉及的模块在 `specs/_contracts/NNN-modulename-public-api.md` 中声明了第三方库，**必须**在 plan 的「第三方依赖」小节中列出每个第三方：ID、引入方式（header-only/source/sdk/system，从 `docs/third_party/<id>-<name>.md` 读取）、文档链接；无第三方时填「本 feature 无第三方依赖」。第三方库声明以 public-api 为准。工作流与 7 步任务见 `docs/third_party-integration-workflow.md`。
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
@@ -70,10 +71,17 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Validation rules from requirements
    - State transitions if applicable
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+2. **Generate API/ABI design artifacts** from functional requirements:
+   - For each user action or module boundary → interface/endpoint
+   - **TenEngine**：
+     - **生成全量 ABI 内容**：参考 spec、Unity/Unreal 等文档，生成本 feature 需要实现的**全部 ABI 内容**，包括：
+       - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
+       - **新增的 ABI**：本 feature 新增的接口条目
+       - **修改的 ABI**：对现有 ABI 条目的修改
+     - **文档中只保存变化部分**：plan.md 的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；若无新增/修改则产出空清单。
+     - **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
+     - 产出至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
+   - 其他项目：可按 REST/GraphQL 产出 OpenAPI/GraphQL schema 至 `/contracts/`
 
 3. **Agent context update**:
    - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType cursor-agent`
@@ -88,4 +96,4 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
-- **生成/构建工程**：若用户或后续步骤会「生成工程」或执行 cmake，**不得**在未澄清前直接执行 cmake。须先向用户确认：**构建方式**（各依赖 源码/DLL/不引入）、**根目录**（在哪个模块目录执行构建）。澄清规则见 `docs/engine-build-module-convention.md` §1.1。plan.md 中须写明依赖引入方式，以便 tasks/implement 使用。
+- **生成/构建工程**：若用户或后续步骤会「生成工程」或执行 cmake，**不得**在未澄清前直接执行 cmake。须先向用户确认：**构建根目录**（在哪个模块目录执行构建）；各子模块均使用源码方式，无需再选 DLL/预编译。澄清规则见 `docs/engine-build-module-convention.md` §3（构建方式澄清）。plan.md 中须写明依赖引入方式，以便 tasks/implement 使用。

@@ -1,0 +1,37 @@
+﻿# TenEngine-008-rhi Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-02-02
+
+## Active Technologies
+- C++17 + 001-Core（源码）；volk、vulkan-headers（Vulkan 后端，FetchContent）；d3d11、d3d12、metal（system，平台 SDK） (008-rhi-fullmodule-005)
+- N/A（RHI 无持久化存储） (008-rhi-fullmodule-005)
+- C++17 + te_core, te_rhi, te_rendercore；glslang, spirv-cross, vulkan-headers, dxc, spirv-tools (010-shader-fullmodule-001)
+- 文件（shader 源码、缓存）；内存（bytecode） (010-shader-fullmodule-001)
+- C++17 + 008-RHI (te_rhi)、009-RenderCore (te_rendercore) (019-pipelinecore-implement-full)
+- N/A（运行时管线数据结构） (019-pipelinecore-implement-full)
+
+- [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (002-fullmodule)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+cd src; pytest; ruff check .
+
+## Code Style
+
+[e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]: Follow standard conventions
+
+## Recent Changes
+- 019-pipelinecore-implement-full: Added C++17 + 008-RHI (te_rhi)、009-RenderCore (te_rendercore)
+- 010-shader-fullmodule-001: Added C++17 + te_core, te_rhi, te_rendercore；glslang, spirv-cross, vulkan-headers, dxc, spirv-tools
+- 008-rhi-fullmodule-005: Added C++17 + 001-Core（源码）；volk、vulkan-headers（Vulkan 后端，FetchContent）；d3d11、d3d12、metal（system，平台 SDK）
+
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

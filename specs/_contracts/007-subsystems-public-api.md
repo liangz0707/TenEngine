@@ -40,3 +40,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 按 007-Subsystems 模块规格与依赖表新增契约 |
+| 2026-01-30 | 契约更新由 plan 007-subsystems-complete-feature 同步 |

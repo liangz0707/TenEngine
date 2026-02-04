@@ -1,4 +1,4 @@
-﻿# Branch: T0-002-object
+# Branch: T0-002-object
 
 This branch contains only **constraint files**, **module description**, and **global dependency** for module **002-object**.
 

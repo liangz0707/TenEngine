@@ -34,12 +34,12 @@ Terrain 提供**地形数据、LOD 与绘制/刷**：地形高度图、LOD、绘
 | MeshGen | 地形网格生成、与 Mesh 格式对接、与 RenderCore 顶点格式 |
 | Painting（可选） | 高度/纹理刷、与 Editor 对接 |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-TerrainData：HeightMap、Layers、DetailMap、StreamingRequest。  
-LOD：LODLevel、SelectLOD、StreamBlock、与 Resource 对接。  
+TerrainData：ITerrain::GetHeightMap、GetLayerCount、GetLayer、GetDetailMap、RequestStreaming；CreateTerrain。  
+LOD：ITerrainPatch::GetLODLevel、SetLODLevel；ITerrain::GetPatch、SelectLOD、StreamBlock；与 Resource 对接。  
 MeshGen：GeneratePatch、VertexFormat、与 Mesh/RenderCore 对接。  
-Painting：PaintHeight、PaintTexture、Brush、与 Editor 对接。
+Painting：IPaintBrush::PaintHeight、PaintTexture；PaintBrushParams、与 Editor 对接。
 
 ### 5.3 子模块依赖图
 
@@ -91,4 +91,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

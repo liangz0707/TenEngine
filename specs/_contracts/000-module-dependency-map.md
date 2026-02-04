@@ -36,7 +36,7 @@
 | 017-UICore | Core, Application, Input | 001-core-public-api, 003-application-public-api, 006-input-public-api | 017-uicore-public-api |
 | 018-UI | UICore | 017-uicore-public-api | 018-ui-public-api |
 | 019-PipelineCore | RHI, RenderCore | 008-rhi-public-api, 009-rendercore-public-api | 019-pipelinecore-public-api |
-| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource | 001/004/005/019/009/010/011/012/013 等 | 020-pipeline-public-api |
+| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Resource, **Effects**, Animation（可选） | 001/004/005/019/009/010/011/012/013/021 等；015 可选 | 020-pipeline-public-api |
 | 021-Effects | PipelineCore, RenderCore, Shader | 019-pipelinecore-public-api, 009-rendercore-public-api, 010-shader-public-api | 021-effects-public-api |
 | 022-2D | Core, Resource, Physics, Pipeline, RenderCore | 001, 013, 014, 020-pipeline-public-api, 009 等 | 022-2d-public-api |
 | 023-Terrain | Core, Resource, Mesh, Pipeline, RenderCore | 001, 013, 012, 020-pipeline-public-api, 009 等 | 023-terrain-public-api |
@@ -75,6 +75,35 @@
 **边界契约**：020-Pipeline ↔ 008-RHI 的命令缓冲与提交约定见 `pipeline-to-rci.md`，020、008 实现须遵循。
 
 **流程**：修改某模块的公开 API → 在 **T0-contracts** 分支更新对应契约 → 在 `000-module-dependency-map.md` 中确认下游 → 通知或创建下游适配任务。
+
+## 依赖合理性检查与调整建议
+
+以下为对当前依赖图的检查结论与可选调整，供实现与多 Agent 协作时参考。
+
+### 1. 循环依赖与层级违反
+
+- **结论**：未发现**循环依赖**；L0→L1→L2→L3→L4 层级未被违反（低层未依赖高层）。
+- **建议**：保持现状；新增模块时继续遵守「仅依赖同层或下层」规则。
+
+### 2. 可能缺失的直接依赖（建议补充或显式约定）
+
+| 模块 | 现状 | 建议 | 理由 |
+|------|------|------|------|
+| **020-Pipeline** | ~~直接依赖未包含 021-Effects~~ | **已调整**：021-Effects 已列入 020 直接依赖（管线内建后处理/粒子 Pass）。 | — |
+| **020-Pipeline** | ~~直接依赖未包含 015-Animation~~ | **已约定**：015-Animation 列为**可选**直接依赖；仅当管线渲染蒙皮/骨骼时依赖。 | 表中已标 Animation（可选）；实现时按需链接 015。 |
+| **024-Editor** | 依赖 UI，未直接写 UICore | 保持现状即可 | 018-UI 已依赖 017-UICore，Editor 经 UI 间接使用 UICore，无需重复声明。 |
+| **025-Tools** | 「按需」无具体依赖 | 实现具体工具时再填写**具体依赖**（如 Core, Resource, 013 等） | 避免长期处于「按需」导致构建/契约不明确。 |
+
+### 3. 不完整或不一致处
+
+- **021-Effects ↔ 020-Pipeline**：**已调整**。020-Pipeline 已将 021-Effects 列为直接依赖（管线内建后处理/粒子 Pass）。
+- **027-XR**：已依赖 Core, Subsystems, Input, Pipeline；若 XR 使用 024-Editor 的视口或仅由 Editor 启动，可不增加对 Editor 的依赖（Editor 为 L4 消费端）。
+
+### 4. 建议的后续动作
+
+1. ~~**020-Pipeline**：……增加 021-Effects。~~ **已做**：020 已增加 Effects 与 Animation（可选）。
+2. **025-Tools**：首个 Tools 子功能落地时，在依赖表中将「按需」替换为具体依赖列表。
+3. **同步**：上述任一项调整后，同步更新 `docs/engine-modules-and-architecture.md` 中 §3 依赖表与 §4 依赖图。
 
 ---
 
