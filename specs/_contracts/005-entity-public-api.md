@@ -39,6 +39,14 @@
 
 - 须在 Core、Object、Scene 可用之后使用；组件类型须在 Object 中注册。实体销毁时须释放或转移组件与绑定资源。ModelComponent 仅存 ResourceId/句柄；由 Pipeline 或上层经 013 解析为 IModelResource*。
 
+## TODO 列表
+
+（以下任务来自原 ABI 数据相关 TODO。）
+
+- [ ] **注册**：引擎启动时注册 Component 类型（TransformComponent、ModelComponent 等）到 002 RegisterType。
+- [ ] **数据**：Component 属性按 002 可序列化约定；跨资源引用仅存 ResourceId；ModelComponent.modelGuid。
+- [ ] **接口**：GetModelGuid(IEntity*, ModelComponent*)/SetModelGuid；CreateEntityFromPrefab(prefabDesc)，prefabDesc 由调用方加载得到。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

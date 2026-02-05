@@ -50,6 +50,7 @@
 
 - [ ] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 可选 .hlsl/.glsl）。
 - [ ] **CreateShader**：013 加载后交 010 CreateShader/Compile；产出 Bytecode 供 008 创建 ShaderModule/PSO；010 不发起加载。
+- [ ] **接口与数据**（原 ABI 数据相关 TODO）：UniformLayoutDesc/ShaderReflectionDesc 与 009 IUniformLayout、011 scalarParams 约定一致；LoadSource(path, format)/LoadSourceFromMemory、Compile(handle, options)、GetBytecode(handle)、GetReflection(handle, outDesc)；调用 001 FileRead/FileWrite（LoadCache/SaveCache）。
 
 ## 变更记录
 

@@ -59,6 +59,8 @@
 - [ ] **Unload**：Release、UnloadPolicy、GC 与引用计数；与各模块句柄协调，避免悬空引用；DResource 随 RResource 由各子类/028/011/012/008 销毁，013 不直接操作。
 - [ ] **Streaming**：RequestStreaming、SetPriority、StreamingHandle；与 LOD、地形等按需加载对接；可先加载描述或低精度数据，高精度块按需 LoadAsync。
 - [ ] **EnsureDeviceResources**：将 EnsureDeviceResources/EnsureDeviceResourcesAsync 转发给具体 RResource，013 不创建、不调用 008。
+- [ ] **注册与加载器**：RegisterResourceLoader(type, IResourceLoader*)；引擎启动时各描述类型注册到 002、各类型 Loader（Texture/Mesh/Material/Model 等）向 013 注册；Save(resource, path)、Import(path, type) 与 002 Serialize、001 FileRead/FileWrite 对接。
+- [ ] **接口**：RequestLoadAsync(ResourceId, type, callback)/LoadSync(ResourceId, type)；EnsureDeviceResourcesAsync(IResource*)；IsDeviceReady(IResource*)/HasDResource(IResource*)；Unload(IResource*)/IResource::Release()。
 
 ## 变更记录
 

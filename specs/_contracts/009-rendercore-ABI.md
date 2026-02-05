@@ -115,32 +115,4 @@
 
 ---
 
-## 数据相关 TODO
-
-（本模块上游：001-Core、008-RHI。）
-
-### 数据
-
-- [ ] **IUniformLayout**：与 010 GetReflection 产出的 UniformLayoutDesc 对齐；成员名、类型、偏移与 std140 约定一致
-
-### 需提供的对外接口
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `CreateUniformBuffer(layout, device) → IUniformBuffer*` | 创建 Uniform 缓冲 |
-| [ ] `IUniformBuffer::Update(data, size)` | 上传 CPU 数据到 GPU |
-| [ ] `IUniformBuffer::Bind(cmd, slot)` | 绑定到命令列表 slot |
-
-### 需调用上游
-
-| 场景 | 调用 008 接口 |
-|------|---------------|
-| CreateUniformBuffer | `IDevice::CreateBuffer(BufferDesc{ usage=Uniform })` |
-| IUniformBuffer::Update | `IDevice::UpdateBuffer(buffer, offset, data, size)` |
-| IUniformBuffer::Bind | `ICommandList::SetUniformBuffer(slot, buffer, offset)` |
-
-### 调用流程
-
-1. 011 创建材质 → 调用 009.CreateUniformBuffer(layout, device)
-2. 011 提交绘制前 → 调用 009.IUniformBuffer::Update(scalarParams)
-3. 020 录制 Draw → 调用 009.IUniformBuffer::Bind(cmd, slot)
+数据与接口 TODO 已迁移至本模块契约 [009-rendercore-public-api.md](./009-rendercore-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与已实现说明。

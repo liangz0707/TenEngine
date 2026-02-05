@@ -44,6 +44,7 @@
 
 - [ ] **描述归属**：MeshAssetDesc 归属 012；.mesh/.meshdata 描述与数据格式与 002 注册；一目录一资源（.mesh + .meshdata + 可选 .obj/.fbx）。
 - [ ] **CreateMesh**：CreateMesh(vertexData, indexData, layout, submeshes) 仅接受内存，入参由 013 传入；EnsureDeviceResources 时对依赖链先 Ensure 再调用 008 CreateBuffer 创建顶点/索引缓冲。
+- [ ] **MeshAssetDesc/.mesh**：formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮；MeshHandle 内持顶点/索引 IBuffer*（DResource）、子网格信息；CreateMesh(…)、EnsureDeviceResources(handle, device)、ReleaseMesh(handle)；调用 009 VertexFormat/IndexFormat/BufferDesc、008 CreateBuffer/DestroyBuffer。
 
 ## 变更记录
 

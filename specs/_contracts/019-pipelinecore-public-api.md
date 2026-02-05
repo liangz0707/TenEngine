@@ -41,6 +41,13 @@
 
 - 须在 RHI、RenderCore 初始化之后使用。Pass 资源声明须与 RenderCore PassProtocol 一致。资源屏障与生命周期不得违反 RHI 要求。
 
+## TODO 列表
+
+（以下任务来自原 ABI 数据相关 TODO。）
+
+- [ ] **数据**：RenderItem 含 Model/Mesh/Material 句柄引用、排序 key；IRenderItemList。
+- [ ] **接口**：CollectRenderItemsParallel(pipeline, ctx, out)；PrepareRenderMaterial(handle, device)、PrepareRenderMesh(handle, device) 在线程 D、触发句柄 EnsureDeviceResources；ConvertToLogicalCommandBuffer(items, pipeline, out)；调用 008 SetUniformBuffer、009 IUniformBuffer::Bind。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

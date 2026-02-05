@@ -38,10 +38,11 @@
 
 ## TODO 列表
 
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计及原 ABI 数据相关 TODO。）
 
 - [ ] **数据约定**：与 013 约定 .texture 解析后结构（formatVersion、format、width、height、mipCount、pixelData 或引用）；一目录一资源（.texture + .texdata + 可选源图）。
-- [ ] **CreateTexture**：接受像素/描述创建 TextureHandle，入参仅内存、由 013 传入；EnsureDeviceResources 时调用 008 创建 RHI 纹理；ReleaseTexture 时销毁 DResource。
+- [ ] **TextureHandle**：内持 RHI 纹理（DResource）、格式/尺寸信息。
+- [ ] **接口**：CreateTexture(pixelData, format, width, height, mipCount, …)→TextureHandle*，入参由 013 传入；EnsureDeviceResources(handle, device)→bool；ReleaseTexture(handle)；GetFormat/GetWidth/GetHeight/GetMipCount；调用 009 纹理格式描述、008 CreateTexture/DestroyTexture。
 
 ## 变更记录
 

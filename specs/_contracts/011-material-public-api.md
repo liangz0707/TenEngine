@@ -44,6 +44,7 @@
 
 - [ ] **描述归属**：MaterialAssetDesc 归属 011；.material 描述格式与 002 注册；一目录一资源（.material + 贴图用 GUID 引用）。
 - [ ] **CreateMaterial**：CreateMaterial(MaterialAssetDesc, shaderRef, textureRefs)；依赖由 013 递归加载后传入；EnsureDeviceResources 时先对依赖链 Ensure 再创建材质 DResource（绑定贴图、采样器等），调用 008。
+- [ ] **接口与数据**：MaterialAssetDesc 类型与 002 注册；MaterialHandle 内持 IUniformBuffer* 与贴图绑定；CreateMaterial(desc, shaderHandle, textureHandles)、UpdateMaterialParams(handle, scalarParams)、EnsureDeviceResources(handle, device)、IsDeviceReady(handle)；调用 009 CreateUniformBuffer(layout, device)、IUniformBuffer::Update，layout 来自 010.GetReflection。
 
 ## 变更记录
 
