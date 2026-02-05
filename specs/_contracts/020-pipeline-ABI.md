@@ -1,4 +1,4 @@
-﻿# 020-Pipeline 模块 ABI
+# 020-Pipeline 模块 ABI
 
 - **契约**：[020-pipeline-public-api.md](./020-pipeline-public-api.md)（能力与类型描述）
 - **本文件**：020-Pipeline 对外 ABI 显式表。
@@ -29,37 +29,4 @@
 
 ---
 
-## 数据相关 TODO
-
-（本模块上游：001-Core、004-Scene、005-Entity、019-PipelineCore、009-RenderCore、010-Shader、011-Material、012-Mesh、013-Resource、021-Effects 等。）
-
-### 数据
-
-- [ ] **FrameContext**：含 scene、camera、viewport、frameSlotId
-- [ ] 待渲染项来源：004 节点 modelGuid、005 实体 ModelComponent.modelGuid
-
-### 需提供的对外接口
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `IRenderPipeline::RenderFrame(ctx)` / `TriggerRender(ctx)` | 一帧渲染入口 |
-| [ ] `IRenderPipeline::SubmitLogicalCommandBuffer(logical_cb)` | 在线程 D 提交到 GPU |
-
-### 需调用上游
-
-| 场景 | 调用上游接口 |
-|------|--------------|
-| 取待渲染项 | 004.`GetNodeModelGuid(node)`；005.`GetModelGuid(entity)` |
-| 按 GUID 加载 Model | 013.`LoadSync(ResourceId, Model)` 或 `RequestLoadAsync` |
-| 收集 RenderItem | 019.`CollectRenderItemsParallel` |
-| 准备资源 | 019.`PrepareRenderMaterial`, `PrepareRenderMesh` |
-| 提交绘制前 | 013.`IsDeviceReady(resource)`；false 则跳过/等待/占位 |
-| Draw 时绑定 Uniform | 009.`IUniformBuffer::Bind(cmd, slot)` 或 008.`SetUniformBuffer` |
-| 流式加载（可选） | 013.`RequestStreaming`, `SetStreamingPriority` |
-
-### 调用流程
-
-1. **TriggerRender(ctx)** → 从 004/005 取 modelGuid → 013.LoadSync(modelGuid) 取得 IModelResource* → 构造 FrameContext.scene
-2. **019.CollectRenderItemsParallel** → 产出 RenderItem 列表
-3. **线程 D**：019.PrepareRenderMaterial/Mesh → 019.ConvertToLogicalCommandBuffer → 录制 Draw（009.Bind / 008.SetUniformBuffer）→ SubmitLogicalCommandBuffer
-4. **Draw 前**：013.IsDeviceReady 为 false 则跳过该次绘制或使用占位
+数据与接口 TODO 已迁移至本模块契约 [020-pipeline-public-api.md](./020-pipeline-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。

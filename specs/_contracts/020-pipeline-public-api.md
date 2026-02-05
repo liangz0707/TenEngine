@@ -46,6 +46,7 @@
 
 - [ ] **资源解析**：从 Scene/Entity 收集可见节点或实体（ResourceId/句柄）；经 013 LoadSync/GetCached 解析为 IModelResource* 等；不长期持有 IResource*。
 - [ ] **EnsureDeviceResources**：提交绘制前对资源句柄/ResourceId 调用 EnsureDeviceResources（或 Async），触发 011/012/028 创建 DResource；LOD 流式经 013 RequestStreaming/SetPriority 对接。
+- [ ] **数据与流程**：FrameContext 含 scene、camera、viewport、frameSlotId；待渲染项来源 004 节点 modelGuid、005 ModelComponent.modelGuid；IRenderPipeline::RenderFrame(ctx)/TriggerRender(ctx)、SubmitLogicalCommandBuffer(logical_cb) 在线程 D；取待渲染项 004.GetNodeModelGuid、005.GetModelGuid，013 LoadSync/RequestLoadAsync，019 CollectRenderItemsParallel、PrepareRenderMaterial/Mesh，013 IsDeviceReady，009 Bind/008 SetUniformBuffer，013 RequestStreaming/SetStreamingPriority。
 
 ## 变更记录
 

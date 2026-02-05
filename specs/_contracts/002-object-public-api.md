@@ -56,5 +56,6 @@
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 002-Object 契约 |
+| T0 新增 | 002-Object 契约；按模块规格与 resource-serialization 约定 ABI 与 TODO |
+| 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除代码示例与 ABI 引用 |

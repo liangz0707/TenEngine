@@ -58,6 +58,7 @@
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
 
 - [ ] **DResource 创建**：提供 CreateBuffer、CreateTexture、CreateSampler、CreateGraphicsPSO 等接口，供 028/011/012 在 EnsureDeviceResources 时调用；不暴露具体后端类型；生命周期与 028/011/012 协调。
+- [ ] **数据与接口**（原 ABI 数据相关 TODO）：BufferDesc（size、usage=Vertex/Index/Uniform）、TextureDesc（width、height、format、mipLevels）；IDevice::CreateTexture(TextureDesc)、CreateBuffer(BufferDesc)、UpdateBuffer(buffer, offset, data, size)；ICommandList::SetUniformBuffer(slot, buffer, offset)；设备/资源内部分配调用 001 Alloc/Free。
 
 ## 变更记录
 

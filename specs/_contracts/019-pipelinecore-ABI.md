@@ -50,34 +50,4 @@
 
 ---
 
-## 数据相关 TODO
-
-（本模块上游：008-RHI、009-RenderCore。）
-
-### 数据
-
-- [ ] **RenderItem**：含 Model/Mesh/Material 句柄引用、排序 key 等
-- [ ] **IRenderItemList**：RenderItem 列表
-
-### 需提供的对外接口
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `CollectRenderItemsParallel(pipeline, ctx, out)` | 从 FrameContext.scene 收集可渲染项，产出 IRenderItemList |
-| [ ] `PrepareRenderMaterial(handle, device) → ResultCode` | 在线程 D 调用；确保 Material 句柄具备 DResource |
-| [ ] `PrepareRenderMesh(handle, device) → ResultCode` | 在线程 D 调用；确保 Mesh 句柄具备 DResource |
-| [ ] `ConvertToLogicalCommandBuffer(items, pipeline, out)` | 产出 ILogicalCommandBuffer；Draw 录制时绑定 Uniform 等 |
-
-### 需调用上游
-
-| 场景 | 调用 008 / 009 接口 |
-|------|---------------------|
-| CollectRenderItemsParallel | 使用 FrameContext.scene（ISceneWorld）遍历 |
-| PrepareRenderMaterial/Mesh | 若句柄提供 IsDeviceReady 且为 false → 返回 ResultCode（未就绪）；否则触发句柄的 EnsureDeviceResources（011/012） |
-| ConvertToLogicalCommandBuffer | 009.`IUniformBuffer::Bind(cmd, slot)`；008.`SetUniformBuffer` 等 |
-
-### 调用流程
-
-1. 020 调用 CollectRenderItemsParallel → 019 从 ctx.scene 遍历 → 产出 RenderItem 列表（含 IModelResource* 等）
-2. 020 在线程 D 调用 PrepareRenderMaterial/Mesh → 019 确保句柄就绪；若 IsDeviceReady 为 false 返回未就绪
-3. 020 调用 ConvertToLogicalCommandBuffer → 019 录制 Draw；绑定材质 Uniform（009.Bind）
+数据与接口 TODO 已迁移至本模块契约 [019-pipelinecore-public-api.md](./019-pipelinecore-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。

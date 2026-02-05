@@ -186,24 +186,4 @@
 
 ---
 
-## 数据相关 TODO
-
-（本模块上游：001-Core；无资产注册/序列化职责。）
-
-### 数据
-
-- [ ] **BufferDesc**：size、usage（Vertex/Index/Uniform 等）
-- [ ] **TextureDesc**：width、height、format、mipLevels 等
-
-### 需提供的对外接口（供下游创建 DResource 与录制命令）
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `IDevice::CreateTexture(TextureDesc) → ITexture*` | 创建 GPU 纹理；支持从 texdata 或像素数据初始化 |
-| [ ] `IDevice::CreateBuffer(BufferDesc) → IBuffer*` | 创建 GPU 缓冲；Usage=Vertex/Index/Uniform |
-| [ ] `IDevice::UpdateBuffer(buffer, offset, data, size)` | CPU 数据上传到 GPU 缓冲 |
-| [ ] `ICommandList::SetUniformBuffer(slot, buffer, offset)` | 将 IBuffer 绑定到 Shader slot；Draw 前绑定材质 Uniform |
-
-### 需调用上游
-
-- 001：`Alloc`/`Free`（设备/资源内部分配）
+数据与接口 TODO 已迁移至本模块契约 [008-rhi-public-api.md](./008-rhi-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与已实现说明。

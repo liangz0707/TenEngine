@@ -46,6 +46,13 @@
 
 - 须在 Core、RHI 初始化之后使用；与 Shader 的 Uniform 布局约定须一致。Pass 资源声明与 PipelineCore（019）的 Pass 图协议须一致。
 
+## TODO 列表
+
+（以下任务来自原 ABI 数据相关 TODO。）
+
+- [ ] **数据**：IUniformLayout 与 010 GetReflection 产出的 UniformLayoutDesc 对齐（成员名、类型、偏移、std140）。
+- [ ] **接口**：CreateUniformBuffer(layout, device)→IUniformBuffer*、IUniformBuffer::Update(data, size)、IUniformBuffer::Bind(cmd, slot)；调用 008 CreateBuffer(usage=Uniform)、UpdateBuffer、SetUniformBuffer。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

@@ -50,6 +50,7 @@
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
 
 - [ ] **无资源职责**：004 不负责资源与关卡描述；CreateSceneFromDesc(SceneDesc) 入参由 029 转换后传入；004 不持有 *AssetDesc、不依赖 013、不解析节点上的不透明句柄为资源类型。
+- [ ] **接口**：CreateSceneFromDesc(SceneDesc, …) 由 029 调用；不注册 LevelAssetDesc/SceneNodeDesc（归属 029）；可选 GetNodeModelGuid(node)/GetNodeEntityPrefabGuid(node) 若节点携带不透明句柄；UnloadScene(scene) 与 029/013 协同。
 
 ## 变更记录
 

@@ -46,6 +46,12 @@
 
 - 主工程或上层须先完成 Core 初始化（Init）后再调用各子能力；卸载前释放由 Core 分配的资源并停止使用句柄。
 
+## TODO 列表
+
+（以下任务来自原 001-core-ABI.md「010-Shader 依赖」TODO。）
+
+- [ ] **010-Shader 依赖**：确保下列接口已实现且可供 010 使用——FileRead（LoadSource 读文件）、Log（编译失败/缓存错误）、Alloc/Free 或 GetDefaultAllocator、PathNormalize、DirectoryEnumerate、FileWrite（SaveCache）、CheckError/Assert；确认通过 010 集成测试。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

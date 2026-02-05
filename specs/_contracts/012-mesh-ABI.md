@@ -13,32 +13,4 @@
 
 ---
 
-## 数据相关 TODO
-
-（依据 [docs/assets/013-resource-data-model.md](../../docs/assets/013-resource-data-model.md) §Mesh；本模块上游：001-Core、009-RenderCore。）
-
-### 数据
-
-- [ ] **MeshAssetDesc / .mesh 约定**：012 定义 **MeshAssetDesc**（formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮）；.mesh 为 MeshAssetDesc 的序列化格式，013 解析后交 012 CreateMesh
-- [ ] **MeshHandle**：内持顶点/索引 IBuffer*（DResource）、子网格信息
-
-### 需提供的对外接口
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `CreateMesh(vertexData, indexData, layout, submeshes, device) → MeshHandle*` | 创建 Mesh；device 由调用方（013）传入 |
-| [ ] `EnsureDeviceResources(handle, device) → bool` | 按需创建 DResource；返回是否就绪 |
-| [ ] `ReleaseMesh(handle)` | 释放 MeshHandle 及 GPU 缓冲 |
-
-### 需调用上游
-
-| 场景 | 调用 009 / 设备接口 |
-|------|---------------------|
-| CreateMesh | 使用 009.VertexFormat、IndexFormat、BufferDesc 描述；调用设备 CreateBuffer(Vertex/Index) |
-| ReleaseMesh | 调用设备 DestroyBuffer |
-
-### 调用流程
-
-1. 013 解析 .mesh → 得到 vertexData、indexData、layout、submeshes → 012.CreateMesh(..., device)
-2. 013 EnsureDeviceResourcesAsync → 012.EnsureDeviceResources(handle, device)
-3. 013 Unload → 012.ReleaseMesh(handle)
+数据与接口 TODO 已迁移至本模块契约 [012-mesh-public-api.md](./012-mesh-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。

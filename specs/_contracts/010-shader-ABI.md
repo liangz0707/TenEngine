@@ -111,32 +111,4 @@ STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
 
 ---
 
-## 数据相关 TODO
-
-（本模块上游：001-Core、008-RHI、009-RenderCore。）
-
-### 数据
-
-- [ ] **UniformLayoutDesc**（te::rendercore 类型）：供 009 创建 IUniformLayout
-- [ ] **ShaderReflectionDesc**：含 Uniform、Texture、Sampler 槽位；成员名与 011 scalarParams、009 IUniformLayout 约定一致
-
-### 需提供的对外接口
-
-| 接口 | 说明 |
-|------|------|
-| [ ] `LoadSource(path, format)` / `LoadSourceFromMemory(data, size, format)` | 加载 Shader 源码；路径由调用方解析 |
-| [ ] `Compile(handle, options)` | 编译为 SPIR-V/DXIL/MSL |
-| [ ] `GetBytecode(handle, outSize) → void const*` | 供 008 创建 PSO |
-| [ ] `GetReflection(handle, outDesc)` / `GetShaderReflection(handle, outDesc)` | 产出 UniformLayoutDesc、ShaderReflectionDesc |
-
-### 需调用上游
-
-| 场景 | 调用 001 接口 |
-|------|---------------|
-| LoadSource | `te::core::FileRead` |
-| LoadCache/SaveCache | `te::core::FileRead`, `te::core::FileWrite` |
-
-### 调用流程
-
-1. 013/011 加载材质 → 取得 shader 路径 → 010.LoadSource(path) → Compile → GetReflection
-2. 011 创建 UniformBuffer → 用 010.GetReflection 产出的 UniformLayoutDesc 调用 009.CreateUniformLayout
+数据与接口 TODO 已迁移至本模块契约 [010-shader-public-api.md](./010-shader-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。

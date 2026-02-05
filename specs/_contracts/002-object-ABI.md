@@ -43,9 +43,4 @@
 - **跨资源引用**：仅读写 16 字节 GUID，不存指针或路径
 - **上游调用**：类型元数据分配使用 001-Core `Alloc`/`Free`
 
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 按 002-Object 模块规格与 resource-serialization 约定 ABI 与 TODO |
-| 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
+变更记录已合并至本模块契约 [002-object-public-api.md](./002-object-public-api.md) 的变更记录。
