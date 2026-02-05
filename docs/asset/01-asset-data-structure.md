@@ -47,8 +47,8 @@
 | Shader | IShaderResource | **ShaderAssetDesc** | 010-Shader | .shader |
 | Material | IMaterialResource | **MaterialAssetDesc** | 011-Material | .material |
 | Mesh | IMeshResource | **MeshAssetDesc** | 012-Mesh | .mesh |
-| Texture | ITextureResource | **TextureAssetDesc** | 013-Resource | .texture |
-| Model | IModelResource | **ModelAssetDesc** | 013-Resource | .model |
+| Texture | ITextureResource | **TextureAssetDesc** | 028-Texture | .texture |
+| Model | IModelResource | **ModelAssetDesc** | 029-World | .model |
 | Level | ILevelResource | **LevelAssetDesc**、**SceneNodeDesc** | 029-World | .level |
 | Audio（若需） | IAudioResource | **AudioAssetDesc**（若需） | 016-Audio | 按需 |
 

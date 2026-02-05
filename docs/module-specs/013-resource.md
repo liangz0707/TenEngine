@@ -2,7 +2,7 @@
 
 ## 1. 模块简要说明
 
-Resource 提供**资源导入、加载与生命周期**：导入、同步/异步加载、卸载、流式与可寻址，对应 Unreal 的**资源系统/Asset Registry**、Unity 的 **Addressables/Asset Bundle** 与导入管线。**所有需要加载的资产类型均继承/实现 IResource**（IMaterialResource、IMeshResource、ITextureResource、IModelResource、IShaderResource、ILevelResource : IResource）；**统一接口**：Load/Unload/Release/EnsureDeviceResources 等均针对 **IResource***（或对 ResourceId/句柄解析到 IResource），013 用同一套逻辑管理；**统一缓存**：013 的缓存存 **IResource***，按 **ResourceId** 查找，不为每种资源各写一套；**多态**：不同资源类型同一基类，代码更简单。**凡需加载或使用这些资源的模块均依赖 013-Resource**。**描述类型（*Desc）归属原本模块**：013 拥有 ModelAssetDesc、TextureAssetDesc；ShaderAssetDesc→010，MaterialAssetDesc→011，LevelAssetDesc/SceneNodeDesc→029-World，MeshAssetDesc→012。**013 仅依赖 Core、Object**；被 010-Shader、011-Material、012-Mesh、004-Scene 等资源类型模块依赖。Load 阶段由各模块向 013 注册的 Create*/Loader 提供实现，013 将内存/句柄交其初始化，获句柄后由 013 组装 RResource。
+Resource 提供**资源导入、加载与生命周期**：导入、同步/异步加载、卸载、流式与可寻址，对应 Unreal 的**资源系统/Asset Registry**、Unity 的 **Addressables/Asset Bundle** 与导入管线。**所有需要加载的资产类型均继承/实现 IResource**（IMaterialResource、IMeshResource、ITextureResource、IModelResource、IShaderResource、ILevelResource : IResource）；**统一接口**：Load/Unload/Release/EnsureDeviceResources 等均针对 **IResource***（或对 ResourceId/句柄解析到 IResource），013 用同一套逻辑管理；**统一缓存**：013 的缓存存 **IResource***，按 **ResourceId** 查找，不为每种资源各写一套；**多态**：不同资源类型同一基类，代码更简单。**凡需加载或使用这些资源的模块均依赖 013-Resource**。**描述类型（*Desc）归属**：ModelAssetDesc、IModelResource→029-World，TextureAssetDesc→028-Texture；ShaderAssetDesc→010，MaterialAssetDesc→011，LevelAssetDesc/SceneNodeDesc→029-World，MeshAssetDesc→012。013 不拥有 ModelAssetDesc、TextureAssetDesc。**013 仅依赖 Core、Object**；被 010-Shader、011-Material、012-Mesh、004-Scene 等资源类型模块依赖。Load 阶段由各模块向 013 注册的 Create*/Loader 提供实现，013 将内存/句柄交其初始化，获句柄后由 013 组装 RResource。
 
 ## 2. 详细功能描述
 

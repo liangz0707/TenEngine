@@ -28,7 +28,7 @@
 | 013-Resource | te::resource | ITextureResource | 抽象接口 | 纹理资源视图 | te/resource/TextureResource.h | ITextureResource | 纹理宽高、格式、GPU 句柄等；由 requestLoadAsync(..., ResourceType::Texture, ...) 回调返回或 IResource 转型 |
 | 013-Resource | te::resource | IMeshResource | 抽象接口 | 网格资源视图 | te/resource/MeshResource.h | IMeshResource | 顶点/索引、子网格、LOD 等；Mesh 来源于 OBJ、FBX 等常用格式；按类型 Mesh 加载或经 Model 资源引用 |
 | 013-Resource | te::resource | IMaterialResource | 抽象接口 | 材质资源视图 | te/resource/MaterialResource.h | IMaterialResource | **引擎自有格式**；材质**保存 Shader**，并引用**贴图**、**材质参数**（渲染 Shader 的参数值）；按类型 Material 加载或经 Model 资源引用 |
-| 013-Resource | te::resource | IModelResource | 抽象接口 | 模型资源视图 | te/resource/ModelResource.h | IModelResource | **硬盘上的 Model 资源引用了 Material 和 Mesh**；聚合若干 Mesh 与若干 Material 的引用；经**统一接口** requestLoadAsync(..., Model, ...) 加载；模型渲染 = Mesh + Material 的组织 |
+| 029-World | te::world | IModelResource | 抽象接口 | 模型资源视图 | te/world/ModelResource.h | IModelResource | **归属 029-World**。硬盘上的 Model 资源引用了 Material 和 Mesh；聚合若干 Mesh 与若干 Material 的引用；经 013 统一 requestLoadAsync(..., Model, ...) 加载后返回；模型渲染 = Mesh + Material 的组织 |
 | 013-Resource | te::resource | IEffectResource | 抽象接口 | 特效资源视图 | te/resource/EffectResource.h | IEffectResource | 粒子/VFX 等；经**统一接口** requestLoadAsync(..., Effect, ...) 加载 |
 | 013-Resource | te::resource | ITerrainResource | 抽象接口 | 地形资源视图 | te/resource/TerrainResource.h | ITerrainResource | 地形块/高度图等；经**统一接口** requestLoadAsync(..., Terrain, ...) 加载 |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 可选：注册自定义类型加载器 | te/resource/ResourceManager.h | IResourceManager::RegisterResourceLoader | `void RegisterResourceLoader(ResourceType type, IResourceLoader* loader);` 扩展新类型后仍用统一 RequestLoadAsync 加载 |

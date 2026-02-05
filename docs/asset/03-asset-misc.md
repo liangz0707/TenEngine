@@ -92,7 +92,7 @@
 
 ## 3.6 其他约定
 
-- **数据归属**：ModelAssetDesc、TextureAssetDesc 归属 013；ShaderAssetDesc→010，MaterialAssetDesc→011，**LevelAssetDesc/SceneNodeDesc→029-World**（004 只负责场景结构与管理，不负责资源），MeshAssetDesc→012。各模块向 002 注册自己的描述类型；013 反序列化后交对应模块或自身组装。
+- **数据归属**：ModelAssetDesc、IModelResource→029-World，TextureAssetDesc→028-Texture；ShaderAssetDesc→010，MaterialAssetDesc→011，**LevelAssetDesc/SceneNodeDesc→029-World**（004 只负责场景结构与管理，不负责资源），MeshAssetDesc→012。各模块向 002 注册自己的描述类型；013 反序列化后交对应模块或自身组装。
 - **Entity / Scene / ModelComponent**：节点或组件挂 ResourceId（modelGuid）或句柄；004/005 不持有 IModelResource*；渲染时由 Pipeline 经 013 LoadSync/GetCached 解析。
 - **可寻址与打包**：ResourceId、GUID、Address、BundleMapping 由 013 Addressing 子模块负责；与磁盘“一目录一资源”结构可并存（打包时按 GUID 映射到包内路径或偏移）。
 

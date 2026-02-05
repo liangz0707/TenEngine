@@ -1,0 +1,29 @@
+﻿# TenEngine-013-resource Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-01-29
+
+## Active Technologies
+
+- C++17 + 001-Core（内存、文件、字符串等）、002-Object（GUID/引用解析、类型）；仅使用两模块契约已声明类型与 API。 (013-resource-fullversion-001)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+# Add commands for C++17
+
+## Code Style
+
+C++17: Follow standard conventions
+
+## Recent Changes
+
+- 013-resource-fullversion-001: Added C++17 + 001-Core（内存、文件、字符串等）、002-Object（GUID/引用解析、类型）；仅使用两模块契约已声明类型与 API。
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
