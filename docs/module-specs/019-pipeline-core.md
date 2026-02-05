@@ -6,6 +6,8 @@ PipelineCore 提供**管线协议与命令缓冲约定**：命令缓冲格式、
 
 ## 2. 详细功能描述
 
+**渲染资源显式控制位置**：渲染资源有**显式的控制位置**，便于理解与调试。**创建逻辑渲染资源**（**CreateRenderItem**）；**创建/收集逻辑上的 CommandBuffer**（**CollectCommandBuffer**，即 convertToLogicalCommandBuffer）；**准备渲染资源**（**PrepareRenderMaterial**、**PrepareRenderMesh** 等，即 prepareRenderResources 或细粒度 API）；**提交到实际 GPU Command**（**SubmitCommandBuffer**）见 020-Pipeline/008-RHI；**准备/创建/更新 GPU 资源**（**CreateDeviceResource**、**UpdateDeviceResource**）见 008-RHI。
+
 - **命令缓冲格式**：Pass 产出/消费的资源声明、生命周期、与 RHI 提交的约定。
 - **Pass 图协议**：RDG 风格 Pass 图、资源依赖、执行顺序、与 RHI 命令列表的映射。
 - **与 RHI 提交约定**：何时提交、资源屏障、多队列（可选）。
@@ -87,4 +89,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

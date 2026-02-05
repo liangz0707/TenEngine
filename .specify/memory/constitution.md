@@ -1,13 +1,6 @@
 <!--
-Sync Impact Report
-==================
-Version change: 1.0.0 → 1.1.0
-Modified principles: Added VI. Module Boundaries & Contract-First (T0); renamed Development Workflow → Code Quality & Testing
-Added sections: VI. Module Boundaries & Contract-First (T0); Code Quality & Testing (refined from Development Workflow)
-Removed sections: None
-Templates: unchanged; Constitution Check remains generic, aligned with contract-first and T0-contracts
+Sync Impact Report（历史）：Constitution 当前版本见文末 Version。
 Ref: docs/agent-interface-sync.md (T0 contract strategy)
-Follow-up TODOs: None.
 -->
 
 # TenEngine Constitution
@@ -52,7 +45,11 @@ Follow-up TODOs: None.
 - **Single source of truth for contracts**: The **authoritative** source for all contract files is the **`T0-contracts`** branch. Master/main is for repo and build configuration only; it MUST NOT be used as the source for contract content.
 - **Multi-Agent collaboration**: When working on any T0 module branch (e.g. `T0-001-core`, `T0-002-object`), agents MUST pull the latest contracts from **`origin/T0-contracts`** (e.g. `git fetch origin T0-contracts` then `git merge origin/T0-contracts`) before implementing or changing specs. Contract updates MUST be committed and pushed on the `T0-contracts` branch so other agents can pull them.
 - **Implementation constraint**: Implementations MUST use only **types and interfaces that are declared in the relevant contracts**. Downstream modules MUST depend only on what is declared in their upstream contracts (e.g. `specs/_contracts/001-core-public-api.md`). No reliance on internal or undocumented APIs.
-- **Rationale**: Ensures interface consistency across parallel work, avoids integration failures, and keeps a single place (T0-contracts) for cross-module API definitions. See `docs/agent-interface-sync.md` for the full T0 contract workflow.
+- **Full ABI implementation**: Each module MUST implement **all** symbols and capabilities listed in its ABI file (`specs/_contracts/NNN-modulename-ABI.md`). Partial implementations or long-term "to be filled" placeholders are not allowed.
+- **Build must use real submodule code**: The build process MUST satisfy dependencies by **including real submodule source code** (e.g. CMake `add_subdirectory`, `FetchContent` for the corresponding module). It is NOT allowed to replace an upstream module with in-module stubs, mocks, or placeholder implementations when that upstream module's source is not actually included in the build.
+- **No stubs or substitute implementations**: Providing **stub** implementations (e.g. returning null/default only to pass the build) or **substitute** implementations that do not conform to the ABI/contract as a long-term solution is **forbidden**. Temporary placeholders are allowed only when explicitly marked as such and with a tracked plan to replace them with the real implementation.
+- **Contract update flow (ABI-first)**: When updating module interfaces, changes MUST be reflected as **complete ABI entries** in the module's ABI file (`specs/_contracts/NNN-modulename-ABI.md`); interfaces required by **downstream** modules but not yet provided by **upstream** MUST be added as **TODO** entries in the **upstream** module's ABI file until implemented. See `specs/_contracts/README.md` and `docs/agent-interface-sync.md` §4.2.
+- **Rationale**: Ensures interface consistency across parallel work, avoids integration failures, and keeps a single place (T0-contracts) for cross-module API definitions. Full ABI and real submodule inclusion prevent hidden coupling and unreachable code paths. See `docs/agent-interface-sync.md` for the full T0 contract workflow; see `specs/_contracts/README.md` for the same requirements in Chinese.
 
 ## Technology Stack & Performance Standards
 
@@ -77,4 +74,5 @@ Follow-up TODOs: None.
 - All PRs and reviews MUST verify alignment with the principles above; exemptions MUST be recorded in the Complexity Tracking table (or equivalent) in the implementation plan.
 - For day-to-day development guidance, use README.md or docs/quickstart.md when available.
 
-**Version**: 1.1.0 | **Ratified**: 2025-01-28 | **Last Amended**: 2025-01-28
+**Version**: 1.3.0 | **Ratified**: 2025-01-28 | **Last Amended**: 2026-01-28  
+*1.3.0*: §VI — Contract update flow (ABI-first): interface changes must be complete ABI entries; downstream-required interfaces must be TODO in upstream ABI (see `specs/_contracts/README.md`, `docs/agent-interface-sync.md` §4.2).

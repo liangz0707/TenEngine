@@ -39,6 +39,8 @@
 | 016 | [016-audio.md](016-audio.md) | Audio |
 | 017 | [017-ui-core.md](017-ui-core.md) | UICore |
 | 018 | [018-ui.md](018-ui.md) | UI |
+| 028 | [028-texture.md](028-texture.md) | Texture |
+| 029 | [029-world.md](029-world.md) | World |
 
 ### L3 管线与特性
 
@@ -61,4 +63,4 @@
 
 ---
 
-依赖关系总图与全功能规格见 [../engine-modules-and-architecture.md](../engine-modules-and-architecture.md)。契约与 T0 约束分支见 [../agent-contracts-and-specs-T0.md](../agent-contracts-and-specs-T0.md)。契约文件见 `specs/_contracts/`，统一命名 `NNN-modulename-public-api.md`（如 `001-core-public-api.md`），边界契约为 `pipeline-to-rci.md`。
+依赖关系唯一说明见 [../specs/_contracts/000-module-dependency-map.md](../specs/_contracts/000-module-dependency-map.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。

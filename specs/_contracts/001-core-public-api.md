@@ -2,125 +2,60 @@
 
 ## 适用模块
 
-- **实现方**：**001-Core**（T0 基础层根模块）
+- **实现方**：001-Core（L0 根模块：内存、线程、平台（文件/时间/环境）、日志、数学、容器、模块加载；无反射/ECS）
 - **对应规格**：`docs/module-specs/001-core.md`
-- **交付形态**：静态库或动态库，由主工程或各模块在编译/运行时链接与调用。不包含反射与 ECS（反射/序列化由 002-Object 提供）。
+- **依赖**：无
 
-## 消费者（T0 下游）
+## 消费者
 
-- **L0**：002-Object, 003-Application  
-- **L1**：004-Scene, 005-Entity, 006-Input, 007-Subsystems, 008-RHI  
-- **L2**：009-RenderCore, 010-Shader, 012-Mesh, 013-Resource, 014-Physics, 015-Animation, 016-Audio, 017-UICore  
-- **L3/L4**：020-Pipeline, 022-2D, 023-Terrain, 024-Editor, 026-Networking, 027-XR 等  
+- 002-Object、003-Application、004-Scene、005-Entity、006-Input、007-Subsystems、008-RHI、009-RenderCore、010-Shader、012-Mesh、013-Resource、014-Physics、015-Animation、016-Audio、017-UICore、020-Pipeline、022-2D、023-Terrain、024-Editor、026-Networking、027-XR、028-Texture
 
-几乎所有模块均直接或间接依赖 Core。
+## 能力列表
 
-## 版本 / ABI
-
-- 遵循 Constitution：公开 API 版本化（MAJOR.MINOR.PATCH），破坏性变更递增 MAJOR 并附迁移说明。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| 分配器 / 内存块句柄 | 由内存管理分配的逻辑单元（堆、池、对齐块） | 分配后直至显式释放 |
-| 任务 / 作业 (Task/Job) | 提交给线程管理的可执行单元 | 提交后至完成或取消 |
-| 平台句柄 | 对文件、路径、时间、环境、动态库等的抽象引用 | 按具体子 API 约定 |
-| 数学类型 | Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray 等 | 值类型或由调用方管理 |
-| 容器类型 | Array、Map、String、UniquePtr、SharedPtr 等 | 由调用方管理，可指定分配器 |
-| 原子类型 | Atomic<T>、与线程同步相关的类型 | 按 C++ 标准或约定 |
-| 模块句柄 | 动态库加载后的句柄及符号地址 | Load 后直至 Unload |
+| Allocator / 内存块 | 抽象分配器 Allocator、DefaultAllocator；Alloc(size, alignment)、Free(ptr)；GetDefaultAllocator() | 分配后直至显式释放；Free(nullptr) 为 no-op |
+| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、TaskCallback、GetThreadPool | 按 C++ 或实现约定 |
+| 平台句柄与宏 | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS；FileRead/FileWrite、DirectoryEnumerate、DirEntry、Time、HighResolutionTimer、GetEnv、PathNormalize | 按具体 API 约定 |
+| 数学类型 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray；Lerp、Dot、Cross、Length、Normalize | 值类型或调用方管理 |
+| 容器 | Array\<T\>、Map\<K,V\>、String、UniquePtr\<T\>、SharedPtr\<T\>（可指定分配器） | 调用方管理 |
+| 日志与校验 | LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler；CheckWarning、CheckError 宏 | 进程级 |
+| 引擎与模块 | Init、Shutdown、InitParams；ModuleHandle、LoadLibrary、UnloadLibrary、GetSymbol；ModuleInitFn/ModuleShutdownFn、RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown | Init 后直至 Shutdown；Load 后直至 Unload |
 
-## 能力列表（提供方保证）
+### 能力（提供方保证）
 
-1. **内存管理**：分配（指定大小与对齐）、释放、可选池化与统计；分配失败与释放语义明确（如 nullptr、重复释放有定义）；可选调试分配与泄漏追踪。
-2. **线程管理**：创建/销毁线程、TLS、原子操作、Mutex/ConditionVariable、任务队列骨架；任务执行与同步语义明确。
-3. **平台抽象**：文件读/写、目录枚举、时间与高精度计时、环境变量、路径规范化、平台检测（Windows/Linux/macOS 等）；与具体 OS 解耦、行为可重复验证。
-4. **日志**：分级日志、输出通道、断言、崩溃报告钩子；可重定向与过滤。
-5. **数学**：标量/向量/矩阵/四元数、AABB、射线、插值及常用数学函数（与渲染无关的纯数学）；无 GPU 依赖。
-6. **容器**：动态数组、哈希表、字符串、智能指针；无反射、无 ECS，可与自定义分配器配合。
-7. **模块加载**：动态库 Load/Unload/GetSymbol、模块依赖顺序、初始化与关闭回调；与构建/插件系统配合。
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 内存管理 | Alloc/Free、Allocator 接口、GetDefaultAllocator；分配失败返回 nullptr；可选池化与统计 |
+| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool::SubmitTask、GetThreadPool；语义明确 |
+| 3 | 平台抽象 | 文件 FileRead/FileWrite、目录 DirectoryEnumerate、时间 Time/HighResolutionTimer、GetEnv、PathNormalize；平台宏 TE_PLATFORM_* 编译时选择 |
+| 4 | 日志 | LogLevel、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、SetCrashHandler；可重定向与过滤 |
+| 5 | 数学 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize；无 GPU 依赖 |
+| 6 | 容器 | Array、Map、String、UniquePtr、SharedPtr；无反射/ECS，可与自定义分配器配合 |
+| 7 | 模块加载 | LoadLibrary、UnloadLibrary、GetSymbol；RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown；与构建/插件配合 |
 
-## API 雏形（简化声明）
+命名空间 `te::core`；头文件 alloc.h、engine.h、thread.h、platform.h、log.h、check.h、math.h、containers.h、module_load.h。
 
-### 本切片（001-core-minimal）产出
+## 版本 / ABI
 
-#### 内存
+- 遵循 Constitution：公开 API 版本化（MAJOR.MINOR.PATCH）；破坏性变更递增 MAJOR。
 
-- `void* Alloc(size_t size, size_t alignment);`
-  - 分配至少 `size` 字节、按 `alignment` 对齐的块；失败返回 `nullptr`。
-  - `size == 0` 或 `alignment` 不合法（如非 2 的幂）时返回 `nullptr`。
-- `void Free(void* ptr);`
-  - 释放由 `Alloc` 返回的块；`ptr == nullptr` 或 double-free 为 no-op（安全忽略）。
+## 约束
 
-#### 日志
+- 主工程或上层须先完成 Core 初始化（Init）后再调用各子能力；卸载前释放由 Core 分配的资源并停止使用句柄。
 
-- 枚举 `LogLevel`: `Debug`, `Info`, `Warn`, `Error`。
-- `void Log(LogLevel level, char const* message);`
-  - 按级别写入一条消息；输出仅 stdout/stderr，可配置「某级别及以上→stderr、其余→stdout」及级别过滤。
-  - 写入为线程安全；单条消息原子输出。
-- 配置（示例，具体名由实现定）：设置级别过滤阈值、设置 stderr 阈值（≥ 该级别输出到 stderr），以便可配置通道与过滤。
+## TODO 列表
 
-### 本 feature（001-core-fullversion-001）完整 API 雏形
+（以下任务来自原 001-core-ABI.md「010-Shader 依赖」TODO。）
 
-#### 1. 内存 (Memory)
-
-- **Allocator** 接口（抽象基类）：`void* Alloc(size_t size, size_t alignment);`、`void Free(void* ptr);`
-- `void* Alloc(size_t size, size_t alignment);` — 默认堆分配；失败返回 nullptr；size==0 或非法 alignment 返回 nullptr。
-- `void Free(void* ptr);` — Free(nullptr) 与 double-free 为 no-op。
-- **DefaultAllocator**、**AlignedAlloc**、**PoolAllocator**（可选）、**DebugAllocator/LeakTracker**（可选）：语义见契约能力 1。
-
-#### 2. 线程 (Thread)
-
-- **Thread**：创建/销毁、join/detach。
-- **TLS**：线程局部存储。
-- **Atomic&lt;T&gt;**：原子类型封装。
-- **Mutex**、**ConditionVariable**：同步原语。
-- **TaskQueue** 骨架：提交任务、执行与同步语义明确（见契约能力 2）。
-
-#### 3. 平台 (Platform)
-
-- **FileRead/Write**：文件读写接口。
-- **DirectoryEnumerate**：目录枚举。
-- **Time/HighResolutionTimer**：时间与高精度计时。
-- **GetEnv**、**PathNormalize**：环境变量、路径规范化。
-- 平台宏与检测（Windows/Linux/macOS）。
-
-#### 4. 日志 (Log)
-
-- **LogLevel** 枚举：Debug, Info, Warn, Error（及可扩展）。
-- **LogSink**：输出通道抽象；可重定向与过滤。
-- `void Log(LogLevel level, char const* message);` — 线程安全；单条消息原子。
-- **Assert**、**CrashHandler**：断言与崩溃报告钩子。
-
-#### 5. 数学 (Math)
-
-- **Vector2/3/4**、**Matrix3/4**、**Quaternion**、**AABB**、**Ray**；**Lerp** 等插值与常用数学函数；无 GPU 依赖（见契约能力 5）。
-
-#### 6. 容器 (Containers)
-
-- **Array**、**Map**、**String**、**UniquePtr**、**SharedPtr**；可与自定义分配器配合；无反射、无 ECS（见契约能力 6）。
-
-#### 7. 模块加载 (ModuleLoad)
-
-- **LoadLibrary**、**UnloadLibrary**、**GetSymbol**：动态库加载/卸载/符号解析。
-- 模块依赖顺序、**ModuleInit/Shutdown** 回调；与构建/插件系统配合（见契约能力 7）。
-
-#### 调用顺序与约束（完整版）
-
-- 主工程须先完成 Core 初始化，再调用各子能力；卸载前释放所有由 Core 分配的资源并停止使用句柄。具体初始化/卸载顺序与 ABI 由实现与主工程约定。
-
-## 调用顺序与约束
-
-- 主工程或上层模块须先完成 Core 初始化（若以动态库形式则先加载并调用初始化接口），再调用各子能力；卸载前应释放所有由 Core 分配的资源并停止使用句柄。
-- 具体初始化/卸载顺序与 ABI 由实现与主工程约定，并由功能测试验证。
+- [ ] **010-Shader 依赖**：确保下列接口已实现且可供 010 使用——FileRead（LoadSource 读文件）、Log（编译失败/缓存错误）、Alloc/Free 或 GetDefaultAllocator、PathNormalize、DirectoryEnumerate、FileWrite（SaveCache）、CheckError/Assert；确认通过 010 集成测试。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| （初始） | 从 001-engine-core-module spec 提炼，供多 Agent 引用 |
-| T0 更新 | 对齐 T0 架构 001-Core：移除 ECS/序列化（归 002-Object），保留内存、线程、平台、日志、数学、容器、模块加载；消费者改为 T0 模块列表 |
-| 2026-01-29 | API 雏形由 plan 001-core-minimal 同步 |
-| 2026-01-29 | API 雏形由 plan 001-core-fullversion-001 同步（完整 7 子模块声明） |
+| （初始） | 从 001-engine-core-module spec 提炼 |
+| T0 更新 | 对齐 T0 架构；移除 ECS/序列化（归 002-Object）；消费者按依赖图 |
+| 2026-02-05 | 统一目录；能力列表用表格描述类型与句柄、能力；不引用 ABI 文件 |

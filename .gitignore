@@ -1,0 +1,23 @@
+# C++ / CMake
+build/
+out/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.lib
+*.dylib
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+.env
+.env.*
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

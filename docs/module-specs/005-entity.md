@@ -6,8 +6,8 @@ Entity 提供**实体与组件模型**（或可选 ECS 风格），对应 Unreal
 
 ## 2. 详细功能描述
 
-- **实体**：与场景节点绑定或独立的实体 ID、生命周期、启用/禁用。
-- **组件**：组件挂载、组件查询、依赖 Entity 与 Scene 的变换与层级。
+- **实体**：与场景节点**一一对应或映射**的实体 ID、生命周期、启用/禁用。
+- **组件**：组件挂载、组件查询、依赖 Entity 与 Scene 的变换与层级；**ModelComponent / RenderableComponent** 持有 **ResourceId（modelGuid）或不透明句柄**，005 不持有 IModelResource*、对 IResource 不可见；渲染时由 Pipeline 经 013 解析后使用。
 - **可选 ECS**：Entity-Component-System 架构、Archetype、System 调度，可与传统组件模型并存或二选一。
 
 ## 3. 实现难度
@@ -28,7 +28,7 @@ Entity 提供**实体与组件模型**（或可选 ECS 风格），对应 Unreal
 | 子模块 | 职责 |
 |--------|------|
 | Entity | 实体 ID、与 Scene 节点关联、生命周期、启用/禁用 |
-| Component | 组件注册、挂载/卸载、组件类型查询、与 Object 反射联动 |
+| Component | 组件注册、挂载/卸载、组件类型查询、与 Object 反射联动；**ModelComponent** 持有 ResourceId 或句柄（005 对 IResource 不可见） |
 | Transform | 与 Scene 节点共用的变换或实体专用变换组件 |
 | Systems（可选） | ECS System 注册、执行顺序、与主循环 Tick 集成 |
 
@@ -88,5 +88,5 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
-- **待办**：需随 `004-scene` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 004-scene-fullversion-001 同步）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `004-scene` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 004-scene-fullversion-001 同步）。
