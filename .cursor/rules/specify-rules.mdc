@@ -1,10 +1,12 @@
-# TenEngine-001-core Development Guidelines
+﻿# TenEngine-001-core Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-01-29
 
 ## Active Technologies
 - C++17 + 无第三方库；仅 C++ 标准库（`<cstdlib>`, `<thread>`, `<mutex>`, `<atomic>`, `<filesystem>`, `<chrono>`, `<functional>` 等）与平台 API（Win32 / POSIX / dyld）。 (001-core-fullmodule)
 - N/A（本模块不定义持久化存储；文件 I/O 仅平台能力）。 (001-core-fullmodule)
+- C++17（与 Constitution 一致） + 001-Core（文件、内存、异步）、002-Object（序列化、反射、GUID）、028-Texture（CreateTexture 等）；仅使用各契约已声明的类型与 API。 (013-resource-fullmodule-001)
+- 无模块自有持久化存储；缓存为内存（ResourceId → IResource*）；文件 I/O 通过 001-Core 或平台 API。 (013-resource-fullmodule-001)
 
 - C++17 + 无（根模块）；可选 std 库：&lt;cstdlib&gt;, &lt;cstddef&gt;, &lt;mutex&gt;, &lt;atomic&gt;, &lt;cstdio&gt; 等 (001-core-minimal)
 
@@ -24,6 +26,7 @@ tests/
 C++17: Follow standard conventions
 
 ## Recent Changes
+- 013-resource-fullmodule-001: Added C++17（与 Constitution 一致） + 001-Core（文件、内存、异步）、002-Object（序列化、反射、GUID）、028-Texture（CreateTexture 等）；仅使用各契约已声明的类型与 API。
 - 001-core-fullmodule: Added C++17 + 无第三方库；仅 C++ 标准库（`<cstdlib>`, `<thread>`, `<mutex>`, `<atomic>`, `<filesystem>`, `<chrono>`, `<functional>` 等）与平台 API（Win32 / POSIX / dyld）。
 
 - 001-core-minimal: Added C++17 + 无（根模块）；可选 std 库：&lt;cstdlib&gt;, &lt;cstddef&gt;, &lt;mutex&gt;, &lt;atomic&gt;, &lt;cstdio&gt; 等
