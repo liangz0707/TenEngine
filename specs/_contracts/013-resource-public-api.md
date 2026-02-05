@@ -123,27 +123,6 @@
 
 ---
 
-## TODO 列表
-
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
-
-- [ ] **描述归属**：ModelAssetDesc、IModelResource 归属 029-World，TextureAssetDesc 归属 028-Texture；.model/.texture 由 029/028 与 002 注册；013 加载时反序列化得到上述描述并交 029/028 或自身组装；一目录一资源（描述 + 实际数据 + 可选源数据）。
-- [ ] **Addressing**：实现 GUID→路径 解析；注册表/Manifest 维护 GUID→路径；支持多内容根、Bundle 包内路径；提供 ResolvePath(ResourceId) 或等价接口。
-- [ ] **Load 入口**：LoadSync/LoadAsync 为唯一入口；读文件得 buffer → 统一反序列化得到**不透明 payload**（013 不解析 *Desc）→ 按 ResourceType 调用已注册 Loader，将 payload 原样传入；Loader 由拥有 *Desc 的模块实现，内部将 payload 解释为 *Desc 并创建 IResource；根 RResource 创建完成后即缓存并立即返回句柄（异步不等待递归依赖全部完成）。
-- [ ] **缓存**：GetCached(ResourceId) 或等价接口；缓存键为 ResourceId；与 Unload/GC 一致。
-- [ ] **依赖加载**：依赖由 IResource 实现在创建时通过 013 统一 Load 接口递归加载；013 不先统一递归；循环引用约定（禁止/延迟/弱引用）并在实现中保证。
-- [ ] **状态与回调**：RResource 可查询 LoadState（Loading/Ready/Failed）；提供 GetLoadState(handle/ResourceId)；异步时提供「根已创建」与「已加载」（递归依赖全部完成）回调，供上层安全使用资源。
-- [ ] **Unload**：Release、UnloadPolicy、GC 与引用计数；与各模块句柄协调，避免悬空引用；DResource 随 RResource 由各子类/028/011/012/008 销毁，013 不直接操作。
-- [ ] **Streaming**：RequestStreaming、SetPriority、StreamingHandle；与 LOD、地形等按需加载对接；可先加载描述或低精度数据，高精度块按需 LoadAsync。
-- [ ] **EnsureDeviceResources**：将 EnsureDeviceResources/EnsureDeviceResourcesAsync 转发给具体 RResource，013 不创建、不调用 008。
-- [ ] **导入统一接口**：013 提供 RegisterImporter(ResourceType, IResourceImporter*)、Import(path, type)；各模块实现 IResourceImporter（DetectFormat、Convert、产出描述/数据、Metadata、Dependencies）；013 按 type 分发，不实现具体格式。
-- [ ] **序列化统一接口**：013 提供 Serialize(type, payload, buffer)/Deserialize(type, buffer, out payload) 或与 002 按类型注册序列化器；各模块实现本类型 *Desc/内存结构的序列化与反序列化；013 在 Load/Save 流程中调用，不解析具体内容。
-- [ ] **Save 流程**：013 提供 Save(IResource*, path) 或 Save(ResourceId, path)。存盘时：013 按 IResource::GetResourceType() 分发 → 各模块从 IResource 产出可存盘的内存内容（序列化缓冲或 *Desc+二进制块）并返回 → 013 调用统一写接口（001 FileWrite 或包写入）将内容落盘；各模块不直接写文件。
-- [ ] **Load 与注册**：RegisterResourceLoader(type, IResourceLoader*)；各类型 Loader 向 013 注册；Loader 接口约定为接收**不透明 payload**（如 CreateFromPayload(ResourceType, void* payload, ...)），013 不解析 payload 内容；与 002 Serialize、001 FileRead/FileWrite 对接。
-- [ ] **接口**：RequestLoadAsync(ResourceId, type, callback)/LoadSync(ResourceId, type)；GetCached(ResourceId)；Save(IResource*, path)；Import(path, type)；EnsureDeviceResourcesAsync(IResource*)；IsDeviceReady(IResource*)/HasDResource(IResource*)；Unload(IResource*)/IResource::Release()。
-
----
-
 ## 变更记录
 
 | 日期 | 变更说明 |
@@ -155,3 +134,4 @@
 | 2026-02-05 | 细化 Import/序列化/Save/Load：013 提供统一接口、各模块实现；Save 存盘流程为各模块返回内存内容、013 调用统一接口保存 |
 | 2026-02-05 | 明确 Load 时 *Desc 对 013 不可见：通过不透明 payload 传递；013 读文件→反序列化得 payload→按 type 调用 Loader 并传入 payload，Loader 由拥有 *Desc 的模块实现并解释 payload |
 | 2026-02-05 | ABI 写回（plan 013-resource-fullmodule-001）：GetCached、RegisterDeserializer、RegisterImporter、Import、Save、ResolvePath、IResourceLoader::CreateFromPayload、IResourceImporter、IDeserializer::Deserialize 正式纳入 ABI 表 |
+| 2026-02-05 | 清除 TODO 列表：plan 013-resource-fullmodule-001 已完成，相关任务已从 public-api 移除；归属（Model/Texture Desc→029/028）已在契约与文档中明确 |
