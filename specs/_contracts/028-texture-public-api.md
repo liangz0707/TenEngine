@@ -18,6 +18,7 @@
 |------|------|----------|
 | TextureHandle | 贴图句柄；CreateTexture(pixelData, format, width, height, mipCount, …) 仅接受内存；EnsureDeviceResources 时 028 调用 008-RHI 创建 DResource（纹理） | 创建后直至显式释放 |
 | TextureDesc | 格式、尺寸、Mip 级数、数组/立方体等描述 | 与 Texture 绑定 |
+| TextureAssetDesc | .texture 资产描述；028 拥有并向 002 注册；013 反序列化 .texture 得到后交 028 CreateTexture 或组装 RResource | 与 .texture 资源绑定 |
 
 ### 能力（提供方保证）
 
@@ -40,7 +41,7 @@
 
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计及原 ABI 数据相关 TODO。）
 
-- [ ] **数据约定**：与 013 约定 .texture 解析后结构（formatVersion、format、width、height、mipCount、pixelData 或引用）；一目录一资源（.texture + .texdata + 可选源图）。
+- [ ] **数据约定**：**TextureAssetDesc** 归属 028；.texture 描述格式与 002 注册；与 013 约定 .texture 解析后结构（formatVersion、format、width、height、mipCount、pixelData 或引用）；一目录一资源（.texture + .texdata + 可选源图）。
 - [ ] **TextureHandle**：内持 RHI 纹理（DResource）、格式/尺寸信息。
 - [ ] **接口**：CreateTexture(pixelData, format, width, height, mipCount, …)→TextureHandle*，入参由 013 传入；EnsureDeviceResources(handle, device)→bool；ReleaseTexture(handle)；GetFormat/GetWidth/GetHeight/GetMipCount；调用 009 纹理格式描述、008 CreateTexture/DestroyTexture。
 
@@ -50,3 +51,4 @@
 |------|----------|
 | T0 新增 | 028-Texture 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
+| 2026-02-05 | TextureAssetDesc 归属转入 028-Texture（原 013-Resource） |
