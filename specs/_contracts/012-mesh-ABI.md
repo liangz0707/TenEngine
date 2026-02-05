@@ -1,4 +1,4 @@
-﻿# 012-Mesh 模块 ABI
+# 012-Mesh 模块 ABI
 
 - **契约**：[012-mesh-public-api.md](./012-mesh-public-api.md)（能力与类型描述）
 - **本文件**：012-Mesh 对外 ABI 显式表。
@@ -19,7 +19,7 @@
 
 ### 数据
 
-- [ ] **Mesh 输入格式约定**：与 013 约定 .mesh 解析后的结构（formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮）
+- [ ] **MeshAssetDesc / .mesh 约定**：012 定义 **MeshAssetDesc**（formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮）；.mesh 为 MeshAssetDesc 的序列化格式，013 解析后交 012 CreateMesh
 - [ ] **MeshHandle**：内持顶点/索引 IBuffer*（DResource）、子网格信息
 
 ### 需提供的对外接口

@@ -1,4 +1,4 @@
-﻿# 004-Scene 模块 ABI
+# 004-Scene 模块 ABI
 
 - **契约**：[004-scene-public-api.md](./004-scene-public-api.md)（能力与类型描述）
 - **本文件**：004-Scene 对外 ABI 显式表。
@@ -20,10 +20,12 @@
 
 ### 场景加载与活动场景（SceneManager 风格，对齐 Unity/UE）
 
+**说明**：关卡资源的**唯一加载入口**为 013-Resource（Load(levelGuid)）。下列 LoadScene/LoadSceneAsync 为**高层便捷 API**，实现上应委托 013 Load(levelGuid)，013 再回调 004 CreateSceneFromDesc；004 不直接读 .level 文件。
+
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
-| 004-Scene | te::scene | — | 自由函数/静态 | 同步加载场景 | te/scene/SceneManager.h | LoadScene | `ISceneWorld* LoadScene(char const* pathOrName, LoadSceneMode mode);` 失败 nullptr；Single 时替换当前活动场景 |
-| 004-Scene | te::scene | — | 自由函数/静态 | 异步加载场景 | te/scene/SceneManager.h | LoadSceneAsync | `void LoadSceneAsync(char const* pathOrName, LoadSceneMode mode, void (*onComplete)(ISceneWorld*, void*), void* userData);` 或返回 IAsyncLoadHandle；完成回调传入 ISceneWorld* |
+| 004-Scene | te::scene | — | 自由函数/静态 | 同步加载场景 | te/scene/SceneManager.h | LoadScene | `ISceneWorld* LoadScene(char const* pathOrName, LoadSceneMode mode);` 或 `LoadScene(ResourceId levelGuid, ...)`；内部委托 013 Load(levelGuid)，失败 nullptr；Single 时替换当前活动场景 |
+| 004-Scene | te::scene | — | 自由函数/静态 | 异步加载场景 | te/scene/SceneManager.h | LoadSceneAsync | `void LoadSceneAsync(...)` 或返回 IAsyncLoadHandle；内部委托 013 RequestLoadAsync(levelGuid)；完成回调传入 ISceneWorld* |
 | 004-Scene | te::scene | — | 自由函数/静态 | 卸载场景 | te/scene/SceneManager.h | UnloadScene | `void UnloadScene(SceneRef scene);` 销毁该场景下所有 Entity 与节点，释放引用；与 013-Resource 协同 |
 | 004-Scene | te::scene | — | 自由函数/静态 | 获取当前活动场景 | te/scene/SceneManager.h | GetActiveScene | `SceneRef GetActiveScene();` 或 `ISceneWorld* GetActiveSceneWorld();` 当前活动场景/世界（参考 Unity GetActiveScene） |
 | 004-Scene | te::scene | — | 自由函数/静态 | 设置当前活动场景 | te/scene/SceneManager.h | SetActiveScene | `void SetActiveScene(SceneRef scene);` 或 `void SetActiveSceneWorld(ISceneWorld* world);` 渲染/物理/脚本以该场景为根 |
@@ -85,8 +87,8 @@
 
 | 需提供 | 需调用上游 |
 |--------|------------|
-| [ ] `LoadScene(pathOrResourceId, mode)`：读 .level 后反序列化得到 LevelAssetDesc | 002：`GetTypeByName("LevelAssetDesc")` → `Deserialize(buf, &desc, typeId)` |
-| [ ] 若入参为 ResourceId：内部完成 GUID→路径解析（与 resource-serialization §3.1 约定） | 001：`FileRead`（读 .level 文件） |
+| —（Level 加载由 **013-Resource** 唯一入口：013 读 .level、002 反序列化得到 LevelAssetDesc，再调用 004 CreateSceneFromDesc） | — |
+| [ ] **CreateSceneFromDesc**(LevelAssetDesc, nodeModelRefs)：由 013 调用，004 仅用内存构建场景图；节点存 modelGuid/entityPrefabGuid 或句柄 | 无（入参由 013 传入） |
 
 ### 数据
 
@@ -100,8 +102,8 @@
 - [ ] `GetNodeEntityPrefabGuid(ISceneNode*) → ResourceId`
 - [ ] `UnloadScene(scene)`：销毁场景图与节点数据
 
-### 调用流程
+### 调用流程（与 013-Resource 对齐）
 
-1. `LoadScene(pathOrResourceId, mode)` → 解析路径 → 001.FileRead 读 .level → 002.Deserialize 得到 LevelAssetDesc
-2. 从 LevelAssetDesc 构建 ISceneWorld、ISceneNode 树；节点存储 modelGuid、entityPrefabGuid
-3. 下游通过 `GetNodeModelGuid`、`GetNodeEntityPrefabGuid` 取得 GUID 后自行加载资源并挂接
+1. **关卡加载**：下游调用 **013 Load(levelGuid)** → 013 解析路径、读 .level、002.Deserialize 得到 LevelAssetDesc → 013 按需加载 Model 等依赖 → **013 调用 004 CreateSceneFromDesc**(LevelAssetDesc, nodeModelRefs)。
+2. **004 职责**：CreateSceneFromDesc 内从 LevelAssetDesc 构建 ISceneWorld、ISceneNode 树；节点存储 modelGuid/entityPrefabGuid 或 013 传入的句柄；004 不持有 IResource*。
+3. **下游使用**：通过 GetNodeModelGuid、GetNodeEntityPrefabGuid 取得 ResourceId，经 013 解析或 EnsureDeviceResources 后用于渲染/物理等；UnloadScene 由 004 提供，与 013 协同释放引用。

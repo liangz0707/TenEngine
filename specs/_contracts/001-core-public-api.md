@@ -1,67 +1,55 @@
-﻿# 契约：001-Core 模块对外 API
-
-- **ABI 显式表**：[001-core-ABI.md](./001-core-ABI.md)（命名空间、头文件、符号列表；下游 include/link 以 ABI 为准）。
+# 契约：001-Core 模块对外 API
 
 ## 适用模块
 
-- **实现方**：**001-Core**（T0 基础层根模块）
+- **实现方**：001-Core（L0 根模块：内存、线程、平台（文件/时间/环境）、日志、数学、容器、模块加载；无反射/ECS）
 - **对应规格**：`docs/module-specs/001-core.md`
-- **交付形态**：静态库或动态库，由主工程或各模块在编译/运行时链接与调用。不包含反射与 ECS（反射/序列化由 002-Object 提供）。
+- **依赖**：无
 
-## 消费者（T0 下游）
+## 消费者
 
-- **L0**：002-Object, 003-Application  
-- **L1**：004-Scene, 005-Entity, 006-Input, 007-Subsystems, 008-RHI  
-- **L2**：009-RenderCore, 010-Shader, 012-Mesh, 013-Resource, 014-Physics, 015-Animation, 016-Audio, 017-UICore  
-- **L3/L4**：020-Pipeline, 022-2D, 023-Terrain, 024-Editor, 026-Networking, 027-XR 等  
+- 002-Object、003-Application、004-Scene、005-Entity、006-Input、007-Subsystems、008-RHI、009-RenderCore、010-Shader、012-Mesh、013-Resource、014-Physics、015-Animation、016-Audio、017-UICore、020-Pipeline、022-2D、023-Terrain、024-Editor、026-Networking、027-XR、028-Texture
 
-几乎所有模块均直接或间接依赖 Core。
+## 能力列表
 
-## 版本 / ABI
-
-- 遵循 Constitution：公开 API 版本化（MAJOR.MINOR.PATCH），破坏性变更递增 MAJOR 并附迁移说明。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| 分配器 / 内存块句柄 | 由内存管理分配的逻辑单元（堆、池、对齐块） | 分配后直至显式释放 |
-| 任务 / 作业 (Task/Job) | 提交给线程管理的可执行单元 | 提交后至完成或取消 |
-| 平台句柄 | 对文件、路径、时间、环境、动态库等的抽象引用 | 按具体子 API 约定 |
-| 数学类型 | Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray 等 | 值类型或由调用方管理 |
-| 容器类型 | Array、Map、String、UniquePtr、SharedPtr 等 | 由调用方管理，可指定分配器 |
-| 原子类型 | Atomic<T>、与线程同步相关的类型 | 按 C++ 标准或约定 |
-| 模块句柄 | 动态库加载后的句柄及符号地址 | Load 后直至 Unload |
+| Allocator / 内存块 | 抽象分配器 Allocator、DefaultAllocator；Alloc(size, alignment)、Free(ptr)；GetDefaultAllocator() | 分配后直至显式释放；Free(nullptr) 为 no-op |
+| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、TaskCallback、GetThreadPool | 按 C++ 或实现约定 |
+| 平台句柄与宏 | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS；FileRead/FileWrite、DirectoryEnumerate、DirEntry、Time、HighResolutionTimer、GetEnv、PathNormalize | 按具体 API 约定 |
+| 数学类型 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray；Lerp、Dot、Cross、Length、Normalize | 值类型或调用方管理 |
+| 容器 | Array\<T\>、Map\<K,V\>、String、UniquePtr\<T\>、SharedPtr\<T\>（可指定分配器） | 调用方管理 |
+| 日志与校验 | LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler；CheckWarning、CheckError 宏 | 进程级 |
+| 引擎与模块 | Init、Shutdown、InitParams；ModuleHandle、LoadLibrary、UnloadLibrary、GetSymbol；ModuleInitFn/ModuleShutdownFn、RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown | Init 后直至 Shutdown；Load 后直至 Unload |
 
-## 能力列表（提供方保证）
+### 能力（提供方保证）
 
-1. **内存管理**：分配（指定大小与对齐）、释放、可选池化与统计；分配失败与释放语义明确（如 nullptr、重复释放有定义）；可选调试分配与泄漏追踪。
-2. **线程管理**：创建/销毁线程、TLS、原子操作、Mutex/ConditionVariable、任务队列骨架；任务执行与同步语义明确。
-3. **平台抽象**：引擎支持 **Android、iOS** 等平台；文件读/写、目录枚举、时间与高精度计时、环境变量、路径规范化、平台检测（Windows/Linux/macOS/Android/iOS 等）；与具体 OS 解耦、行为可重复验证。**可以通过宏来判断执行哪一段代码**（如 `TE_PLATFORM_ANDROID`、`TE_PLATFORM_IOS`、`TE_PLATFORM_WIN` 等），编译时选择平台相关实现。
-4. **日志**：分级日志、输出通道、断言、崩溃报告钩子；可重定向与过滤。
-5. **数学**：标量/向量/矩阵/四元数、AABB、射线、插值及常用数学函数（与渲染无关的纯数学）；无 GPU 依赖。
-6. **容器**：动态数组、哈希表、字符串、智能指针；无反射、无 ECS，可与自定义分配器配合。
-7. **模块加载**：动态库 Load/Unload/GetSymbol、模块依赖顺序、初始化与关闭回调；与构建/插件系统配合。
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 内存管理 | Alloc/Free、Allocator 接口、GetDefaultAllocator；分配失败返回 nullptr；可选池化与统计 |
+| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool::SubmitTask、GetThreadPool；语义明确 |
+| 3 | 平台抽象 | 文件 FileRead/FileWrite、目录 DirectoryEnumerate、时间 Time/HighResolutionTimer、GetEnv、PathNormalize；平台宏 TE_PLATFORM_* 编译时选择 |
+| 4 | 日志 | LogLevel、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、SetCrashHandler；可重定向与过滤 |
+| 5 | 数学 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize；无 GPU 依赖 |
+| 6 | 容器 | Array、Map、String、UniquePtr、SharedPtr；无反射/ECS，可与自定义分配器配合 |
+| 7 | 模块加载 | LoadLibrary、UnloadLibrary、GetSymbol；RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown；与构建/插件配合 |
 
-## API 雏形（简化声明）
+命名空间 `te::core`；头文件 alloc.h、engine.h、thread.h、platform.h、log.h、check.h、math.h、containers.h、module_load.h。
 
-对外接口的**命名空间、头文件、符号与完整签名**以 **ABI 文件** [001-core-ABI.md](./001-core-ABI.md) 为准；本小节为概要。
+## 版本 / ABI
 
-- **命名空间**：te::core（头文件路径 te/core/）。
-- **头文件**：alloc.h（Memory）、engine.h（Init/Shutdown/InitParams）、thread.h（Thread/TLS/Atomic/Mutex/LockGuard/ConditionVariable/TaskQueue/IThreadPool/GetThreadPool/TaskCallback）、platform.h（TE_PLATFORM_*、FileRead/Write、DirectoryEnumerate、Time、HighResolutionTimer、GetEnv、PathNormalize）、log.h（LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler）、check.h（CheckWarning、CheckError）、math.h（Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize）、containers.h（Array、Map、String、UniquePtr、SharedPtr）、module_load.h（ModuleHandle、LoadLibrary、UnloadLibrary、GetSymbol、ModuleInitFn/ModuleShutdownFn、RegisterModuleInit/RegisterModuleShutdown、RunModuleInit/RunModuleShutdown）。
-- **符号与签名**：见 [001-core-ABI.md](./001-core-ABI.md) ABI 表；下游 include 与 link 以 ABI 为准。
+- 遵循 Constitution：公开 API 版本化（MAJOR.MINOR.PATCH）；破坏性变更递增 MAJOR。
 
-## 调用顺序与约束
+## 约束
 
-- 主工程或上层模块须先完成 Core 初始化（若以动态库形式则先加载并调用初始化接口），再调用各子能力；卸载前应释放所有由 Core 分配的资源并停止使用句柄。
-- 具体初始化/卸载顺序与 ABI 由实现与主工程约定，并由功能测试验证。
+- 主工程或上层须先完成 Core 初始化（Init）后再调用各子能力；卸载前释放由 Core 分配的资源并停止使用句柄。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| （初始） | 从 001-engine-core-module spec 提炼，供多 Agent 引用 |
-| T0 更新 | 对齐 T0 架构 001-Core：移除 ECS/序列化（归 002-Object），保留内存、线程、平台、日志、数学、容器、模块加载；消费者改为 T0 模块列表 |
-| 2026-01-29 | 契约更新由 plan 001-core-minimal / fullversion-001 同步 |
-| 2026-01-30 | 契约与 ABI 由 plan 001-core-fullversion-002 同步：补全 7 子模块 + Engine/ThreadPool/Check 的完整 ABI 表与 API 雏形（参考 Unity/UE Core） |
+| （初始） | 从 001-engine-core-module spec 提炼 |
+| T0 更新 | 对齐 T0 架构；移除 ECS/序列化（归 002-Object）；消费者按依赖图 |
+| 2026-02-05 | 统一目录；能力列表用表格描述类型与句柄、能力；不引用 ABI 文件 |

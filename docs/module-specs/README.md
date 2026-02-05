@@ -39,6 +39,8 @@
 | 016 | [016-audio.md](016-audio.md) | Audio |
 | 017 | [017-ui-core.md](017-ui-core.md) | UICore |
 | 018 | [018-ui.md](018-ui.md) | UI |
+| 028 | [028-texture.md](028-texture.md) | Texture |
+| 029 | [029-world.md](029-world.md) | World |
 
 ### L3 管线与特性
 
@@ -61,4 +63,4 @@
 
 ---
 
-依赖关系总图见 [../dependency-graph-full.md](../dependency-graph-full.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。
+依赖关系唯一说明见 [../specs/_contracts/000-module-dependency-map.md](../specs/_contracts/000-module-dependency-map.md)，全功能规格见 [../tenengine-full-module-spec.md](../tenengine-full-module-spec.md)。

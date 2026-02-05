@@ -1,44 +1,47 @@
-﻿# 契约：005-Entity 模块对外 API
+# 契约：005-Entity 模块对外 API
 
 ## 适用模块
 
-- **实现方**：**005-Entity**（T0 实体与组件模型）
+- **实现方**：005-Entity（L1；实体/组件模型或 ECS；Entity-Node 1:1；ModelComponent 持 ResourceId/句柄，对 IResource 不可见）
 - **对应规格**：`docs/module-specs/005-entity.md`
-- **依赖**：001-Core（001-core-public-api）, 002-Object（002-object-public-api）, 004-Scene（004-scene-public-api）
+- **依赖**：001-Core、002-Object、004-Scene
 
-## 消费者（T0 下游）
+## 消费者
 
-- 014-Physics, 015-Animation, 020-Pipeline, 026-Networking, 024-Editor, 027-XR。
+- 014-Physics、015-Animation、020-Pipeline、024-Editor、026-Networking
+
+## 能力列表
+
+### 类型与句柄（跨边界）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| EntityId | 实体唯一标识；与 Scene 节点一一对应或映射 | 创建后直至销毁 |
+| ComponentHandle | 组件实例句柄；按类型查询、挂载/卸载 | 与实体或显式移除同生命周期 |
+| ModelComponent / RenderableComponent | 渲染组件；持有 ResourceId 或句柄，005 对 IResource 不可见；由 Pipeline 经 013 解析后对接 | 与实体或显式移除同生命周期 |
+| Transform | 局部/世界变换（可与 Scene 共用或实体专用） | 与实体/节点同步 |
+| ComponentQuery | 按类型/条件查询实体或组件；迭代接口 | 查询时有效 |
+
+### 能力（提供方保证）
+
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 实体 | CreateEntity、DestroyEntity、GetSceneNode、SetEnabled；生命周期与 Scene 节点可选绑定 |
+| 2 | 组件 | RegisterComponentType、AddComponent、RemoveComponent、GetComponent；与 Object 反射联动；ModelComponent 仅存 ResourceId/句柄 |
+| 3 | 变换 | GetLocalTransform、SetLocalTransform、GetWorldTransform；与 Scene 节点共用或专用 |
+| 4 | 可选 ECS | RegisterSystem、ExecutionOrder、与主循环 Tick 集成 |
 
 ## 版本 / ABI
 
 - 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
 
-## 类型与句柄（跨边界）
+## 约束
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| EntityId | 实体唯一标识；与 Scene 节点关联或独立 | 创建后直至销毁 |
-| ComponentHandle | 组件实例句柄；按类型查询、挂载/卸载 | 与实体或显式移除同生命周期 |
-| Transform | 局部/世界变换（可与 Scene 共用或实体专用） | 与实体/节点同步 |
-| ComponentQuery | 按类型/条件查询实体或组件；迭代接口 | 查询时有效 |
-
-## 能力列表（提供方保证）
-
-1. **实体**：CreateEntity、DestroyEntity、GetSceneNode、SetEnabled；生命周期与 Scene 节点可选绑定。
-2. **组件**：RegisterComponentType、AddComponent、RemoveComponent、GetComponent；与 Object 反射联动。
-3. **变换**：GetLocalTransform、SetLocalTransform、GetWorldTransform；与 Scene 节点共用或专用。
-4. **可选 ECS**：RegisterSystem、ExecutionOrder、与主循环 Tick 集成；与传统组件模型边界明确。
-
-## 调用顺序与约束
-
-- 须在 Core、Object、Scene 可用之后使用；组件类型须在 Object 中注册。
-- 实体销毁时须释放或转移组件与绑定资源；下游（Physics、Pipeline、Networking）依赖 EntityId 与 ComponentHandle 稳定性约定。
+- 须在 Core、Object、Scene 可用之后使用；组件类型须在 Object 中注册。实体销毁时须释放或转移组件与绑定资源。ModelComponent 仅存 ResourceId/句柄；由 Pipeline 或上层经 013 解析为 IModelResource*。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 按 005-Entity 模块规格与依赖表新增契约 |
-| 2025-01-30 | 契约更新由 plan 005-entity-full 同步 |
+| T0 新增 | 005-Entity 契约 |
+| 2026-02-05 | 统一目录；能力列表用表格；去除冗余衔接说明 |

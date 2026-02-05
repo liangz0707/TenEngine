@@ -81,6 +81,8 @@ You **MUST** consider the user input before proceeding (if not empty).
      - **文档中只保存变化部分**：plan.md 的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；若无新增/修改则产出空清单。
      - **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
      - 产出至 `contracts/`（非 REST/GraphQL schema）；以 ABI 文件与契约为准。
+     - **写回契约**：plan 结束后可运行命令 **engine.contracts-writeback**，将 plan 产出的 ABI/API 修改写回 ABI 与 public-api 文件（若实现的是 ABI 中的 TODO 会清除该 TODO），提交并推送到 T0-contracts，再拉取后继续 /speckit.tasks。详见 `docs/agent-workflow-complete-guide.md`「2.0 写回契约」。
+     - **写回契约后**：若在契约中增加了 **## 变更记录**，用户可**主动运行**命令 **engine.contracts-downstream-todo**，为下游各模块的 public-api 添加 TODO 兼容记录（本命令不自动执行）。
    - 其他项目：可按 REST/GraphQL 产出 OpenAPI/GraphQL schema 至 `/contracts/`
 
 3. **Agent context update**:

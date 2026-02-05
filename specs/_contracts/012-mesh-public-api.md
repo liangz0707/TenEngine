@@ -1,47 +1,53 @@
-﻿# 契约：012-Mesh 模块对外 API
+# 契约：012-Mesh 模块对外 API
 
 ## 适用模块
 
-- **实现方**：**012-Mesh**（网格数据与几何）
+- **实现方**：012-Mesh（L2；网格数据、LOD、蒙皮、顶点/索引；EnsureDeviceResources 时依赖 008-RHI 创建缓冲）
 - **对应规格**：`docs/module-specs/012-mesh.md`
-- **依赖**：001-Core（001-core-public-api）、009-RenderCore（009-rendercore-public-api）
+- **依赖**：001-Core、008-RHI、009-RenderCore、013-Resource
 
-## 消费者（T0 下游）
+## 消费者
 
-- 020-Pipeline（顶点/索引、DrawCall、批次）
-- 023-Terrain（地形网格格式、块网格）
-- 015-Animation（蒙皮数据、骨骼索引与权重对接）
+- 013-Resource（Load(Mesh) 时调用 012 CreateMesh）、020-Pipeline、023-Terrain、015-Animation
 
-## 版本 / ABI
+## 能力列表
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| MeshHandle | 网格句柄；顶点/索引缓冲、子网格、与 RenderCore 顶点格式对接 | 创建后直至显式释放 |
+| MeshHandle | 网格句柄；CreateMesh(vertexData, indexData, layout, submeshes) 仅接受内存；EnsureDeviceResources 时 012 调用 008-RHI 创建顶点/索引缓冲（DResource） | 创建后直至显式释放 |
 | SubmeshDesc | 子网格划分、材质槽位、DrawCall 批次 | 与 Mesh 绑定 |
 | LODHandle | LOD 级别、SelectLOD、StreamingRequest、与 Resource 对接 | 与 Mesh 绑定 |
 | SkinningData | 骨骼索引与权重、BindPose、与 Animation 骨骼矩阵对接 | 与 Mesh 绑定 |
 
-下游仅通过上述类型与句柄访问；与 RHI Buffer 的创建/绑定通过 Pipeline 或 RenderCore 桥接。
+### 能力（提供方保证）
 
-## 能力列表（提供方保证）
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | VertexIndex | VertexFormat、IndexFormat、BufferLayout；与 RenderCore 格式映射 |
+| 2 | Submesh | SubmeshCount、GetSubmesh、MaterialSlot、DrawCall 批次 |
+| 3 | LOD | LODCount、SelectLOD、StreamingRequest；与 Resource 对接 |
+| 4 | Skinning | BoneIndices、Weights、BindPose；与 Animation 骨骼矩阵对接 |
 
-1. **VertexIndex**：VertexFormat、IndexFormat、BufferLayout；与 RenderCore 格式映射。
-2. **Submesh**：SubmeshCount、GetSubmesh、MaterialSlot、DrawCall 批次。
-3. **LOD**：LODCount、SelectLOD、StreamingRequest；与 Resource 对接。
-4. **Skinning**：BoneIndices、Weights、BindPose；与 Animation 骨骼矩阵对接。
+## 版本 / ABI
 
-## 调用顺序与约束
+- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
 
-- 须在 Core、RenderCore 初始化之后使用；顶点格式与 RenderCore/RHI 一致。
-- 蒙皮数据与 Animation 模块的骨骼名称/索引约定须一致。
+## 约束
+
+- 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 解析得到内存数据后调用 012 CreateMesh；DResource 在下游触发 EnsureDeviceResources 时由 012 调用 008 创建。蒙皮数据与 Animation 骨骼名称/索引约定须一致。
+
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：MeshAssetDesc 归属 012；.mesh/.meshdata 描述与数据格式与 002 注册；一目录一资源（.mesh + .meshdata + 可选 .obj/.fbx）。
+- [ ] **CreateMesh**：CreateMesh(vertexData, indexData, layout, submeshes) 仅接受内存，入参由 013 传入；EnsureDeviceResources 时对依赖链先 Ensure 再调用 008 CreateBuffer 创建顶点/索引缓冲。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 每模块一契约：012-Mesh 对应本契约；与 docs/module-specs/012-mesh.md 一致 |
+| T0 新增 | 012-Mesh 契约 |
+| 2026-02-05 | 统一目录；能力列表用表格 |

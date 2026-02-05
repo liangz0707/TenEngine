@@ -2,7 +2,7 @@
 
 ## 1. 模块简要说明
 
-Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 Shader 绑定、材质实例，对应 Unreal 的 **Material**、Unity 的 **Material**。依赖 RenderCore、Shader。
+Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 Shader 绑定、材质实例，对应 Unreal 的 **Material**、Unity 的 **Material**。依赖 RenderCore、Shader、Resource（011 不发起加载，013 传入描述与已加载 Shader/贴图引用）。
 
 ## 2. 详细功能描述
 
@@ -36,7 +36,7 @@ Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 S
 
 ### 5.2 具体功能
 
-MaterialDef：Load、GetParameters、GetDefaultValues、GetShaderRef。  
+MaterialDef：CreateMaterial（入参由 013 传入 MaterialAssetDesc、shaderRef、textureRefs）、GetParameters、GetDefaultValues、GetShaderRef。  
 Parameters：SetScalar、SetTexture、SetBuffer、GetSlotMapping。  
 Instancing：CreateInstance、SetOverride、Release、Pool。  
 Binding：BindToPSO、GetVariantKey、SubmitToPipeline。
@@ -68,10 +68,12 @@ flowchart LR
 flowchart TB
   RC[009-RenderCore]
   Shader[010-Shader]
+  Res[013-Resource]
   Mt[011-Material]
   Pi[020-Pipeline]
   Mt --> RC
   Mt --> Shader
+  Mt --> Res
   Pi --> Mt
 ```
 
@@ -81,7 +83,7 @@ flowchart TB
 |------|------|
 | **RenderCore** | Uniform 布局、纹理槽位约定 |
 | **Shader** | 变体选择、参数名与类型一致 |
-| **Resource** | 材质资源加载、纹理/缓冲引用（通过句柄，可不直接依赖 Resource 模块） |
+| **Resource** | 013 为唯一加载入口；材质由 013 加载后调用 011 CreateMaterial 传入描述与已加载 Shader/贴图引用；011 不发起加载（见 resource-logic-principles） |
 | **可选** | 材质图编辑（节点图）与 Shader Graph 联动 |
 | **协议** | 无 |
 

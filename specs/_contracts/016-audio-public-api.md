@@ -1,21 +1,18 @@
-﻿# 契约：016-Audio 模块对外 API
+# 契约：016-Audio 模块对外 API
 
 ## 适用模块
 
-- **实现方**：**016-Audio**（音源、监听与混音，含空间音效）
+- **实现方**：016-Audio（L2；音源、监听、混音、空间音效）
 - **对应规格**：`docs/module-specs/016-audio.md`
-- **依赖**：001-Core（001-core-public-api）、013-Resource（013-resource-public-api）
+- **依赖**：001-Core、013-Resource
 
-## 消费者（T0 下游）
+## 消费者
 
-- 无（L2 消费端；游戏逻辑或 Editor 通过本 API 播放/混音）
+- 无（L2 消费端；游戏逻辑或应用直接使用本 API）
 
-## 版本 / ABI
+## 能力列表
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
@@ -24,22 +21,32 @@
 | BusHandle | 混音总线；CreateBus、SetVolume、Mute、EffectSlot | 创建后直至显式释放 |
 | 空间音效参数 | SetPosition、Attenuation、Occlusion（可选） | 与 Source/Listener 绑定 |
 
-下游（游戏/Editor）通过上述类型与句柄访问；与 Resource 音频资源（WAV/OGG 等）、平台/第三方音频 API 通过抽象层对接。**ABI 显式表**：[016-audio-ABI.md](./016-audio-ABI.md)。
+### 能力（提供方保证）
 
-## 能力列表（提供方保证）
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 音源 | CreateSource、Play、Pause、Stop、SetLoop、SetResource |
+| 2 | 监听 | ListenerHandle、SetPosition、SetOrientation、BindToEntity |
+| 3 | 混音 | CreateBus、SetVolume、Mute、EffectSlot |
+| 4 | 空间音效 | SetPosition、Attenuation、Occlusion（可选） |
 
-1. **Source**：IAudioSource::Play、Pause、Stop、SetLoop、IsLooping、SetResource、SetPosition、GetPosition、SetAttenuation、SetOcclusion；CreateAudioSource；与 Resource 音频资源对接。
-2. **Listener**：IAudioListener::SetPosition、SetOrientation、BindToEntity；GetMainListener；与 Scene/Entity 变换同步（可选）。
-3. **Mixer**：IAudioBus::SetVolume、SetMute、SetEffectSlot；CreateAudioBus。
-4. **Spatial**：IAudioSource::SetPosition、SetAttenuation、SetOcclusion；3D 定位与空间化（可选）。
+## 版本 / ABI
 
-## 调用顺序与约束
+- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
 
-- 须在 Core、Resource 初始化之后使用；音频资源句柄与 Resource 约定一致。
+## 约束
+
+- 须在 Core、Resource 初始化之后使用；音频资源经 013 Load 获取。
+
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **资源对接**（若需）：定义 AudioAssetDesc、IAudioResource 与 013 对接；经 013 Load 获取音频资源；仅持 ResourceId/句柄；一目录一资源（描述 + 实际数据或内联 + 可选 .wav/.ogg）。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 每模块一契约：016-Audio 对应本契约；与 docs/module-specs/016-audio.md 一致 |
-| 2026-01-28 | 根据 016-audio-ABI 反向更新：IAudioSource、IAudioListener、IAudioBus、CreateAudioSource、CreateAudioBus、GetMainListener；能力与类型与 ABI 表一致 |
+| T0 新增 | 016-Audio 契约 |
+| 2026-02-05 | 统一目录；能力列表用表格 |

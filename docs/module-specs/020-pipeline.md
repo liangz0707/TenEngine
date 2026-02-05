@@ -19,8 +19,8 @@ Pipeline 提供**渲染管线实现**（场景到屏幕）：场景收集、剔�
 ## 4. 操作的资源类型
 
 - **GPU 资源**：通过 RHI 创建的 RT、DS、Buffer、PSO；与 RenderCore/Shader/Material/Mesh 的句柄对接。
-- **与 Resource**：纹理/网格句柄、LOD 流式。
-- **与 Scene/Entity**：变换、可见性、组件数据。
+- **与 Resource**：经 013 将节点/实体的 ResourceId/句柄解析为可绘制数据；不长期持有 IResource*；LOD 流式。
+- **与 Scene/Entity**：变换、可见性、组件数据；**场景遍历入口在 004**，Pipeline 调用 004 的 GetCurrentWorld、GetRootNodes、Traverse 等。
 
 ## 5. 是否有子模块
 
@@ -59,7 +59,7 @@ flowchart LR
 
 ### 6.1 和上下游交互、传递的数据类型
 
-- **上游**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource。向下游提供：VisibleSet、BatchList、PassGraph、CommandBuffer、PresentTarget。  
+- **上游**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource（见 000-module-dependency-map）。**调用关系**：场景遍历**调用 004**（GetCurrentWorld、GetRootNodes、Traverse）；从节点/实体取 ResourceId/句柄后**经 013** LoadSync/GetCached 解析，不长期持有 IResource*。向下游提供：VisibleSet、BatchList、PassGraph、CommandBuffer、PresentTarget。  
 - **下游**：Effects、2D、Terrain、Editor、XR。向下游提供：PipelineContext、RenderTargetHandle、DrawCall 接口。
 
 ### 6.2 上下游依赖图
@@ -86,7 +86,7 @@ flowchart TB
 | **PipelineCore** | Pass 图协议、资源生命周期 |
 | **RHI** | 命令列表、资源、PSO、提交 |
 | **RenderCore/Shader/Material/Mesh** | 绘制参数与资源 |
-| **Resource** | 纹理/网格句柄、LOD 流式 |
+| **Resource** | 经 013 将节点/实体的 ResourceId/句柄解析为可绘制数据；不长期持有 IResource*；LOD 流式 |
 | **可选** | 遮挡剔除库、GPU Driven、光线追踪扩展 |
 | **协议** | 无 |
 
