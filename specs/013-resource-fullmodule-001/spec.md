@@ -33,6 +33,16 @@
 
 - **第三方依赖**：在契约 `specs/_contracts/013-resource-public-api.md` 中声明；本 spec 引用该契约即可，不重复列出。
 
+## Clarifications
+
+### Session 2026-02-05
+
+- Q: 同一 ResourceId 多次 Load（未 Release）时，013 的约定行为？ → A: 同一 ResourceId 多次 Load 返回同一 IResource*；首次加载创建并入缓存，后续命中缓存并增加引用计数（或同一句柄多引用）；Release 次数须与「获取」次数匹配才能完全释放。
+- Q: GetCached(ResourceId) 未命中时的约定行为？ → A: 仅查询缓存；未命中时只返回 nullptr（或等价「未找到」），不触发加载；加载必须通过 RequestLoadAsync/LoadSync 进行。
+- Q: 013 在 Load 流程中反序列化（buffer → payload）的约定方式？ → A: 013 按 ResourceType 调用各模块注册的反序列化器；013 读文件得 buffer 后按 ResourceType 调该类型反序列化接口得到 opaque payload，再传给 Loader；不要求 013 直接调 002 按 TypeId 反序列化；各模块可在其反序列化器内部使用 002。
+- Q: 资源依赖图存在循环引用时 013 的约定策略？ → A: 禁止；检测到循环引用时视为错误，加载失败并返回错误（如 LoadResult::Error 或等价）；依赖图必须无环。
+- Q: 异步加载完成时对外暴露的回调/状态约定？ → A: 仅「已加载」；RequestLoadAsync 的 LoadCompleteCallback 在根资源及其递归依赖均加载完成后调用一次，传入的 IResource* 即可用；不单独提供「根已创建」回调；GetLoadStatus 可区分 Pending/Loading/Completed/Failed/Cancelled。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 通过统一接口按 ResourceType 加载资源 (Priority: P1)
@@ -46,8 +56,9 @@
 **Acceptance Scenarios**:
 
 1. **Given** Core、Object、028-Texture 已初始化且对应类型 Loader 已注册，**When** 调用方传入合法 path 与 ResourceType 并调用 LoadSync，**Then** 返回有效 IResource*，且可通过 GetCached(ResourceId) 命中。
-2. **Given** 调用 RequestLoadAsync，**When** 加载完成，**Then** 回调收到 IResource* 与 LoadResult；GetLoadStatus/GetLoadProgress 可查询状态与进度。
+2. **Given** 调用 RequestLoadAsync，**When** 根资源及其递归依赖均加载完成，**Then** LoadCompleteCallback 被调用一次，传入的 IResource* 即可用；GetLoadStatus/GetLoadProgress 可查询状态与进度（Pending/Loading/Completed/Failed/Cancelled）。
 3. **Given** 无效 path 或未注册类型，**When** 调用 LoadSync 或 RequestLoadAsync，**Then** 以约定方式失败（如返回 nullptr、LoadResult::NotFound/Error），不崩溃。
+4. **Given** 同一 ResourceId 已通过 LoadSync 加载，**When** 再次调用 LoadSync（同一 ResourceId），**Then** 返回同一 IResource*（引用计数增加）；调用方须对每次获取调用一次 Release，Release 次数与获取次数匹配后资源才完全释放。
 
 ---
 
@@ -61,8 +72,9 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** 某资源已通过 LoadSync/RequestLoadAsync 加载，**When** 使用其 ResourceId 调用 GetCached，**Then** 返回同一 IResource*（或约定语义）。
-2. **Given** 合法 ResourceId，**When** 调用 ResolvePath（或等价），**Then** 返回可解析的路径或包内引用，与 013 的 Addressing 约定一致。
+1. **Given** 某资源已通过 LoadSync/RequestLoadAsync 加载，**When** 使用其 ResourceId 调用 GetCached，**Then** 返回同一 IResource*。
+2. **Given** ResourceId 未在缓存中（未加载或已释放），**When** 调用 GetCached，**Then** 返回 nullptr（或等价「未找到」），且不触发加载；加载须通过 RequestLoadAsync/LoadSync 进行。
+3. **Given** 合法 ResourceId，**When** 调用 ResolvePath（或等价），**Then** 返回可解析的路径或包内引用，与 013 的 Addressing 约定一致。
 
 ---
 
@@ -98,21 +110,22 @@
 
 ### Edge Cases
 
-- 同一 ResourceId 多次 LoadSync/RequestLoadAsync 未 Release：缓存命中或返回同一/新句柄与引用计数语义由实现约定，需在 plan 中明确。
+- 同一 ResourceId 多次 LoadSync/RequestLoadAsync 未 Release：**返回同一 IResource***；首次加载创建并入缓存，后续调用命中缓存并增加引用计数；调用方每次 Release 与每次「获取」对应，Release 次数与获取次数匹配后资源才完全释放。
 - Load 期间依赖的上游（Core 文件、Object 反序列化、028 CreateTexture）不可用：以约定方式失败并清理，不泄漏句柄。
-- 循环引用：依赖加载时通过 013 统一 Load 递归；禁止/延迟/弱引用约定在实现中保证，见 public-api TODO「依赖加载」。
-- 异步加载未完成时调用 GetCached：返回 nullptr 或「未就绪」语义与实现约定一致；GetLoadStatus/GetLoadProgress 可查询。
+- 循环引用：**禁止**；依赖加载时通过 013 统一 Load 递归，若检测到循环引用则加载失败并返回错误（如 LoadResult::Error）；依赖图必须无环。
+- 异步加载未完成时调用 GetCached：若该 ResourceId 尚未入缓存则返回 nullptr（GetCached 不触发加载）；GetLoadStatus/GetLoadProgress 可查询进行中请求的状态与进度。
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: 系统 MUST 实现 `specs/_contracts/013-resource-public-api.md` 中全部 11 项能力汇总（IResource 基类与类型、统一加载、资源缓存、加载工具、寻址、卸载、EnsureDeviceResources、导入/序列化/Save/Load 统一接口），并满足该文件中 **TODO 列表** 的约定（Load 入口、缓存、依赖加载、状态与回调、Unload、Streaming、EnsureDeviceResources、导入/序列化/Save 流程、Load 与注册、接口签名）。
+- **FR-001**: 系统 MUST 实现 `specs/_contracts/013-resource-public-api.md` 中全部 11 项能力汇总；RequestLoadAsync 的 LoadCompleteCallback 仅在根及其递归依赖均加载完成（「已加载」）时调用一次，不单独提供「根已创建」回调。（IResource 基类与类型、统一加载、资源缓存、加载工具、寻址、卸载、EnsureDeviceResources、导入/序列化/Save/Load 统一接口），并满足该文件中 **TODO 列表** 的约定（Load 入口、缓存、依赖加载、状态与回调、Unload、Streaming、EnsureDeviceResources、导入/序列化/Save 流程、Load 与注册、接口签名）。
 - **FR-002**: 系统 MUST 实现 `specs/_contracts/013-resource-ABI.md` 中 ABI 表的**全部**符号与接口结构（命名空间、头文件、签名与说明）；新增或变更接口须在 ABI 文件中增补或替换对应条目。
 - **FR-003**: 实现 MUST 仅使用 **001-Core**（`specs/_contracts/001-core-public-api.md`）、**002-Object**（`specs/_contracts/002-object-public-api.md`）、**028-Texture**（`specs/_contracts/028-texture-public-api.md`）契约中已声明的类型与 API；不引入未声明依赖。
-- **FR-004**: Load 流程 MUST 采用「不透明 payload」传递：013 读文件 → 统一反序列化得到 payload → 按 ResourceType 调用已注册 Loader 并传入 payload；013 不解析各模块 *Desc；Loader 由拥有 *Desc 的模块实现。
+- **FR-004**: Load 流程 MUST 采用「不透明 payload」传递：013 读文件得 buffer → **按 ResourceType 调用各模块注册的反序列化器**得到 opaque payload → 按 ResourceType 调用已注册 Loader 并传入 payload；013 不解析各模块 *Desc、不要求直接调 002 按 TypeId 反序列化；Loader 由拥有 *Desc 的模块实现。
 - **FR-005**: Save 流程 MUST 为「各模块从 IResource 产出内存内容 → 013 调用统一写接口落盘」；各模块不直接写文件。
 - **FR-006**: 013 MUST 不创建、不持有、不调用 008-RHI；DResource 由 011/012/028 在 EnsureDeviceResources 时创建，013 仅转发调用。
+- **FR-007**: 资源依赖图 MUST 无环；检测到循环引用时加载失败并返回错误（如 LoadResult::Error 或等价）。
 
 ### Key Entities
 

@@ -35,9 +35,9 @@
 
 ### 013-Resource
 
-- **职责**：提供**统一资源加载接口** **requestLoadAsync(path, type, callback, user_data)**，**所有**资源类型（Mesh、Texture、Material、Model、Effect、Terrain、Shader、Audio 等）均通过此唯一入口加载；定义 **ResourceType** 枚举（含 Effect、Terrain 等，可扩展）；按 type 分发到对应加载器；**IResource::getResourceType()** 返回类型；提供类型化资源接口 **ITextureResource**、**IMeshResource**、**IMaterialResource**、**IModelResource**、**IEffectResource**、**ITerrainResource** 等，供渲染与实体模块使用；可选 **registerResourceLoader(type, loader)** 扩展新类型，扩展后仍使用同一 requestLoadAsync。
+- **职责**：提供**统一资源加载接口** **requestLoadAsync(path, type, callback, user_data)**，**所有**资源类型（Mesh、Texture、Material、Model、Effect、Terrain、Shader、Audio 等）均通过此唯一入口加载；定义 **ResourceType** 枚举（含 Effect、Terrain 等，可扩展）；按 type 分发到对应加载器；**IResource::getResourceType()** 返回类型；返回类型化资源接口 **ITextureResource**、**IMeshResource**、**IMaterialResource**、**IModelResource**（类型归属 029-World）等，供渲染与实体模块使用；可选 **registerResourceLoader(type, loader)** 扩展新类型，扩展后仍使用同一 requestLoadAsync。
 - **输入**：path、ResourceType、LoadCompleteCallback、user_data；扩展时 registerResourceLoader(type, loader)。
-- **输出**：ResourceType 枚举；**统一** requestLoadAsync(path, type, ...)；IResource::getResourceType；ITextureResource、IMeshResource、IMaterialResource、IModelResource、IEffectResource、ITerrainResource 等；可选 registerResourceLoader。
+- **输出**：ResourceType 枚举；**统一** requestLoadAsync(path, type, ...)；IResource::getResourceType；ITextureResource、IMeshResource、IMaterialResource、IModelResource（029 定义）等；可选 registerResourceLoader。
 
 ---
 
@@ -55,7 +55,7 @@
 | 013-Resource | TenEngine::resource | ITextureResource | 抽象接口 | 纹理资源视图 | TenEngine/resource/TextureResource.h | ITextureResource | 继承或可从 IResource 按 getResourceType()==Texture 得到；纹理宽高、格式、GPU 句柄等由实现提供 |
 | 013-Resource | TenEngine::resource | IMeshResource | 抽象接口 | 网格资源视图 | TenEngine/resource/MeshResource.h | IMeshResource | 顶点/索引、子网格、LOD 等；由 requestLoadAsync(..., ResourceType::Mesh, ...) 回调返回或 IResource 转型 |
 | 013-Resource | TenEngine::resource | IMaterialResource | 抽象接口 | 材质资源视图 | TenEngine/resource/MaterialResource.h | IMaterialResource | 材质参数、纹理槽、Shader 引用等；按类型加载 Material 时使用 |
-| 013-Resource | TenEngine::resource | IModelResource | 抽象接口 | 模型资源视图 | TenEngine/resource/ModelResource.h | IModelResource | 聚合 Mesh/Material 等子资源；经**统一接口** requestLoadAsync(..., Model, ...) 加载 |
+| 029-World | TenEngine::world | IModelResource | 抽象接口 | 模型资源视图 | TenEngine/world/ModelResource.h | IModelResource | **归属 029-World**。聚合 Mesh/Material 等子资源；经 013 **统一接口** requestLoadAsync(..., Model, ...) 加载后返回 |
 | 013-Resource | TenEngine::resource | IEffectResource | 抽象接口 | 特效资源视图 | TenEngine/resource/EffectResource.h | IEffectResource | 粒子/VFX 等；经**统一接口** requestLoadAsync(..., Effect, ...) 加载 |
 | 013-Resource | TenEngine::resource | ITerrainResource | 抽象接口 | 地形资源视图 | TenEngine/resource/TerrainResource.h | ITerrainResource | 地形块/高度图等；经**统一接口** requestLoadAsync(..., Terrain, ...) 加载 |
 | 013-Resource | TenEngine::resource | IResourceManager | 抽象接口 | 可选：注册自定义类型加载器 | TenEngine/resource/ResourceManager.h | IResourceManager::registerResourceLoader | void registerResourceLoader(ResourceType type, IResourceLoader* loader); 扩展新类型后仍用**统一** requestLoadAsync 加载 |
