@@ -1,4 +1,4 @@
-﻿# 013-Resource 模块 ABI
+# 013-Resource 模块 ABI
 
 - **契约**：[013-resource-public-api.md](./013-resource-public-api.md)（能力与类型描述）
 - **本文件**：013-Resource 对外 ABI 显式表。
@@ -52,7 +52,7 @@
 | 需提供 | 需调用上游 |
 |--------|------------|
 | [ ] `RegisterResourceLoader(type, IResourceLoader*)` | — |
-| [ ] 引擎启动时注册各描述类型到 002（TextureDescriptor、ModelAssetDesc、MaterialAssetDesc、LevelAssetDesc 等） | 002：`RegisterType<T>` |
+| [ ] 引擎启动时注册各描述类型到 002（TextureAssetDesc、ModelAssetDesc、MaterialAssetDesc、MeshAssetDesc、LevelAssetDesc 等） | 002：`RegisterType<T>` |
 | [ ] 各类型 Loader（Texture/Mesh/Material/Model）向 013 注册 | — |
 
 ### 序列化
