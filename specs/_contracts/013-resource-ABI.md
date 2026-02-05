@@ -38,6 +38,15 @@
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 同步加载（可选） | te/resource/ResourceManager.h | IResourceManager::LoadSync | `IResource* LoadSync(char const* path, ResourceType type);` 阻塞直至完成；失败返回 nullptr |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 释放/卸载 | te/resource/ResourceManager.h | IResourceManager::Unload, IResource::Release | `void Unload(IResource* resource);` `void IResource::Release();` 与各模块句柄协调；卸载策略由实现约定 |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 流式请求与优先级 | te/resource/ResourceManager.h | IResourceManager::RequestStreaming, SetStreamingPriority | `StreamingHandle RequestStreaming(ResourceId id, int priority);` `void SetStreamingPriority(StreamingHandle h, int priority);` 与 LOD/Terrain 对接 |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 缓存查询 | te/resource/ResourceManager.h | IResourceManager::GetCached | `IResource* GetCached(ResourceId id) const;` 仅查缓存，未命中返回 nullptr，不触发加载 |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 注册反序列化器 | te/resource/ResourceManager.h | IResourceManager::RegisterDeserializer | `void RegisterDeserializer(ResourceType type, IDeserializer* deserializer);` 各模块注册，013 按 type 调用得到 opaque payload |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 注册 Importer | te/resource/ResourceManager.h | IResourceManager::RegisterImporter | `void RegisterImporter(ResourceType type, IResourceImporter* importer);` |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | Import | te/resource/ResourceManager.h | IResourceManager::Import | `bool Import(char const* path, ResourceType type, void* out_metadata_or_null);` 按 type 分发到已注册 Importer |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | Save | te/resource/ResourceManager.h | IResourceManager::Save | `bool Save(IResource* resource, char const* path);` 各模块产出内存内容，013 统一写盘 |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 寻址解析 | te/resource/ResourceManager.h | IResourceManager::ResolvePath | `char const* ResolvePath(ResourceId id) const;` GUID→路径；未解析返回 nullptr |
+| 013-Resource | te::resource | IResourceLoader | 抽象接口 | Loader 接口 | te/resource/ResourceLoader.h | IResourceLoader::CreateFromPayload | `IResource* CreateFromPayload(ResourceType type, void* payload, IResourceManager* manager);` 接收不透明 payload，创建 IResource 并返回 |
+| 013-Resource | te::resource | IResourceImporter | 抽象接口 | Importer 接口 | te/resource/ResourceImporter.h | IResourceImporter | DetectFormat、Convert、产出描述/数据、Metadata、Dependencies |
+| 013-Resource | te::resource | IDeserializer | 抽象接口 | 反序列化器接口 | te/resource/Deserializer.h | IDeserializer::Deserialize | `void* Deserialize(void const* buffer, size_t size);` 产出 opaque payload，013 不解析 |
 
 *来源：用户故事 US-resource-001/002/003。契约能力：Import、Load、Unload、Streaming、Addressing（ResourceId/GUID）。*
 

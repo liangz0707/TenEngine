@@ -154,3 +154,4 @@
 | 2026-02-05 | 优化 public-api：突出 IResource 基类、统一加载接口、资源缓存、加载工具四大职责；按职责分组类型与能力 |
 | 2026-02-05 | 细化 Import/序列化/Save/Load：013 提供统一接口、各模块实现；Save 存盘流程为各模块返回内存内容、013 调用统一接口保存 |
 | 2026-02-05 | 明确 Load 时 *Desc 对 013 不可见：通过不透明 payload 传递；013 读文件→反序列化得 payload→按 type 调用 Loader 并传入 payload，Loader 由拥有 *Desc 的模块实现并解释 payload |
+| 2026-02-05 | ABI 写回（plan 013-resource-fullmodule-001）：GetCached、RegisterDeserializer、RegisterImporter、Import、Save、ResolvePath、IResourceLoader::CreateFromPayload、IResourceImporter、IDeserializer::Deserialize 正式纳入 ABI 表 |
