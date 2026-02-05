@@ -6,10 +6,12 @@ Networking 提供**复制、RPC 与客户端/服务端**：实体/组件复制�
 
 ## 2. 详细功能描述
 
-- **复制**：实体/组件状态同步、属性复制、与 Entity 对接、插值与预测（可选）。
-- **RPC**：远程过程调用、客户端/服务端/多播、与 Entity/脚本对接。
-- **客户端/服务端**：网络角色、权威、连接管理、与主循环 Tick 对接。
-- **可选**：匹配、大厅、中继等（可扩展）。
+对外接口以 **ABI** 为准：`specs/_contracts/026-networking-ABI.md`；契约：`specs/_contracts/026-networking-public-api.md`。
+
+- **复制**：INetworkManager::RegisterReplicated；SerializeSnapshot、ApplySnapshot、Interpolate；ReplicatedPropertyTable；与 Entity 对接、插值与预测（可选）。
+- **RPC**：INetworkManager::RegisterRPC、Invoke；RPCTarget（Client/Server/Multicast）；与 Entity/脚本对接。
+- **客户端/服务端**：INetworkManager::Connect、Disconnect、GetRole、SetAuthority、Tick；GetNetworkManager；与主循环 Tick 对接。
+- **可选**：INetworkManager::SetTransport；ITransport::Send、Receive；匹配、大厅、中继等（可扩展）。
 
 ## 3. 实现难度
 
@@ -34,12 +36,12 @@ Networking 提供**复制、RPC 与客户端/服务端**：实体/组件复制�
 | Connection | 连接管理、角色、权威、与主循环 Tick |
 | Transport（可选） | 传输层抽象、UDP/TCP、中继（可选） |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-Replication：RegisterReplicated、SerializeSnapshot、ApplySnapshot、Interpolate。  
-RPC：RegisterRPC、Invoke、Client/Server/Multicast。  
-Connection：Connect、Disconnect、GetRole、SetAuthority、Tick。  
-Transport：Send、Receive、SetTransport、UDP/TCP/Relay。
+Replication：INetworkManager::RegisterReplicated；SerializeSnapshot、ApplySnapshot、Interpolate；ReplicatedPropertyTable。  
+RPC：INetworkManager::RegisterRPC、Invoke；RPCTarget。  
+Connection：INetworkManager::Connect、Disconnect、GetRole、SetAuthority、Tick；GetNetworkManager。  
+Transport：INetworkManager::SetTransport；ITransport::Send、Receive；UDP/TCP/Relay。
 
 ### 5.3 子模块依赖图
 
@@ -85,4 +87,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

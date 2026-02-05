@@ -1,19 +1,23 @@
 ---
-description: 多 Agent 协作时跨模块接口同步：主分支仅用于配置，契约必须从 T0-contracts 拉取；工作前拉取契约、实现前读契约、改接口时在 T0-contracts 上更新契约。
+description: 多 Agent 协作时跨模块接口同步：契约以 T0-contracts 为准；工作前拉契约、实现前读契约。写回契约与修改本模块 API/ABI 的流程及下游 TODO 见命令 engine.contracts-downstream-todo 及 docs/agent-workflow-complete-guide.md。
 globs: specs/**/*.md, docs/**/*.md, **/spec.md
 ---
 
 # 接口同步（多 Agent 协作）
 
-- **主分支仅用于配置**：**master**（或 main）仅用于仓库与工程配置；**契约不以主分支为来源**，不得以主分支上的 `specs/_contracts/` 作为契约依据。
-- **契约必须从 T0-contracts 拉取**：契约的官方维护分支为 **`T0-contracts`**（`origin/T0-contracts`）。在任意 **T0-*** 模块分支上**开始工作前**，须先拉取最新契约：`git fetch origin T0-contracts` 后 `git merge origin/T0-contracts`（或 `git pull origin T0-contracts`）。
-- **跨模块接口的单一事实来源**：`specs/_contracts/` 下的契约文件（**仅以 T0-contracts 分支为准**）。各模块的 spec 只**引用**契约，不重复定义跨边界类型或调用约定。
-- **实现或改 spec 前**：确认已从 **T0-contracts** 拉取最新契约；打开本模块的 `docs/module-specs/NNN-modulename.md` 或 `spec.md`，查看 **Dependencies** 与 **Interface Contracts**；对每个依赖的上游，阅读 `specs/_contracts/` 下对应契约，实现时只使用契约中已声明的类型与接口。
-- **修改本模块对外 API 时**：在 **`T0-contracts` 分支**上更新 `specs/_contracts/` 下本模块对应的契约文件；在 `specs/_contracts/000-module-dependency-map.md` 中查看依赖本模块的下游，若有破坏性变更则在下游 spec 或 issue 中留下跟进说明或任务。
-- **Spec Kit /speckit.plan 产出须写回契约**：plan 生成的对外接口（函数签名、类型）**必须**同步到 `specs/_contracts/NNN-*-public-api.md` 的「API 雏形」小节；在 T0-contracts 上提交并推送后，再继续 tasks/implement。详见 `docs/workflow-two-modules-pilot.md` §4.2.5。
-- **依赖关系总览**：`specs/_contracts/000-module-dependency-map.md`。新增/修改依赖时请同步更新该文件与各 spec 的 Dependencies。
-- **接口如何确定**：**伪代码**（意图）→ **API 雏形**（简化声明）→ **真实 API**（头文件）。L0/L1 契约先行：实现前写 API 雏形到契约，实现严格按契约；下游基于 API 雏形或真实头文件。真实 API 变更时需同步更新契约。详见 `docs/multi-agent-interface-sync.md` §4.5。
-- **发现依赖接口变化**：工作前、每个 task 开始前 `git pull origin T0-contracts`；收到 follow-up（规格待办、issue）时先拉契约再适配。详见 `docs/multi-agent-interface-sync.md` §4.6。
-- **策略说明**：`docs/multi-agent-interface-sync.md`。
-- **构建规约（Agent 必须遵守）**：`docs/build-module-convention.md`。plan.md **必须**澄清「依赖引入方式」：每个直接依赖为 **源码** / **DLL** / **不引入外部库**，默认源码。任何编译、测试的 build **必须**按该规约构建依赖与测试/可执行目标；**禁止**手写 add_subdirectory/find_package 分支、禁止对测试/可执行显式 link 上游。
-- **用户说「要构建工程」时**：若**构建方式**（各依赖用源码 / DLL / 不引入）或**根目录**（在哪个模块目录下执行构建、TENENGINE_ROOT 或依赖路径）不清楚，**必须**先问用户，不得擅自假设。明确后再执行 cmake 配置与构建。
+契约以 **T0-contracts** 为准；跨模块接口的单一事实来源即该分支上的 `specs/_contracts/`；各模块 spec 只**引用**契约，不重复定义跨边界类型或调用约定。拉取/推送契约见命令 **engine.contracts-pull**、**engine.contracts-push** 及 speckit.specify 第一步。
+
+## 实现或改 spec 前
+
+- 确认已拉取最新契约（可用命令 engine.contracts-pull）。
+- 打开本模块的 `docs/module-specs/NNN-modulename.md` 或 `spec.md`，查看 **Dependencies** 与 **Interface Contracts**；对每个依赖的上游，阅读 `specs/_contracts/` 下对应 **public-api** 与 **ABI**，实现时只使用契约中已声明的类型与接口（功能与语义以 API 为准，具体接口形式以 ABI 为准；见 `.cursor/rules/contracts-api-abi.mdc`）。
+
+## 依赖与接口
+
+- **依赖总览**：`specs/_contracts/000-module-dependency-map.md`。新增/修改依赖时同步更新该文件与各 spec 的 Dependencies。
+- **接口如何确定**：契约（能力与类型）+ ABI（命名空间、头文件、符号）→ 真实 API；实现与下游以 ABI 为准；真实 API 变更时需同步更新契约与 ABI。发现依赖接口变化时先拉取契约再适配（engine.contracts-pull）。详见 `docs/agent-interface-sync.md`。
+
+## 构建规约（Agent 必须遵守）
+
+- 按 `docs/engine-build-module-convention.md` 执行（构建方式澄清见该文档 **§3**；该文档无 §1.1）。plan 产出**必须**澄清「依赖引入方式」：各直接依赖均按**源码**方式引入；禁止手写 add_subdirectory/find_package 分支、禁止对测试/可执行显式 link 上游。任何编译、测试的 build 必须按该规约构建依赖与目标。
+- **用户说「要构建工程」时**：若根目录或依赖路径（TENENGINE_ROOT 等）不清楚，**必须**先问用户，不得擅自假设；各子模块均使用源码方式。明确后再执行 cmake 配置与构建。

@@ -6,10 +6,12 @@ Audio 提供**音源、监听与混音**（含空间音效），对应 Unreal �
 
 ## 2. 详细功能描述
 
-- **音源**：3D/2D 音源、播放控制、与 Entity/Scene 位置绑定。
-- **监听**：听众位置与朝向、与相机或实体绑定。
-- **混音**：混音组、音量/效果、主总线与子总线。
-- **空间音效**：衰减、遮挡、空间化（可选）。
+对外接口以 **ABI** 为准：`specs/_contracts/016-audio-ABI.md`；契约：`specs/_contracts/016-audio-public-api.md`。
+
+- **音源**：IAudioSource::Play、Pause、Stop、SetLoop、IsLooping、SetResource、SetPosition、GetPosition、SetAttenuation、SetOcclusion；CreateAudioSource；与 Entity/Scene 位置绑定。
+- **监听**：IAudioListener::SetPosition、SetOrientation、BindToEntity；GetMainListener；与相机或实体绑定。
+- **混音**：IAudioBus::SetVolume、SetMute、SetEffectSlot；CreateAudioBus；主总线与子总线。
+- **空间音效**：IAudioSource::SetPosition、SetAttenuation、SetOcclusion；空间化（可选）。
 
 ## 3. 实现难度
 
@@ -18,7 +20,7 @@ Audio 提供**音源、监听与混音**（含空间音效），对应 Unreal �
 ## 4. 操作的资源类型
 
 - **内存**：播放状态、混音路由、效果参数。
-- **与 Resource**：音频资源句柄（WAV/OGG 等）、流式播放缓冲。
+- **与 Resource**：经 013 Load 获取音频资源；016 仅持 ResourceId/句柄或 013 提供的播放用句柄，对 IResource 类型不可见；流式播放缓冲。
 - **与平台/第三方**：音频设备、缓冲、通过抽象层对接。
 
 ## 5. 是否有子模块
@@ -34,12 +36,12 @@ Audio 提供**音源、监听与混音**（含空间音效），对应 Unreal �
 | Mixer | 总线、音量、静音、效果槽（可选） |
 | Spatial | 3D 定位、衰减曲线、遮挡（可选） |
 
-### 5.2 具体功能
+### 5.2 具体功能（与 ABI 表一致）
 
-Source：CreateSource、Play、Pause、Stop、SetLoop、SetResource。  
-Listener：SetPosition、SetOrientation、BindToEntity。  
-Mixer：CreateBus、SetVolume、Mute、EffectSlot。  
-Spatial：SetPosition、Attenuation、Occlusion。
+Source：IAudioSource::Play、Pause、Stop、SetLoop、IsLooping、SetResource、SetPosition、GetPosition、SetAttenuation、SetOcclusion；CreateAudioSource。  
+Listener：IAudioListener::SetPosition、SetOrientation、BindToEntity；GetMainListener。  
+Mixer：IAudioBus::SetVolume、SetMute、SetEffectSlot；CreateAudioBus。  
+Spatial：IAudioSource::SetPosition、SetAttenuation、SetOcclusion。
 
 ### 5.3 子模块依赖图
 
@@ -84,4 +86,4 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

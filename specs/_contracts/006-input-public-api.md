@@ -2,20 +2,17 @@
 
 ## 适用模块
 
-- **实现方**：**006-Input**（T0 输入抽象与设备映射）
+- **实现方**：006-Input（L1；输入抽象、键鼠/手柄/触摸、原始输入、事件与映射）
 - **对应规格**：`docs/module-specs/006-input.md`
-- **依赖**：001-Core（001-core-public-api）, 003-Application（003-application-public-api）
+- **依赖**：001-Core、003-Application
 
-## 消费者（T0 下游）
+## 消费者
 
-- 017-UICore, 024-Editor, 027-XR。
+- 017-UICore、024-Editor、027-XR
 
-## 版本 / ABI
+## 能力列表
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
@@ -25,20 +22,26 @@
 | TouchState | 触摸点 ID、位置、阶段（Begin/Move/End） | 每帧或按查询 |
 | 绑定表 / 配置 | 动作/轴与物理设备映射；可序列化或从配置加载 | 按实现约定 |
 
-## 能力列表（提供方保证）
+### 能力（提供方保证）
 
-1. **输入抽象**：ActionId、AxisId、BindingTable、MapDevice、LoadConfig；与物理设备解耦。
-2. **键鼠**：GetKey、GetMousePosition、GetMouseDelta、SetCapture、Focus。
-3. **手柄**：GetGamepadCount、GetButton、GetAxis、SetVibration、DeviceId。
-4. **触摸**：GetTouchCount、GetTouch(id)、Phase；与平台触摸事件对接。
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 输入抽象 | ActionId、AxisId、BindingTable、MapDevice、LoadConfig；与物理设备解耦 |
+| 2 | 键鼠 | GetKey、GetMousePosition、GetMouseDelta、SetCapture、Focus |
+| 3 | 手柄 | GetGamepadCount、GetButton、GetAxis、SetVibration、DeviceId |
+| 4 | 触摸 | GetTouchCount、GetTouch(id)、Phase；与平台触摸事件对接 |
 
-## 调用顺序与约束
+## 版本 / ABI
 
-- 须在 Core、Application 可用之后使用；与 Application 事件泵的对接须明确（事件源由 Application 提供、Input 消费或转发）。
-- 多设备与多平台行为由实现定义并文档化；下游（UICore、Editor、XR）仅依赖本契约抽象。
+- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+
+## 约束
+
+- 须在 Core、Application 可用之后使用；通过 Application 的 TickCallback 拉取本帧事件并更新状态。多设备与多平台行为由实现定义并文档化。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 按 006-Input 模块规格与依赖表新增契约 |
+| T0 新增 | 006-Input 契约 |
+| 2026-02-05 | 统一目录；能力列表用表格 |

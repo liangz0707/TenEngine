@@ -1,4 +1,4 @@
-﻿# Branch: T0-013-resource
+# Branch: T0-013-resource
 
 This branch contains only **constraint files**, **module description**, and **global dependency** for module **013-resource**.
 

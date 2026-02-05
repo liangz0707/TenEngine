@@ -2,13 +2,14 @@
 
 ## 1. 模块简要说明
 
-Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 Shader 绑定、材质实例，对应 Unreal 的 **Material**、Unity 的 **Material**。依赖 RenderCore、Shader。
+Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 Shader 绑定、材质实例，对应 Unreal 的 **Material**、Unity 的 **Material**。依赖 RenderCore、Shader、Resource（011 不发起加载，013 传入描述与已加载 Shader/贴图引用）。
 
 ## 2. 详细功能描述
 
-- **材质定义**：材质资源、参数列表、与 Shader 的绑定、默认值。
-- **参数**：标量/向量/纹理/缓冲等参数、与 Uniform 或绑定槽的映射。
-- **与 Shader 绑定**：选择 Shader、选择变体、参数覆盖。
+- **材质格式**：材质使用**引擎自有格式**（磁盘上的材质资源为引擎定义格式）；材质资源**保存/引用**：**Shader**、**贴图**、**材质参数**（即引用渲染 Shader 所需的参数值、贴图与 Shader）。
+- **材质定义**：材质资源、参数列表、与 Shader 的绑定、默认值；**Material 当中保存了 Shader**（Shader 引用由材质持有）。
+- **参数**：标量/向量/纹理/缓冲等参数、与 Uniform 或绑定槽的映射；材质引用贴图与材质参数，供渲染时绑定。
+- **与 Shader 绑定**：材质持有 Shader 引用、选择变体、参数覆盖。
 - **材质实例**：基于母材质实例化、运行时覆盖参数、与 Pipeline 的 DrawCall 对接。
 
 ## 3. 实现难度
@@ -17,7 +18,7 @@ Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 S
 
 ## 4. 操作的资源类型
 
-- **内存/逻辑**：材质定义、参数表、实例数据、与 Resource 的材质/纹理引用（句柄）。
+- **内存/逻辑**：材质定义（引擎格式）、参数表、**Shader 引用**、贴图引用、实例数据；与 Resource 的材质/纹理引用（句柄）。
 - **与 RHI/RenderCore**：通过 Pipeline 提交时绑定 PSO 与资源；本模块不直接持有 GPU 资源。
 
 ## 5. 是否有子模块
@@ -28,14 +29,14 @@ Material 提供**材质定义与 Shader 绑定**：材质资源、参数、与 S
 
 | 子模块 | 职责 |
 |--------|------|
-| MaterialDef | 材质资源、参数定义、默认值、与 Shader 的引用 |
+| MaterialDef | 材质资源（引擎格式）、参数定义、默认值、**保存 Shader 引用**、贴图引用、材质参数 |
 | Parameters | 参数类型、槽位映射、与 RenderCore Uniform/纹理槽对接 |
 | Instancing | 材质实例、覆盖参数、实例池与生命周期 |
 | Binding | 与 Shader 变体、与 RHI PSO 的绑定、与 Pipeline 的提交接口 |
 
 ### 5.2 具体功能
 
-MaterialDef：Load、GetParameters、GetDefaultValues、GetShaderRef。  
+MaterialDef：CreateMaterial（入参由 013 传入 MaterialAssetDesc、shaderRef、textureRefs）、GetParameters、GetDefaultValues、GetShaderRef。  
 Parameters：SetScalar、SetTexture、SetBuffer、GetSlotMapping。  
 Instancing：CreateInstance、SetOverride、Release、Pool。  
 Binding：BindToPSO、GetVariantKey、SubmitToPipeline。
@@ -67,10 +68,12 @@ flowchart LR
 flowchart TB
   RC[009-RenderCore]
   Shader[010-Shader]
+  Res[013-Resource]
   Mt[011-Material]
   Pi[020-Pipeline]
   Mt --> RC
   Mt --> Shader
+  Mt --> Res
   Pi --> Mt
 ```
 
@@ -80,10 +83,10 @@ flowchart TB
 |------|------|
 | **RenderCore** | Uniform 布局、纹理槽位约定 |
 | **Shader** | 变体选择、参数名与类型一致 |
-| **Resource** | 材质资源加载、纹理/缓冲引用（通过句柄，可不直接依赖 Resource 模块） |
+| **Resource** | 013 为唯一加载入口；材质由 013 加载后调用 011 CreateMaterial 传入描述与已加载 Shader/贴图引用；011 不发起加载（见 resource-logic-principles） |
 | **可选** | 材质图编辑（节点图）与 Shader Graph 联动 |
 | **协议** | 无 |
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：API 雏形由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。

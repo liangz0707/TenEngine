@@ -2,242 +2,60 @@
 
 ## 适用模块
 
-- **实现方**：**002-Object**（T0 对象模型与元数据）
+- **实现方**：002-Object（L0；反射、序列化、属性系统、类型注册、GUID）
 - **对应规格**：`docs/module-specs/002-object.md`
-- **依赖**：001-Core（001-core-public-api）
+- **依赖**：001-Core
 
-## 消费者（T0 下游）
+## 消费者
 
-- 004-Scene, 005-Entity, 007-Subsystems, 013-Resource, 015-Animation；020-Pipeline、024-Editor 等（通过 Scene/Entity/Resource 间接）。
+- 004-Scene、005-Entity、007-Subsystems、013-Resource、015-Animation
+
+## 能力列表
+
+### 类型与句柄（跨边界）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| TypeId | 类型唯一标识（uint32_t 或 opaque 句柄） | 注册后直至卸载 |
+| TypeDescriptor | 类型描述：TypeId、名称、大小、属性/方法列表、基类链 | 与类型绑定 |
+| SerializedBuffer | 序列化字节流缓冲；data、size、capacity；由调用方分配与释放 | 调用方管理 |
+| ObjectRef | 对象引用；与资源 GUID 对应 | 与对象/资源绑定 |
+| GUID | 全局唯一标识，用于资源引用与解析 | 与资源/对象绑定 |
+| PropertyBag / PropertyDescriptor | 属性描述、元数据、默认值、范围/枚举 | 与类型或实例绑定 |
+| 类型工厂 | CreateInstance、按 TypeId 创建 | 按调用约定 |
+| AssetDesc 等 | MaterialAssetDesc、LevelAssetDesc、SceneNodeDesc、ModelAssetDesc、TextureAssetDesc、MeshAssetDesc 等由 002 定义或注册；013/029/011/012 反序列化时通过 002 得到描述 | 注册后直至卸载 |
+
+### 能力（提供方保证）
+
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 反射 | 类型注册、类型信息查询、属性/方法枚举、基类链；TypeRegistry::RegisterType、GetTypeByName、GetTypeById |
+| 2 | 序列化 | 序列化器抽象、二进制/文本格式、版本迁移、对象引用与 GUID 解析；ISerializer::Serialize、Deserialize；往返等价可验证 |
+| 3 | 属性系统 | 属性描述、元数据、默认值、范围/枚举约束；与反射和序列化联动 |
+| 4 | 类型注册 | 注册表、按模块注册、类型工厂、生命周期；与 Core 模块加载协调 |
+
+命名空间 `te::object`。
 
 ## 版本 / ABI
 
 - 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
 
-## 类型与句柄（跨边界）
+## 约束
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| TypeId / TypeDescriptor | 类型标识与描述；属性/方法列表、基类链 | 注册后直至卸载 |
-| SerializedBuffer / ObjectRef | 序列化字节流、对象引用 | 由调用方管理缓冲；ObjectRef 与资源 GUID 对应 |
-| GUID | 全局唯一标识，用于资源引用与解析 | 与资源/对象绑定 |
-| PropertyBag / PropertyDescriptor | 属性描述、元数据、默认值、范围/枚举 | 与类型或实例绑定 |
-| 类型工厂 | CreateInstance、按 TypeId 创建 | 按调用约定 |
+- 须在 Core 初始化之后使用。资源描述类型（AssetDesc）由本模块定义或注册，013/004/011/012 反序列化时通过 002 取得描述。
 
-## 能力列表（提供方保证）
+## TODO 列表
 
-1. **反射**：类型注册、类型信息查询、属性/方法枚举、基类链、GetTypeByName/ById。
-2. **序列化**：序列化器抽象、二进制/文本格式、版本迁移、对象引用与 GUID 解析；往返等价性可验证。
-3. **属性系统**：属性描述、元数据、默认值、范围/枚举约束；与反射和序列化联动。
-4. **类型注册**：注册表、按模块注册、类型工厂、生命周期；与 Core 模块加载协调。
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
 
-## API 雏形（简化声明）
-
-**本切片（002-object-minimal）暴露**：类型注册 + 简单序列化。仅使用 001-Core 契约已声明的类型（分配器、容器、字符串等）。
-
-### 类型与句柄（本切片）
-
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| TypeId | 类型唯一标识（如 uint32_t 或 opaque 句柄） | 注册后直至卸载 |
-| TypeDescriptor | 类型描述：TypeId、名称、大小等（本切片不含属性/方法列表） | 与类型绑定 |
-| SerializedBuffer | 序列化字节流缓冲；由调用方分配与释放 | 调用方管理 |
-
-### 类型注册
-
-```cpp
-namespace te::object {
-
-using TypeId = uint32_t;   // 或 opaque 句柄
-
-struct TypeDescriptor {
-    TypeId       id;
-    char const*  name;     // 或使用 Core 契约中的 String 类型
-    size_t       size;    // 实例大小（本切片最小所需）
-    // 本切片不包含：属性列表、基类链、方法列表
-};
-
-class TypeRegistry {
-public:
-    // 注册类型；返回是否成功（如重复 id/name 可规定为覆盖或失败）
-    static bool RegisterType(TypeDescriptor const& desc);
-
-    // 按名/ID 查询；未找到返回 nullptr
-    static TypeDescriptor const* GetTypeByName(char const* name);
-    static TypeDescriptor const* GetTypeById(TypeId id);
-};
-
-}
-```
-
-### 简单序列化（本切片）
-
-```cpp
-namespace te::object {
-
-// 调用方提供的缓冲；生命周期由调用方管理
-struct SerializedBuffer {
-    void*  data;
-    size_t size;
-    size_t capacity;   // 可写容量（用于序列化时扩展）
-};
-
-// 序列化器抽象：将已注册类型实例写入缓冲 / 从缓冲读回
-class ISerializer {
-public:
-    virtual ~ISerializer() = default;
-    // 将 obj（类型已注册）序列化到 out；返回是否成功
-    virtual bool Serialize(SerializedBuffer& out, void const* obj, TypeId typeId) = 0;
-    // 从 buf 反序列化为 typeId 类型；obj 由调用方提供内存；返回是否成功
-    virtual bool Deserialize(SerializedBuffer const& buf, void* obj, TypeId typeId) = 0;
-};
-
-// 默认实现（如最小二进制格式）可由工厂或模块初始化返回
-// std::unique_ptr<ISerializer> CreateDefaultSerializer();
-}
-```
-
-### 调用顺序与约束（本切片）
-
-- 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
-- SerializedBuffer 的 data 可由调用方使用 Core 分配器（Alloc/Free）分配；本切片不规定缓冲格式的版本迁移与 GUID 解析。
-
-### 本切片（002-object-fullversion-001）完整功能集
-
-#### 类型与句柄（跨边界）
-
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| TypeId | 类型唯一标识（如 uint32_t 或 opaque 句柄） | 注册后直至卸载 |
-| TypeDescriptor | 类型描述：TypeId、名称、大小、属性/方法列表、基类链 | 与类型绑定 |
-| SerializedBuffer | 序列化字节流缓冲；由调用方分配与释放 | 调用方管理 |
-| ObjectRef | 对象引用；与资源 GUID 对应，序列化/反序列化中解析 | 由调用方或实现管理 |
-| GUID | 全局唯一标识，用于资源引用与解析 | 与资源/对象绑定 |
-| PropertyDescriptor | 属性描述：名称、类型、元数据、默认值、范围/枚举 | 与类型或实例绑定 |
-| PropertyBag | 属性集合；可序列化字段、元数据、约束 | 与类型或实例绑定 |
-
-#### 反射与类型注册
-
-```cpp
-namespace te::object {
-
-using TypeId = uint32_t;   // 或 opaque 句柄
-
-struct PropertyDescriptor;  // 属性描述：name, type, metadata, default, range/enum
-struct MethodDescriptor;    // 方法描述（本切片内可为占位或最小集）
-
-struct TypeDescriptor {
-    TypeId    id;
-    char const* name;
-    size_t    size;
-    // 完整功能集：属性/方法列表、基类链
-    PropertyDescriptor const* properties;
-    size_t    propertyCount;
-    MethodDescriptor const* methods;
-    size_t    methodCount;
-    TypeId    baseTypeId;   // 基类 TypeId，无则为 0 或无效值
-};
-
-class TypeRegistry {
-public:
-    // 注册类型；重复 TypeId 拒绝，重复 name 由实现约定；返回是否成功
-    static bool RegisterType(TypeDescriptor const& desc);
-
-    static TypeDescriptor const* GetTypeByName(char const* name);
-    static TypeDescriptor const* GetTypeById(TypeId id);
-
-    // 按 TypeId 创建实例；分配语义按调用约定（调用方或实现方分配）
-    static void* CreateInstance(TypeId id);
-};
-
-}
-```
-
-#### 序列化（含版本迁移与 ObjectRef/GUID）
-
-```cpp
-namespace te::object {
-
-struct SerializedBuffer {
-    void*  data;
-    size_t size;
-    size_t capacity;
-};
-
-struct ObjectRef {
-    uint8_t guid[16];   // 或 GUID 类型；与资源/对象绑定
-    // 解析语义与 013-Resource 等约定在集成阶段
-};
-
-struct GUID {
-    uint8_t data[16];
-};
-
-// 版本迁移：旧格式升级到当前格式；本切片必选
-class IVersionMigration {
-public:
-    virtual ~IVersionMigration() = default;
-    virtual bool Migrate(SerializedBuffer& buf, uint32_t fromVersion, uint32_t toVersion) = 0;
-};
-
-class ISerializer {
-public:
-    virtual ~ISerializer() = default;
-    // 序列化；支持 ObjectRef/GUID 解析；二进制或文本由实现/工厂选择
-    virtual bool Serialize(SerializedBuffer& out, void const* obj, TypeId typeId) = 0;
-    virtual bool Deserialize(SerializedBuffer const& buf, void* obj, TypeId typeId) = 0;
-    // 版本迁移接口（必选）
-    virtual uint32_t GetCurrentVersion() const = 0;
-    virtual void SetVersionMigration(IVersionMigration* migration) = 0;
-};
-
-}
-```
-
-#### 属性系统
-
-```cpp
-namespace te::object {
-
-struct PropertyDescriptor {
-    char const* name;
-    TypeId      valueTypeId;
-    void const* defaultValue;   // 可选
-    // 元数据、范围/枚举约束（可由扩展结构或后续接口提供）
-};
-
-class PropertyBag {
-public:
-    // 读写属性；与反射和序列化联动
-    virtual bool GetProperty(void* outValue, char const* name) const = 0;
-    virtual bool SetProperty(void const* value, char const* name) = 0;
-    virtual PropertyDescriptor const* FindProperty(char const* name) const = 0;
-    virtual ~PropertyBag() = default;
-};
-
-}
-```
-
-#### 调用顺序与约束（本切片 fullversion-001）
-
-- 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
-- 重复 TypeId 拒绝；重复类型名由实现约定（覆盖或拒绝），须在实现/契约中明确。
-- SerializedBuffer 的 data 可由调用方使用 Core 分配器（Alloc/Free）分配。
-- 版本迁移为本切片必选能力；序列化支持二进制与文本两种格式（或通过抽象可扩展）。
-- GUID 引用格式与 013-Resource 等消费者的约定留待集成阶段；本 feature 保证 GUID 可解析、可扩展。
-
-## 调用顺序与约束
-
-- 须在 Core 初始化之后使用；类型注册可在启动时或按模块加载时进行。
-- 序列化/反序列化与资源引用（GUID）解析须与 013-Resource 等消费者约定引用格式。
+- [ ] **AssetDesc 注册**：提供 *AssetDesc 类型注册（ShaderAssetDesc、MaterialAssetDesc、MeshAssetDesc、TextureAssetDesc、ModelAssetDesc、LevelAssetDesc、SceneNodeDesc、AudioAssetDesc 等）；各资源模块向 002 注册。
+- [ ] **GUID 引用解析**：描述文件中 GUID 引用由 002 在反序列化时按类型与引用解析约定处理；与 ObjectRef、VersionMigration 一致。
+- [ ] **反序列化**：资源描述与原始数据由 013 读盘后交 002 统一反序列化得到 *AssetDesc；与 013、各模块 Create*/Loader 对接。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 按 002-Object 模块规格与依赖表新增契约 |
-| 2026-01-29 | API 雏形由 plan 002-object-minimal 同步（类型注册 + 简单序列化） |
-| 2026-01-29 | API 雏形由 plan 002-object-fullversion-001 同步（完整功能集：反射、序列化含版本迁移与 GUID、属性系统、类型工厂） |
-| 2026-01-29 | 按 workflow §4.2.5 自 002-object-minimal/plan.md 同步 API 雏形（类型注册 + 简单序列化）至契约 |
-| 2026-01-29 | 按 workflow §4.2.5 自 002-object-fullversion-001/plan.md 同步 API 雏形（完整功能集）至契约 |
+| T0 新增 | 002-Object 契约；按模块规格与 resource-serialization 约定 ABI 与 TODO |
+| 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
+| 2026-02-05 | 统一目录；能力列表用表格；去除代码示例与 ABI 引用 |

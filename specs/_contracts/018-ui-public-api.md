@@ -2,20 +2,17 @@
 
 ## 适用模块
 
-- **实现方**：**018-UI**（控件、画布与事件；依赖 UICore）
+- **实现方**：018-UI（L2；控件、画布、事件）
 - **对应规格**：`docs/module-specs/018-ui.md`
-- **依赖**：017-UICore（017-uicore-public-api）
+- **依赖**：017-UICore
 
-## 消费者（T0 下游）
+## 消费者
 
-- 024-Editor（窗口、面板、菜单、控件；UI 渲染层若由 Pipeline 绘制则 Pipeline 消费 UICore 输出）
+- 024-Editor
 
-## 版本 / ABI
+## 能力列表
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前契约版本：（由实现或计划阶段填写）
-
-## 类型与句柄（跨边界）
+### 类型与句柄（跨边界）
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
@@ -24,22 +21,26 @@
 | EventCallback | 事件回调；OnClick、OnDrag、OnInput、Bubble、Capture | 由调用方注册 |
 | StyleRef | 主题、颜色/字体/边距、与 Resource 资源引用 | 与控件或画布绑定 |
 
-下游仅通过上述类型与句柄访问；与 UICore 的布局/绘制/命中一一对应，与 Resource 纹理/图集/字体通过 UICore 或直接对接。
+### 能力（提供方保证）
 
-## 能力列表（提供方保证）
+| 序号 | 能力 | 说明 |
+|------|------|------|
+| 1 | 画布 | CreateCanvas、AddChild；与 UICore Layout/Draw/HitTest 对接 |
+| 2 | 控件 | WidgetTree；Button、Slider、Text、Image、List、Container、SetStyle |
+| 3 | 事件 | EventCallback、OnClick、OnDrag、OnInput、Bubble、Capture |
+| 4 | 样式 | StyleRef、主题、颜色/字体/边距 |
 
-1. **Widgets**：Button、Slider、Text、Image、List、Container、SetStyle；基础与复合控件、样式。
-2. **Canvas**：CreateCanvas、AddChild；与 UICore Layout/Draw/HitTest 对接。
-3. **Events**：OnClick、OnDrag、OnInput、Bubble、Capture；与 Input 解耦的抽象事件。
-4. **Style**：Theme、Color、Font、Margin、ResourceRef。
+## 版本 / ABI
 
-## 调用顺序与约束
+- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
 
-- 须在 UICore 初始化之后使用；画布与控件树与 UICore 布局/绘制/命中语义一致。
-- Editor 消费本 API 时，视口/面板/菜单与 Application/Input 协同。
+## 约束
+
+- 须在 UICore 初始化之后使用。UI 渲染层若由 Pipeline 绘制则 Pipeline 消费 UICore 输出。
 
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
-| T0 新增 | 每模块一契约：018-UI 对应本契约；与 docs/module-specs/018-ui.md 一致 |
+| T0 新增 | 018-UI 契约 |
+| 2026-02-05 | 统一目录；能力列表用表格 |
