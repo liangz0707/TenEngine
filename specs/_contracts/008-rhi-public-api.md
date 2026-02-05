@@ -53,6 +53,12 @@
 
 - 须先完成 RHI 初始化后再创建资源与提交命令。资源销毁顺序须符合底层 API 要求。020 产出的命令缓冲经 Submit 交 RHI；格式与时机见 `pipeline-to-rci.md`。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **DResource 创建**：提供 CreateBuffer、CreateTexture、CreateSampler、CreateGraphicsPSO 等接口，供 028/011/012 在 EnsureDeviceResources 时调用；不暴露具体后端类型；生命周期与 028/011/012 协调。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

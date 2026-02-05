@@ -1,0 +1,18 @@
+---
+description: 契约与 API/ABI 关系；修改 _contracts 时 public-api 为 ABI 唯一来源；实现时先看上游 API 再参考 ABI。
+globs: specs/_contracts/**/*.md, docs/**/*.md, specs/**/*.md
+---
+
+# 契约与 API/ABI 规则
+
+## 1. 修改 specs/_contracts 下文件时
+
+- 各模块的 **API 文件**（`specs/_contracts/NNN-modulename-public-api.md`）是**对应模块 ABI 文件**（`NNN-modulename-ABI.md`）的**出处与参考**。
+- **API 内容不得反向引用 ABI 内容**：public-api 中不得出现“见 ABI”“以 ABI 为准”等把 ABI 当作来源的表述；能力与类型以 public-api 为准，ABI 从 public-api 派生。
+- **除非用户明确说明**，否则 **public-api 文件是对应模块 ABI 文件的唯一来源**：更新或新增 ABI 条目时，须以该模块的 public-api 为依归；不得仅凭 ABI 反推或改写 public-api。
+
+## 2. 实现 plan、task、implement 时
+
+- **须先考虑上游模块的 API 文件**（public-api）所描述的**能力与类型**，理解上游提供的功能与约定。
+- **再参考 ABI**（同一模块或上游模块的 *-ABI.md）中的**具体接口**（命名空间、头文件、符号、调用约定）进行实现。
+- 即：**功能与语义以 API 为准，具体接口形式以 ABI 为准**；实现时两者结合，不得只凭 ABI 而忽略上游 public-api 的能力描述。

@@ -36,6 +36,13 @@
 
 - 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 解析得到像素/描述后调用 028 CreateTexture；DResource 在下游触发 EnsureDeviceResources 时由 028 调用 008 创建。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **数据约定**：与 013 约定 .texture 解析后结构（formatVersion、format、width、height、mipCount、pixelData 或引用）；一目录一资源（.texture + .texdata + 可选源图）。
+- [ ] **CreateTexture**：接受像素/描述创建 TextureHandle，入参仅内存、由 013 传入；EnsureDeviceResources 时调用 008 创建 RHI 纹理；ReleaseTexture 时销毁 DResource。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

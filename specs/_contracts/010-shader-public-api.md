@@ -44,6 +44,13 @@
 
 - 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 Load(shaderGuid) 后将 ShaderAssetDesc 或源码交 010 CreateShader/Compile；010 不读文件、不调用 013 Load。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 可选 .hlsl/.glsl）。
+- [ ] **CreateShader**：013 加载后交 010 CreateShader/Compile；产出 Bytecode 供 008 创建 ShaderModule/PSO；010 不发起加载。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

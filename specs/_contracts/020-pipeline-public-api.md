@@ -40,6 +40,13 @@
 
 - 须在所有上游模块初始化之后使用。与 RHI 的提交格式与时机见 `pipeline-to-rci.md`；与 Editor/XR 的视口与交换链对接须明确。渲染模式（Debug/Hybrid/Resource）可通过编译或运行时配置；校验使用 001-Core 的 CheckWarning/CheckError。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **资源解析**：从 Scene/Entity 收集可见节点或实体（ResourceId/句柄）；经 013 LoadSync/GetCached 解析为 IModelResource* 等；不长期持有 IResource*。
+- [ ] **EnsureDeviceResources**：提交绘制前对资源句柄/ResourceId 调用 EnsureDeviceResources（或 Async），触发 011/012/028 创建 DResource；LOD 流式经 013 RequestStreaming/SetPriority 对接。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

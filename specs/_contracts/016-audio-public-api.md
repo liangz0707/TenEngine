@@ -38,6 +38,12 @@
 
 - 须在 Core、Resource 初始化之后使用；音频资源经 013 Load 获取。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **资源对接**（若需）：定义 AudioAssetDesc、IAudioResource 与 013 对接；经 013 Load 获取音频资源；仅持 ResourceId/句柄；一目录一资源（描述 + 实际数据或内联 + 可选 .wav/.ogg）。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

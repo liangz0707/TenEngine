@@ -44,6 +44,14 @@
 
 - 须在 Core 初始化之后使用。资源描述类型（AssetDesc）由本模块定义或注册，013/004/011/012 反序列化时通过 002 取得描述。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **AssetDesc 注册**：提供 *AssetDesc 类型注册（ShaderAssetDesc、MaterialAssetDesc、MeshAssetDesc、TextureAssetDesc、ModelAssetDesc、LevelAssetDesc、SceneNodeDesc、AudioAssetDesc 等）；各资源模块向 002 注册。
+- [ ] **GUID 引用解析**：描述文件中 GUID 引用由 002 在反序列化时按类型与引用解析约定处理；与 ObjectRef、VersionMigration 一致。
+- [ ] **反序列化**：资源描述与原始数据由 013 读盘后交 002 统一反序列化得到 *AssetDesc；与 013、各模块 Create*/Loader 对接。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

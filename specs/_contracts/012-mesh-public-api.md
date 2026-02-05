@@ -38,6 +38,13 @@
 
 - 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 解析得到内存数据后调用 012 CreateMesh；DResource 在下游触发 EnsureDeviceResources 时由 012 调用 008 创建。蒙皮数据与 Animation 骨骼名称/索引约定须一致。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：MeshAssetDesc 归属 012；.mesh/.meshdata 描述与数据格式与 002 注册；一目录一资源（.mesh + .meshdata + 可选 .obj/.fbx）。
+- [ ] **CreateMesh**：CreateMesh(vertexData, indexData, layout, submeshes) 仅接受内存，入参由 013 传入；EnsureDeviceResources 时对依赖链先 Ensure 再调用 008 CreateBuffer 创建顶点/索引缓冲。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

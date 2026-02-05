@@ -38,6 +38,13 @@
 
 - 须在 RenderCore、Shader、Texture、Resource 初始化之后使用。013 Load(materialGuid) 后调用 011 CreateMaterial(MaterialAssetDesc, shaderRef, textureRefs)；011 仅接受内存中的描述与引用。材质实例释放顺序须与 Pipeline DrawCall 生命周期协调。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：MaterialAssetDesc 归属 011；.material 描述格式与 002 注册；一目录一资源（.material + 贴图用 GUID 引用）。
+- [ ] **CreateMaterial**：CreateMaterial(MaterialAssetDesc, shaderRef, textureRefs)；依赖由 013 递归加载后传入；EnsureDeviceResources 时先对依赖链 Ensure 再创建材质 DResource（绑定贴图、采样器等），调用 008。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

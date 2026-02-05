@@ -12,16 +12,17 @@
 ## 实现范围（TenEngine：实现全量 ABI 内容）
 
 > **ABI 生成与保存模式**：
-> - **生成全量 ABI 内容**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**，并可进行优化（补充、删除、合并等），包括：
->   - **原始 ABI**：现有 `specs/_contracts/NNN-modulename-ABI.md` 中已声明的所有条目（本 feature 需要实现的）
->   - **新增的 ABI**：本 feature 新增的接口条目
->   - **修改的 ABI**：对现有 ABI 条目的修改
-> - **文档中只保存变化部分**：plan.md 文档的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于查阅和写回契约；不保存完整 ABI 表。
-> - **实现基于全量内容**：tasks 和 implement 阶段**必须基于全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
+> - **全量 ABI 内容写在 plan.md 内**：plan 执行时，参考 spec、Unity/Unreal 等文档，**生成本 feature 需要实现的全部 ABI 内容**（原始 + 新增 + 修改），**直接写在 plan.md 的本小节或下方「全量 ABI 内容（实现参考）」中**，不单独生成 `contracts/NNN-modulename-ABI-full.md` 等文件。
+> - **契约更新只保存变化部分**：plan.md 的「契约更新」小节**只保存相对于现有 ABI 的新增和修改部分**，用于写回 `specs/_contracts/NNN-modulename-ABI.md`；若无新增/修改则产出空清单。
+> - **实现基于全量内容**：tasks 和 implement 阶段**必须基于 plan.md 中的全量 ABI 内容**（原始 + 新增 + 修改）进行实现，不得仅实现变化部分。
 >
 > **规约**：本 feature **只实现 ABI 文件**中列出的符号与能力；不得设计或实现 ABI 未声明的对外接口。设计时可参考 **Unity、Unreal** 的模块与 API 构造。对外接口以 ABI 文件为准。见 `specs/_contracts/README.md`、`.specify/memory/constitution.md` §VI。
 
-[若本 feature 对应某模块，在此列出本切片要实现的**全量 ABI 符号**（包括原始、新增、修改），或引用 ABI 文件中的表行。]
+[若本 feature 对应某模块，在此列出本切片要实现的**全量 ABI 符号**（包括原始、新增、修改），或引用下方「全量 ABI 内容（实现参考）」表。]
+
+### 全量 ABI 内容（实现参考）
+
+[本 feature 对应的**全量 ABI 表**（原始 + 新增 + 修改），与 `specs/_contracts/NNN-modulename-ABI.md` 表头一致。tasks/implement 以此为准进行实现。]
 
 ## Technical Context
 

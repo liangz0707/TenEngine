@@ -45,6 +45,12 @@
 
 - 须在 Core、Object 可用后使用。Level 加载由上层经 029 进行；029 将 LevelAssetDesc 转为 SceneDesc 后调 004 CreateSceneFromDesc。变换更新与脏标记须一致；多 World 时当前活动场景语义由 004 提供、029 可封装。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **无资源职责**：004 不负责资源与关卡描述；CreateSceneFromDesc(SceneDesc) 入参由 029 转换后传入；004 不持有 *AssetDesc、不依赖 013、不解析节点上的不透明句柄为资源类型。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

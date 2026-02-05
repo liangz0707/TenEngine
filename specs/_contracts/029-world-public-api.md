@@ -35,6 +35,14 @@
 
 - 须在 004-Scene、013-Resource 初始化之后使用。Level 加载流程：上层调 029 → 029 用 013 Load 取得 LevelAssetDesc、nodeModelRefs → 029 转换为 004 的 SceneDesc 与不透明句柄 → 029 调用 004 CreateSceneFromDesc → 029 持有关卡句柄与 SceneRef。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：LevelAssetDesc、SceneNodeDesc 归属 029；.level 描述格式与 002 注册；一目录一资源（.level + 节点引用 Model GUID）。
+- [ ] **CreateLevelFromDesc**：经 013 Load(levelGuid) 取得 LevelAssetDesc、nodeModelRefs；转换为 004 的 SceneDesc 与按节点不透明句柄；调用 004 CreateSceneFromDesc；返回 LevelHandle/SceneRef。
+- [ ] **UnloadLevel**：释放 Level 句柄并调用 004 UnloadScene；（可选）LoadLevelAsync 与 013 协作封装。
+
 ## 变更记录
 
 | 日期 | 变更说明 |

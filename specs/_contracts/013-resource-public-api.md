@@ -47,6 +47,19 @@
 
 - 须在 Core、Object、028-Texture 初始化之后使用；010/011/012/028/029 须已向 013 注册 Create*/Loader。013 不创建、不持有、不调用 008。资源引用格式须与 Object 序列化约定一致。句柄释放顺序须与卸载策略协调。
 
+## TODO 列表
+
+（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+
+- [ ] **描述归属**：013 拥有 ModelAssetDesc、TextureAssetDesc；.model/.texture 与 002 注册；一目录一资源（描述 + 实际数据 + 可选源数据）。
+- [ ] **Addressing**：实现 GUID→路径 解析；注册表/Manifest 维护 GUID→路径；支持多内容根、Bundle 包内路径；提供 ResolvePath(ResourceId) 或等价接口。
+- [ ] **Load 入口**：LoadSync/LoadAsync 为唯一入口；读描述文件与实际数据（.texdata/.meshdata 等）→ 交 002 反序列化 → 交对应模块 Create*/Loader；根 RResource 创建完成后即缓存并立即返回句柄（异步不等待递归依赖全部完成）。
+- [ ] **依赖加载**：依赖由 IResource 实现在创建时通过 013 统一 Load 接口递归加载；013 不先统一递归；循环引用约定（禁止/延迟/弱引用）并在实现中保证。
+- [ ] **状态与回调**：RResource 可查询 LoadState（Loading/Ready/Failed）；提供 GetLoadState(handle/ResourceId)；异步时提供「根已创建」与「已加载」（递归依赖全部完成）回调，供上层安全使用资源。
+- [ ] **Unload**：Release、UnloadPolicy、GC 与引用计数；与各模块句柄协调，避免悬空引用；DResource 随 RResource 由各子类/028/011/012/008 销毁，013 不直接操作。
+- [ ] **Streaming**：RequestStreaming、SetPriority、StreamingHandle；与 LOD、地形等按需加载对接；可先加载描述或低精度数据，高精度块按需 LoadAsync。
+- [ ] **EnsureDeviceResources**：将 EnsureDeviceResources/EnsureDeviceResourcesAsync 转发给具体 RResource，013 不创建、不调用 008。
+
 ## 变更记录
 
 | 日期 | 变更说明 |
