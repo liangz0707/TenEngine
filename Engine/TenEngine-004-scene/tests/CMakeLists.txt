@@ -1,41 +1,32 @@
-# Unit tests for 001-Core (contract: specs/_contracts/001-core-public-api.md).
-add_executable(test_alloc unit/test_alloc.cpp)
-target_link_libraries(test_alloc PRIVATE te_core)
-add_test(NAME test_alloc COMMAND test_alloc)
+# Tests for 004-Scene module
 
-add_executable(test_thread unit/test_thread.cpp)
-target_link_libraries(test_thread PRIVATE te_core)
-add_test(NAME test_thread COMMAND test_thread)
+cmake_minimum_required(VERSION 3.16)
+project(te_scene_tests LANGUAGES CXX)
 
-add_executable(test_platform unit/test_platform.cpp)
-target_link_libraries(test_platform PRIVATE te_core)
-add_test(NAME test_platform COMMAND test_platform)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(test_log unit/test_log.cpp)
-target_link_libraries(test_log PRIVATE te_core)
-add_test(NAME test_log COMMAND test_log)
+# Test executable
+add_executable(te_scene_tests
+  unit/main.cpp
+  unit/test_scene_manager.cpp
+  unit/test_scene_world.cpp
+  unit/test_spatial_query.cpp
+  unit/test_node_managers.cpp
+  unit/test_octree.cpp
+  unit/test_quadtree.cpp
+)
 
-add_executable(test_math unit/test_math.cpp)
-target_link_libraries(test_math PRIVATE te_core)
-add_test(NAME test_math COMMAND test_math)
+target_include_directories(te_scene_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
 
-add_executable(test_containers unit/test_containers.cpp)
-target_link_libraries(test_containers PRIVATE te_core)
-add_test(NAME test_containers COMMAND test_containers)
+target_link_libraries(te_scene_tests PRIVATE
+  te_scene
+  te_core
+)
 
-add_executable(test_module_load unit/test_module_load.cpp)
-target_link_libraries(test_module_load PRIVATE te_core)
-add_test(NAME test_module_load COMMAND test_module_load)
-
-add_executable(test_engine unit/test_engine.cpp)
-target_link_libraries(test_engine PRIVATE te_core)
-add_test(NAME test_engine COMMAND test_engine)
-
-add_executable(test_check unit/test_check.cpp)
-target_link_libraries(test_check PRIVATE te_core)
-add_test(NAME test_check COMMAND test_check)
-
-# ABI contract consistency: includes and symbols must match specs/_contracts/001-core-ABI.md
-add_executable(test_abi_contract unit/test_abi_contract.cpp)
-target_link_libraries(test_abi_contract PRIVATE te_core)
-add_test(NAME test_abi_contract COMMAND test_abi_contract)
+# Set output directory
+set_target_properties(te_scene_tests PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)

@@ -8,7 +8,8 @@ set(TENENGINE_002_OBJECT_DEPS "001-core")
 # 003-app：示例用，仅依赖 002（001→002→003 链的第三项）
 set(TENENGINE_003_APP_DEPS "002-object")
 set(TENENGINE_003_APPLICATION_DEPS "001-core")
-set(TENENGINE_004_SCENE_DEPS "001-core" "002-object")
+# 004-Scene: 纯算法模块，仅依赖Core，不依赖Object
+set(TENENGINE_004_SCENE_DEPS "001-core")
 set(TENENGINE_005_ENTITY_DEPS "001-core" "002-object" "004-scene")
 set(TENENGINE_006_INPUT_DEPS "001-core" "003-application")
 set(TENENGINE_007_SUBSYSTEMS_DEPS "001-core" "002-object")
