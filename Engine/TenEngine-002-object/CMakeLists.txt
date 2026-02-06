@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()
 
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE PATH "TenEngine helpers")
+set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
 include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
 
 tenengine_resolve_my_dependencies("002-object" OUT_DEPS MY_DEPS)
@@ -29,7 +30,7 @@ target_include_directories(te_object PUBLIC
   $<BUILD_INTERFACE:${TE_OBJECT_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(te_object PRIVATE ${MY_DEPS})
+target_link_libraries(te_object PUBLIC ${MY_DEPS})
 
 target_sources(te_object PUBLIC
   ${TE_OBJECT_INCLUDE_DIR}/te/object/TypeId.hpp

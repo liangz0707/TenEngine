@@ -28,9 +28,9 @@
 
 > **构建/CMake 说明**：执行配置或构建（如 `cmake -B build`）前，**须已与用户确认构建根目录**（本仓库为仓库根）；各子模块均使用**源码**方式引入依赖。未澄清根目录时**禁止**直接执行 cmake，须先询问用户。cmake 生成之后须检查：引入的头文件/源文件是否完整、是否存在循环依赖或缺失依赖；发现问题须在任务中标注或先修复再继续。规约见 `docs/engine-build-module-convention.md` §3。
 
-- [ ] T001 Verify project structure in Engine/TenEngine-002-object/ matches plan (include/te/object/, src/, tests/unit/, cmake/); confirm build root is repo root with user before running cmake
-- [ ] T002 Ensure Engine/TenEngine-002-object/CMakeLists.txt declares target te_object and resolves 001-core via tenengine_resolve_my_dependencies("002-object"); add build-root clarification note in comments. Do not run cmake until build root is confirmed
-- [ ] T003 [P] Ensure public include path Engine/TenEngine-002-object/include/ is set so headers are exposed as te/object/*.hpp per ABI
+- [x] T001 Verify project structure in Engine/TenEngine-002-object/ matches plan (include/te/object/, src/, tests/unit/, cmake/); confirm build root is repo root with user before running cmake
+- [x] T002 Ensure Engine/TenEngine-002-object/CMakeLists.txt declares target te_object and resolves 001-core via tenengine_resolve_my_dependencies("002-object"); add build-root clarification note in comments. Do not run cmake until build root is confirmed
+- [x] T003 [P] Ensure public include path Engine/TenEngine-002-object/include/ is set so headers are exposed as te/object/*.hpp per ABI
 
 ---
 
@@ -40,13 +40,13 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T004 [P] Define TypeId and kInvalidTypeId in Engine/TenEngine-002-object/include/te/object/TypeId.hpp per ABI
-- [ ] T005 [P] Define MethodDescriptor (minimal placeholder struct) in Engine/TenEngine-002-object/include/te/object/TypeId.hpp per ABI
-- [ ] T006 [P] Define PropertyDescriptor (name, valueTypeId, defaultValue) in Engine/TenEngine-002-object/include/te/object/PropertyDescriptor.hpp
-- [ ] T007 [P] Define TypeDescriptor (id, name, size, properties, propertyCount, methods, methodCount, baseTypeId) in Engine/TenEngine-002-object/include/te/object/TypeDescriptor.hpp
-- [ ] T008 [P] Define SerializedBuffer (data, size, capacity) in Engine/TenEngine-002-object/include/te/object/SerializedBuffer.hpp
-- [ ] T009 [P] Define ObjectRef (uint8_t guid[16]) in Engine/TenEngine-002-object/include/te/object/ObjectRef.hpp and GUID in Engine/TenEngine-002-object/include/te/object/Guid.hpp
-- [ ] T010 Implement Core memory integration: wrap 001-Core Alloc/Free (or GetDefaultAllocator) in Engine/TenEngine-002-object/src/CoreMemory.cpp and optional detail header so CreateInstance and type metadata use only 001-core-public-api
+- [x] T004 [P] Define TypeId and kInvalidTypeId in Engine/TenEngine-002-object/include/te/object/TypeId.hpp per ABI
+- [x] T005 [P] Define MethodDescriptor (minimal placeholder struct) in Engine/TenEngine-002-object/include/te/object/TypeId.hpp per ABI
+- [x] T006 [P] Define PropertyDescriptor (name, valueTypeId, defaultValue) in Engine/TenEngine-002-object/include/te/object/PropertyDescriptor.hpp
+- [x] T007 [P] Define TypeDescriptor (id, name, size, properties, propertyCount, methods, methodCount, baseTypeId) in Engine/TenEngine-002-object/include/te/object/TypeDescriptor.hpp
+- [x] T008 [P] Define SerializedBuffer (data, size, capacity) in Engine/TenEngine-002-object/include/te/object/SerializedBuffer.hpp
+- [x] T009 [P] Define ObjectRef (uint8_t guid[16]) in Engine/TenEngine-002-object/include/te/object/ObjectRef.hpp and GUID in Engine/TenEngine-002-object/include/te/object/Guid.hpp
+- [x] T010 Implement Core memory integration: wrap 001-Core Alloc/Free (or GetDefaultAllocator) in Engine/TenEngine-002-object/src/CoreMemory.cpp and optional detail header so CreateInstance and type metadata use only 001-core-public-api
 
 **Checkpoint**: Foundation ready – all ABI types and Core Alloc path available; user story implementation can begin.
 
@@ -60,12 +60,12 @@
 
 ### Tests for User Story 1
 
-- [ ] T011 [P] [US1] Add unit test Engine/TenEngine-002-object/tests/unit/TypeRegistry_test.cpp: register type, GetTypeByName/GetTypeById match, duplicate id returns false; ensure test uses Core init if required (cover upstream)
+- [x] T011 [P] [US1] Add unit test Engine/TenEngine-002-object/tests/unit/TypeRegistry_test.cpp: register type, GetTypeByName/GetTypeById match, duplicate id returns false; ensure test uses Core init if required (cover upstream)
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Declare TypeRegistry with static RegisterType, GetTypeByName, GetTypeById in Engine/TenEngine-002-object/include/te/object/TypeRegistry.hpp
-- [ ] T013 [US1] Implement TypeRegistry in Engine/TenEngine-002-object/src/TypeRegistry.cpp: double index by id and by name; reject duplicate TypeId; return nullptr for unknown name/id
+- [x] T012 [P] [US1] Declare TypeRegistry with static RegisterType, GetTypeByName, GetTypeById in Engine/TenEngine-002-object/include/te/object/TypeRegistry.hpp
+- [x] T013 [US1] Implement TypeRegistry in Engine/TenEngine-002-object/src/TypeRegistry.cpp: double index by id and by name; reject duplicate TypeId; return nullptr for unknown name/id
 
 **Checkpoint**: User Story 1 complete; TypeRegistry test passes.
 
@@ -79,11 +79,11 @@
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] Add unit test Engine/TenEngine-002-object/tests/unit/CreateInstance_test.cpp: register type, CreateInstance returns non-null and usable; invalid id returns nullptr; verify allocation via Core (cover upstream Alloc path)
+- [x] T014 [P] [US2] Add unit test Engine/TenEngine-002-object/tests/unit/CreateInstance_test.cpp: register type, CreateInstance returns non-null and usable; invalid id returns nullptr; verify allocation via Core (cover upstream Alloc path)
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Implement CreateInstance(TypeId) in Engine/TenEngine-002-object/src/TypeRegistry.cpp: get TypeDescriptor by id, allocate size bytes via Core Alloc, return pointer or nullptr
+- [x] T015 [US2] Implement CreateInstance(TypeId) in Engine/TenEngine-002-object/src/TypeRegistry.cpp: get TypeDescriptor by id, allocate size bytes via Core Alloc, return pointer or nullptr
 
 **Checkpoint**: User Stories 1 and 2 complete; CreateInstance test passes.
 
@@ -97,13 +97,13 @@
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add unit test Engine/TenEngine-002-object/tests/unit/Serializer_roundtrip_test.cpp: register type, create instance, serialize then deserialize, compare; optional version migration path (cover upstream via CreateInstance/Alloc)
+- [x] T016 [P] [US3] Add unit test Engine/TenEngine-002-object/tests/unit/Serializer_roundtrip_test.cpp: register type, create instance, serialize then deserialize, compare; optional version migration path (cover upstream via CreateInstance/Alloc)
 
 ### Implementation for User Story 3
 
-- [ ] T017 [P] [US3] Declare IVersionMigration::Migrate in Engine/TenEngine-002-object/include/te/object/VersionMigration.hpp
-- [ ] T018 [P] [US3] Declare ISerializer (Serialize, Deserialize, GetCurrentVersion, SetVersionMigration) in Engine/TenEngine-002-object/include/te/object/Serializer.hpp
-- [ ] T019 [US3] Implement at least one ISerializer (e.g. binary) and version-migration hook in Engine/TenEngine-002-object/src/Serializer.cpp and Engine/TenEngine-002-object/src/VersionMigration.cpp if needed; Deserialize calls Migrate when version < GetCurrentVersion()
+- [x] T017 [P] [US3] Declare IVersionMigration::Migrate in Engine/TenEngine-002-object/include/te/object/VersionMigration.hpp
+- [x] T018 [P] [US3] Declare ISerializer (Serialize, Deserialize, GetCurrentVersion, SetVersionMigration) in Engine/TenEngine-002-object/include/te/object/Serializer.hpp
+- [x] T019 [US3] Implement at least one ISerializer (e.g. binary) and version-migration hook in Engine/TenEngine-002-object/src/Serializer.cpp and Engine/TenEngine-002-object/src/VersionMigration.cpp if needed; Deserialize calls Migrate when version < GetCurrentVersion()
 
 **Checkpoint**: User Story 3 complete; Serializer roundtrip test passes.
 
@@ -117,12 +117,12 @@
 
 ### Tests for User Story 4
 
-- [ ] T020 [P] [US4] Add unit test Engine/TenEngine-002-object/tests/unit/PropertyBag_test.cpp: implement or use default PropertyBag, SetProperty/GetProperty/FindProperty; unknown name returns false/nullptr
+- [x] T020 [P] [US4] Add unit test Engine/TenEngine-002-object/tests/unit/PropertyBag_test.cpp: implement or use default PropertyBag, SetProperty/GetProperty/FindProperty; unknown name returns false/nullptr
 
 ### Implementation for User Story 4
 
-- [ ] T021 [P] [US4] Declare PropertyBag (GetProperty, SetProperty, FindProperty) in Engine/TenEngine-002-object/include/te/object/PropertyBag.hpp
-- [ ] T022 [US4] Implement default PropertyBag (e.g. backed by TypeDescriptor property list) in Engine/TenEngine-002-object/src/PropertyBag.cpp
+- [x] T021 [P] [US4] Declare PropertyBag (GetProperty, SetProperty, FindProperty) in Engine/TenEngine-002-object/include/te/object/PropertyBag.hpp
+- [x] T022 [US4] Implement default PropertyBag (e.g. backed by TypeDescriptor property list) in Engine/TenEngine-002-object/src/PropertyBag.cpp
 
 **Checkpoint**: All user stories complete; PropertyBag test passes.
 
@@ -132,9 +132,9 @@
 
 **Purpose**: ABI completeness, build validation, docs.
 
-- [ ] T023 [P] Verify every symbol in plan.md full ABI table is implemented and exposed in Engine/TenEngine-002-object (no missing types or methods)
-- [ ] T024 Run build and ctest per specs/002-object-fullmodule-001/quickstart.md; fix any missing includes or link errors (build root already confirmed)
-- [ ] T025 [P] Update Engine/TenEngine-002-object/README.md or docs if needed for build and usage
+- [x] T023 [P] Verify every symbol in plan.md full ABI table is implemented and exposed in Engine/TenEngine-002-object (no missing types or methods)
+- [x] T024 Run build and ctest per specs/002-object-fullmodule-001/quickstart.md; fix any missing includes or link errors (build root already confirmed)
+- [x] T025 [P] Update Engine/TenEngine-002-object/README.md or docs if needed for build and usage
 
 ---
 
