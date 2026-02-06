@@ -12,13 +12,17 @@ namespace {
 int run_tests() {
     using namespace te::subsystems;
 
-    Registry reg;
+    auto& reg = Registry::GetInstance();
 
     bool scanOk = Discovery::ScanPlugins(reg);
     assert(scanOk && "ScanPlugins should return true (no-op)");
 
     bool plugOk = Discovery::RegisterFromPlugin(reg, nullptr);
     assert(!plugOk && "RegisterFromPlugin with nullptr should return false");
+    
+    // Test UnregisterFromPlugin with nullptr
+    bool unregOk = Discovery::UnregisterFromPlugin(reg, nullptr);
+    assert(!unregOk && "UnregisterFromPlugin with nullptr should return false");
 
     return 0;
 }
