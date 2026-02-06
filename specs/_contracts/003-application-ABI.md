@@ -55,7 +55,8 @@
 |--------|----------|------|----------|----------|--------|------|------|
 | 003-Application | te::application | IApplication | 抽象接口 | 轮询事件 | te/application/Event.h | IApplication::PumpEvents | `void PumpEvents();` 轮询并处理平台消息；应在主循环中每帧调用 |
 | 003-Application | te::application | IApplication | 抽象接口 | 推送事件 | te/application/Event.h | IApplication::PushEvent | `void PushEvent(Event const& event);` 手动推送事件到队列（可选） |
-| 003-Application | te::application | IApplication | 抽象接口 | 获取事件队列 | te/application/Event.h | IApplication::GetEventQueue | `EventQueue const& GetEventQueue() const;` 获取事件队列（供Input模块直接消费） |
+| 003-Application | te::application | IApplication | 抽象接口 | 获取事件队列（const） | te/application/Event.h | IApplication::GetEventQueue | `EventQueue const& GetEventQueue() const;` 获取事件队列（const版本，用于只读访问） |
+| 003-Application | te::application | IApplication | 抽象接口 | 获取事件队列（非const） | te/application/Event.h | IApplication::GetEventQueue | `EventQueue& GetEventQueue();` 获取事件队列（非const版本，供Input模块消费事件，因为Pop需要修改队列） |
 | 003-Application | te::application | — | enum | 事件类型 | te/application/Event.h | EventType | `enum class EventType { WindowCreated, WindowDestroyed, WindowResized, WindowMoved, WindowFocused, WindowClosed, KeyDown, KeyUp, MouseMove, MouseButtonDown, MouseButtonUp, ... };` 事件类型枚举 |
 | 003-Application | te::application | — | struct | 事件 | te/application/Event.h | Event | 事件结构：类型、时间戳、窗口ID、事件数据（联合体） |
 | 003-Application | te::application | EventQueue | 类 | 事件队列 | te/application/Event.h | EventQueue::Pop, Push, Empty, Size, Clear | `bool Pop(Event& event);` `void Push(Event const& event);` `bool Empty() const;` `std::size_t Size() const;` `void Clear();` 线程安全的事件队列，供Input模块消费 |

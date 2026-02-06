@@ -218,6 +218,12 @@ class IApplication {
    */
   virtual EventQueue const& GetEventQueue() const = 0;
 
+  /**
+   * @brief Get event queue (non-const version for Input module to consume events via Pop).
+   * @return Reference to event queue
+   */
+  virtual EventQueue& GetEventQueue() = 0;
+
   // ========== Main Loop ==========
 
   /**

@@ -407,6 +407,10 @@ class Application : public IApplication {
     return m_eventQueue;
   }
 
+  EventQueue& GetEventQueue() override {
+    return m_eventQueue;
+  }
+
   // ========== Main Loop ==========
 
   float GetDeltaTime() const override {
