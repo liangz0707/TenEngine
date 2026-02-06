@@ -1,22 +1,14 @@
-/**
- * @file TextureResource.h
- * @brief ITextureResource view (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_TEXTURE_RESOURCE_H
-#define TE_RESOURCE_TEXTURE_RESOURCE_H
+// 013-Resource: ITextureResource type view (te/resource/TextureResource.h)
+#pragma once
 
-#include <te/resource/Resource.h>
+#include "te/resource/Resource.h"
 
 namespace te {
 namespace resource {
 
-/** Texture resource view; implemented by 028; 013 returns IResource* then caller may cast. */
-class ITextureResource : public IResource {
- public:
-  ~ITextureResource() override = default;
-};
+// Texture resource view; cast from IResource* when GetResourceType() == ResourceType::Texture.
+// Concrete fields (width, height, format, GPU handle) defined by 028-Texture.
+struct ITextureResource : IResource {};
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_TEXTURE_RESOURCE_H
+} // namespace resource
+} // namespace te

@@ -1,22 +1,13 @@
-/**
- * @file EffectResource.h
- * @brief IEffectResource view (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_EFFECT_RESOURCE_H
-#define TE_RESOURCE_EFFECT_RESOURCE_H
+// 013-Resource: IEffectResource type view (te/resource/EffectResource.h)
+#pragma once
 
-#include <te/resource/Resource.h>
+#include "te/resource/Resource.h"
 
 namespace te {
 namespace resource {
 
-/** Effect resource view; particles/VFX; 013 returns IResource* then caller may cast. */
-class IEffectResource : public IResource {
- public:
-  ~IEffectResource() override = default;
-};
+// Effect resource view; cast from IResource* when GetResourceType() == ResourceType::Effect.
+struct IEffectResource : IResource {};
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_EFFECT_RESOURCE_H
+} // namespace resource
+} // namespace te

@@ -1,256 +1,353 @@
-/**
- * @file ResourceManager.cpp
- * @brief IResourceManager implementation and GetResourceManager (contract: 013-resource-ABI).
- */
-#include <te/resource/ResourceManager.h>
-#include <te/resource/ResourceLoader.h>
-#include <te/resource/Deserializer.h>
-#include <te/resource/ResourceImporter.h>
-#include <map>
-#include <mutex>
-#include <set>
-#include <string>
+// 013-Resource: ResourceManager implementation
+#include "te/resource/ResourceManager.h"
+#include "te/resource/Resource.h"
+#include "te/resource/ResourceLoader.h"
+#include "te/resource/ResourceSerializer.h"
+#include "te/resource/ResourceImporter.h"
+#include "te/resource/ResourceId.h"
+#include "te/core/platform.h"
+#include "te/core/thread.h"
 #include <unordered_map>
-#include <vector>
-#include <fstream>
-#include <thread>
+#include <mutex>
+#include <string>
+#include <cstring>
 #include <atomic>
-#include <memory>
-#include <cstdint>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 namespace te {
 namespace resource {
 
 namespace {
 
-/** Compute a deterministic ResourceId from path for cache/addressing (until 002 GUID integration). */
-ResourceId IdFromPath(char const* path) {
-  ResourceId id{};
-  if (!path) return id;
-  uint64_t h = 0;
-  while (*path) { h = h * 31 + static_cast<unsigned char>(*path++); }
-  id.data[0] = h;
-  id.data[1] = 0;
-  return id;
+// Build ResourceId from path (full 16-byte deterministic hash for cache key; 002::GUID layout compatible)
+ResourceId ResourceIdFromPath(char const* path) {
+    ResourceId id{};
+    std::hash<std::string> H;
+    std::string s(path ? path : "");
+    size_t h0 = H(s);
+    size_t h1 = H(s + "__te_013");
+    for (size_t i = 0; i < 8; ++i) {
+        id.data[i] = static_cast<uint8_t>((h0 >> (i * 8)) & 0xff);
+        id.data[8 + i] = static_cast<uint8_t>((h1 >> (i * 8)) & 0xff);
+    }
+    return id;
 }
 
-struct CacheEntry {
-  IResource* resource = nullptr;
-  int refcount = 0;
+struct AsyncLoadState {
+    std::atomic<LoadStatus> status{LoadStatus::Pending};
+    std::atomic<float> progress{0.f};
+    std::atomic<bool> cancelled{false};
+    std::string path;
+    ResourceType type{};
+    LoadCompleteCallback on_done{};
+    void* user_data{};
 };
 
-struct AsyncRequest {
-  std::string path;
-  ResourceType type = ResourceType::Texture;
-  LoadCompleteCallback on_done = nullptr;
-  void* user_data = nullptr;
-  std::atomic<LoadStatus> status{LoadStatus::Pending};
-  std::atomic<float> progress{0.f};
-  std::atomic<bool> cancelled{false};
-  IResource* result = nullptr;
-  LoadResult load_result = LoadResult::Error;
+class ResourceManagerImpl;
+
+struct AsyncLoadParams {
+    ResourceManagerImpl* manager{};
+    LoadRequestId id{};
 };
+
+void AsyncLoadTask(void* raw);
 
 class ResourceManagerImpl : public IResourceManager {
- public:
-  LoadRequestId RequestLoadAsync(char const* path, ResourceType type,
-                                LoadCompleteCallback on_done, void* user_data) override {
-    if (!path || !on_done) return nullptr;
-    auto req = std::make_shared<AsyncRequest>();
-    req->path = path;
-    req->type = type;
-    req->on_done = on_done;
-    req->user_data = user_data;
-    req->status = LoadStatus::Pending;
-    req->progress = 0.f;
-    req->cancelled = false;
-    {
-      std::lock_guard<std::mutex> lock(requests_mutex_);
-      requests_[req.get()] = req;
+    friend void AsyncLoadTask(void*);
+public:
+    LoadRequestId RequestLoadAsync(char const* path, ResourceType type, LoadCompleteCallback on_done, void* user_data) override {
+        if (!path || !on_done) return 0;
+        LoadRequestId id = 0;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            id = next_request_id_++;
+            request_states_.emplace(std::piecewise_construct, std::forward_as_tuple(id), std::forward_as_tuple());
+            request_states_[id].path = path;
+            request_states_[id].type = type;
+            request_states_[id].on_done = on_done;
+            request_states_[id].user_data = user_data;
+        }
+        AsyncLoadParams* p = new AsyncLoadParams{this, id};
+        te::core::GetThreadPool()->SubmitTask(AsyncLoadTask, p);
+        return id;
     }
-    std::thread([this, req]() {
-      if (req->cancelled) {
-        req->status = LoadStatus::Cancelled;
-        req->on_done(nullptr, LoadResult::Cancelled, req->user_data);
-        return;
-      }
-      req->status = LoadStatus::Loading;
-      req->progress = 0.f;
-      IResource* res = LoadSync(req->path.c_str(), req->type);
-      if (req->cancelled) {
-        req->status = LoadStatus::Cancelled;
-        req->on_done(nullptr, LoadResult::Cancelled, req->user_data);
-        return;
-      }
-      if (res) {
-        req->result = res;
-        req->status = LoadStatus::Completed;
-        req->load_result = LoadResult::Ok;
-        req->progress = 1.f;
-      } else {
-        req->status = LoadStatus::Failed;
-        req->load_result = LoadResult::Error;
-      }
-      req->on_done(req->result, req->load_result, req->user_data);
-    }).detach();
-    return req.get();
-  }
-  LoadStatus GetLoadStatus(LoadRequestId id) const override {
-    if (!id) return LoadStatus::Pending;
-    std::lock_guard<std::mutex> lock(requests_mutex_);
-    auto it = requests_.find(static_cast<AsyncRequest*>(id));
-    return it != requests_.end() ? it->second->status.load() : LoadStatus::Pending;
-  }
-  float GetLoadProgress(LoadRequestId id) const override {
-    if (!id) return 0.f;
-    std::lock_guard<std::mutex> lock(requests_mutex_);
-    auto it = requests_.find(static_cast<AsyncRequest*>(id));
-    return it != requests_.end() ? it->second->progress.load() : 0.f;
-  }
-  void CancelLoad(LoadRequestId id) override {
-    if (!id) return;
-    std::lock_guard<std::mutex> lock(requests_mutex_);
-    auto it = requests_.find(static_cast<AsyncRequest*>(id));
-    if (it != requests_.end()) it->second->cancelled = true;
-  }
-
-  IResource* GetCached(ResourceId id) const override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = cache_.find(id);
-    if (it == cache_.end() || it->second.refcount <= 0) return nullptr;
-    it->second.refcount++;
-    return it->second.resource;
-  }
-
-  IResource* LoadSync(char const* path, ResourceType type) override {
-    if (!path) return nullptr;
-    // T017: cycle detection - same path re-entered during CreateFromPayload dependency load
-    static thread_local std::set<std::string> loading_paths;
-    if (loading_paths.count(path)) return nullptr;  // cycle → LoadResult::Error equivalent
-    struct LoadingGuard { std::set<std::string>& s; std::string p; LoadingGuard(std::set<std::string>& set, char const* path) : s(set), p(path) { s.insert(p); } ~LoadingGuard() { s.erase(p); } };
-    LoadingGuard load_guard(loading_paths, path);
-    ResourceId id = IdFromPath(path);
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      auto it = cache_.find(id);
-      if (it != cache_.end() && it->second.refcount > 0) {
-        it->second.refcount++;
-        return it->second.resource;
-      }
+    LoadStatus GetLoadStatus(LoadRequestId id) const override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = request_states_.find(id);
+        return it != request_states_.end() ? it->second.status.load() : LoadStatus::Pending;
     }
-    IResourceLoader* loader = nullptr;
-    IDeserializer* deserializer = nullptr;
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      auto lit = loaders_.find(type);
-      auto dit = deserializers_.find(type);
-      if (lit == loaders_.end() || dit == deserializers_.end()) return nullptr;
-      loader = lit->second;
-      deserializer = dit->second;
+    float GetLoadProgress(LoadRequestId id) const override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = request_states_.find(id);
+        return it != request_states_.end() ? it->second.progress.load() : 0.f;
     }
-    std::vector<char> buffer;
-    {
-      std::ifstream f(path, std::ios::binary | std::ios::ate);
-      if (!f) return nullptr;
-      buffer.resize(static_cast<size_t>(f.tellg()));
-      f.seekg(0);
-      if (!buffer.empty() && !f.read(buffer.data(), static_cast<std::streamsize>(buffer.size())))
-        return nullptr;
+    void CancelLoad(LoadRequestId id) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = request_states_.find(id);
+        if (it != request_states_.end()) it->second.cancelled.store(true);
     }
-    void* payload = buffer.empty() ? nullptr : deserializer->Deserialize(buffer.data(), buffer.size());
-    if (!payload && !buffer.empty()) return nullptr;
-    IResource* resource = loader->CreateFromPayload(type, payload, this);
-    if (!resource) return nullptr;
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      cache_[id] = CacheEntry{resource, 1};
-      resource_to_id_[resource] = id;
-      id_to_path_[id] = path;
+
+    IResource* LoadSync(char const* path, ResourceType type) override {
+        if (!path) return nullptr;
+        ResourceId id = ResourceIdFromPath(path);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = cache_.find(id);
+            if (it != cache_.end()) return it->second;
+        }
+        std::optional<std::vector<std::uint8_t>> data = te::core::FileRead(std::string(path));
+        if (!data || data->empty()) return nullptr;
+        IResourceSerializer* ser = nullptr;
+        IResourceLoader* loader = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto s = serializers_.find(type);
+            auto l = loaders_.find(type);
+            if (s != serializers_.end()) ser = s->second;
+            if (l != loaders_.end()) loader = l->second;
+        }
+        if (!ser || !loader) return nullptr;
+        void* payload = ser->Deserialize(data->data(), data->size());
+        if (!payload) return nullptr;
+        IResource* resource = loader->CreateFromPayload(type, payload, this);
+        if (!resource) return nullptr;
+        std::lock_guard<std::mutex> lock(mutex_);
+        cache_[id] = resource;
+        id_to_path_[id] = path;
+        return resource;
     }
-    return resource;
-  }
 
-  void Unload(IResource* resource) override {
-    if (!resource) return;
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = resource_to_id_.find(resource);
-    if (it == resource_to_id_.end()) return;
-    ResourceId id = it->second;
-    auto cit = cache_.find(id);
-    if (cit != cache_.end()) {
-      cit->second.refcount--;
-      if (cit->second.refcount <= 0) {
-        cache_.erase(cit);
-        resource_to_id_.erase(it);
-      }
+    IResource* GetCached(ResourceId id) const override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = cache_.find(id);
+        return it != cache_.end() ? it->second : nullptr;
     }
-  }
+    void Unload(IResource* resource) override {
+        if (!resource) return;
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+            if (it->second == resource) {
+                id_to_path_.erase(it->first);
+                resource->Release();
+                cache_.erase(it);
+                return;
+            }
+        }
+    }
 
-  StreamingHandle RequestStreaming(ResourceId id, int priority) override {
-    (void)id; (void)priority;
-    return nullptr;  // TODO T023
-  }
-  void SetStreamingPriority(StreamingHandle h, int priority) override {
-    (void)h; (void)priority;
-  }
+    char const* ResolvePath(ResourceId id) const override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = id_to_path_.find(id);
+        return it != id_to_path_.end() ? it->second.c_str() : nullptr;
+    }
+    bool ResolvePathCopy(ResourceId id, char* out_buffer, size_t buffer_size) const override {
+        if (!out_buffer || buffer_size == 0) return false;
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = id_to_path_.find(id);
+        if (it == id_to_path_.end()) return false;
+        size_t n = it->second.size();
+        if (n >= buffer_size) n = buffer_size - 1;
+        std::memcpy(out_buffer, it->second.c_str(), n);
+        out_buffer[n] = '\0';
+        return true;
+    }
 
-  void RegisterResourceLoader(ResourceType type, IResourceLoader* loader) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    loaders_[type] = loader;
-  }
-  void RegisterDeserializer(ResourceType type, IDeserializer* deserializer) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    deserializers_[type] = deserializer;
-  }
-  void RegisterImporter(ResourceType type, IResourceImporter* importer) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    importers_[type] = importer;
-  }
+    void SetLoadCompleteDispatcher(LoadCompleteDispatcherFn fn) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        dispatcher_ = fn;
+    }
 
-  bool Import(char const* path, ResourceType type, void* out_metadata_or_null) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = importers_.find(type);
-    if (it == importers_.end() || !it->second) return false;
-    return it->second->Convert(path, nullptr, out_metadata_or_null);
-  }
-  bool Save(IResource* resource, char const* path) override {
-    if (!resource || !path) return false;
-    ResourceType type = resource->GetResourceType();
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = savers_.find(type);
-    if (it == savers_.end() || !it->second) return false;
-    return it->second(resource, path);  // T027: module produces content; saver or 013 writes
-  }
-  void RegisterSaver(ResourceType type, SaverFn fn) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    savers_[type] = fn;
-  }
+    StreamingHandle RequestStreaming(ResourceId id, int priority) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        StreamingHandle h = next_streaming_handle_++;
+        streaming_handles_[h] = std::make_pair(id, priority);
+        return h;
+    }
+    void SetStreamingPriority(StreamingHandle h, int priority) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = streaming_handles_.find(h);
+        if (it != streaming_handles_.end()) it->second.second = priority;
+    }
 
-  char const* ResolvePath(ResourceId id) const override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = id_to_path_.find(id);
-    return it != id_to_path_.end() ? it->second.c_str() : nullptr;
-  }
+    void RegisterResourceLoader(ResourceType type, IResourceLoader* loader) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        loaders_[type] = loader;
+    }
+    void RegisterSerializer(ResourceType type, IResourceSerializer* serializer) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        serializers_[type] = serializer;
+    }
+    void RegisterImporter(ResourceType type, IResourceImporter* importer) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        importers_[type] = importer;
+    }
 
- private:
-  mutable std::mutex mutex_;
-  mutable std::mutex requests_mutex_;
-  mutable std::map<ResourceId, CacheEntry> cache_;
-  std::unordered_map<IResource*, ResourceId> resource_to_id_;
-  mutable std::map<ResourceId, std::string> id_to_path_;
-  std::map<ResourceType, IResourceLoader*> loaders_;
-  std::map<ResourceType, IDeserializer*> deserializers_;
-  std::map<ResourceType, IResourceImporter*> importers_;
-  std::map<ResourceType, IResourceManager::SaverFn> savers_;
-  std::map<LoadRequestId, std::shared_ptr<AsyncRequest>> requests_;
+    bool Import(char const* path, ResourceType type, void* out_metadata_or_null) override {
+        if (!path) return false;
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = importers_.find(type);
+        if (it == importers_.end()) return false;
+        return it->second->Convert(path, out_metadata_or_null);
+    }
+    bool Save(IResource* resource, char const* path) override {
+        if (!resource || !path) return false;
+        ResourceType type = resource->GetResourceType();
+        IResourceSerializer* ser = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto it = serializers_.find(type);
+            if (it == serializers_.end()) return false;
+            ser = it->second;
+        }
+        const size_t kBufSize = 1024 * 1024;
+        std::vector<std::uint8_t> buf(kBufSize);
+        size_t written = 0;
+        if (!ser->Serialize(resource, buf.data(), buf.size(), &written) || written == 0)
+            return false;
+        buf.resize(written);
+        return te::core::FileWrite(std::string(path), buf);
+    }
+
+    std::unordered_map<ResourceId, IResource*> cache_;
+    std::unordered_map<ResourceId, std::string> id_to_path_;
+    std::unordered_map<ResourceType, IResourceLoader*> loaders_;
+    std::unordered_map<ResourceType, IResourceSerializer*> serializers_;
+    std::unordered_map<ResourceType, IResourceImporter*> importers_;
+    LoadCompleteDispatcherFn dispatcher_{};
+    std::unordered_map<LoadRequestId, AsyncLoadState> request_states_;
+    LoadRequestId next_request_id_{1};
+    std::unordered_map<StreamingHandle, std::pair<ResourceId, int>> streaming_handles_;
+    StreamingHandle next_streaming_handle_{1};
+    mutable std::mutex mutex_;
 };
 
-}  // namespace
-
-IResourceManager* GetResourceManager() {
-  static ResourceManagerImpl s_instance;
-  return &s_instance;
+static void InvokeLoadComplete(ResourceManagerImpl* m, LoadCompleteCallback cb, IResource* r, LoadResult res, void* ud) {
+    LoadCompleteDispatcherFn fn = nullptr;
+    { std::lock_guard<std::mutex> lock(m->mutex_); fn = m->dispatcher_; }
+    if (fn) fn(cb, r, res, ud);
+    else cb(r, res, ud);
 }
 
-}  // namespace resource
-}  // namespace te
+void AsyncLoadTask(void* raw) {
+    AsyncLoadParams* p = static_cast<AsyncLoadParams*>(raw);
+    ResourceManagerImpl* m = p->manager;
+    LoadRequestId id = p->id;
+    delete p;
+
+    bool cancelled_early = false;
+    LoadCompleteCallback early_cb = nullptr;
+    void* early_ud = nullptr;
+    AsyncLoadState* state = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(m->mutex_);
+        auto it = m->request_states_.find(id);
+        if (it == m->request_states_.end()) return;
+        state = &it->second;
+        if (state->cancelled.load()) {
+            state->status = LoadStatus::Cancelled;
+            early_cb = state->on_done;
+            early_ud = state->user_data;
+            m->request_states_.erase(it);
+            cancelled_early = true;
+        } else {
+            state->status = LoadStatus::Loading;
+        }
+    }
+    if (cancelled_early) {
+        InvokeLoadComplete(m, early_cb, nullptr, LoadResult::Cancelled, early_ud);
+        return;
+    }
+    std::string path = state->path;
+    ResourceType type = state->type;
+    IResourceSerializer* ser = nullptr;
+    IResourceLoader* loader = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(m->mutex_);
+        auto s = m->serializers_.find(type);
+        auto l = m->loaders_.find(type);
+        if (s != m->serializers_.end()) ser = s->second;
+        if (l != m->loaders_.end()) loader = l->second;
+    }
+    if (!ser || !loader) {
+        LoadCompleteCallback cb;
+        void* ud;
+        {
+            std::lock_guard<std::mutex> lock(m->mutex_);
+            state->status = LoadStatus::Failed;
+            cb = state->on_done;
+            ud = state->user_data;
+            m->request_states_.erase(id);
+        }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::Error, ud);
+        return;
+    }
+    state->progress = 0.3f;
+    if (state->cancelled.load()) {
+        LoadCompleteCallback cb; void* ud;
+        { std::lock_guard<std::mutex> lock(m->mutex_); state->status = LoadStatus::Cancelled; cb = state->on_done; ud = state->user_data; m->request_states_.erase(id); }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::Cancelled, ud);
+        return;
+    }
+    std::optional<std::vector<std::uint8_t>> data = te::core::FileRead(path);
+    state->progress = 0.7f;
+    if (!data || data->empty()) {
+        LoadCompleteCallback cb; void* ud;
+        { std::lock_guard<std::mutex> lock(m->mutex_); state->status = LoadStatus::Failed; cb = state->on_done; ud = state->user_data; m->request_states_.erase(id); }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::NotFound, ud);
+        return;
+    }
+    if (state->cancelled.load()) {
+        LoadCompleteCallback cb; void* ud;
+        { std::lock_guard<std::mutex> lock(m->mutex_); state->status = LoadStatus::Cancelled; cb = state->on_done; ud = state->user_data; m->request_states_.erase(id); }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::Cancelled, ud);
+        return;
+    }
+    void* payload = ser->Deserialize(data->data(), data->size());
+    if (!payload) {
+        LoadCompleteCallback cb; void* ud;
+        { std::lock_guard<std::mutex> lock(m->mutex_); state->status = LoadStatus::Failed; cb = state->on_done; ud = state->user_data; m->request_states_.erase(id); }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::Error, ud);
+        return;
+    }
+    IResource* resource = loader->CreateFromPayload(type, payload, m);
+    if (!resource) {
+        LoadCompleteCallback cb; void* ud;
+        { std::lock_guard<std::mutex> lock(m->mutex_); state->status = LoadStatus::Failed; cb = state->on_done; ud = state->user_data; m->request_states_.erase(id); }
+        InvokeLoadComplete(m, cb, nullptr, LoadResult::Error, ud);
+        return;
+    }
+    ResourceId rid = ResourceIdFromPath(path.c_str());
+    LoadCompleteCallback on_done = state->on_done;
+    void* user_data = state->user_data;
+    bool ok = false;
+    {
+        std::lock_guard<std::mutex> lock(m->mutex_);
+        if (state->cancelled.load()) {
+            resource->Release();
+            state->status = LoadStatus::Cancelled;
+            m->request_states_.erase(id);
+            ok = false;
+        } else {
+            m->cache_[rid] = resource;
+            m->id_to_path_[rid] = path;
+            state->status = LoadStatus::Completed;
+            state->progress = 1.f;
+            m->request_states_.erase(id);
+            ok = true;
+        }
+    }
+    if (ok) InvokeLoadComplete(m, on_done, resource, LoadResult::Ok, user_data);
+    else InvokeLoadComplete(m, on_done, nullptr, LoadResult::Cancelled, user_data);
+}
+
+} // namespace
+
+IResourceManager* GetResourceManager() {
+    static ResourceManagerImpl s_manager;
+    return &s_manager;
+}
+
+} // namespace resource
+} // namespace te

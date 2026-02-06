@@ -1,15 +1,15 @@
-/**
- * @file FResource.h
- * @brief Disk representation of resource (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_FRESOURCE_H
-#define TE_RESOURCE_FRESOURCE_H
+// 013-Resource: FResource concept — disk representation (te/resource/FResource.h)
+#pragma once
 
-/** FResource: on-disk resource representation; references other resources only via global unique GUID. */
+// FResource: resource on disk; references other resources only by GUID.
+// Used during load from disk. Some resources may exist only in F form.
+// This header declares the concept; concrete F* types are defined by owning modules.
+
 namespace te {
 namespace resource {
-struct FResource;  // Concept / type; concrete layout per asset format.
-}  // namespace resource
-}  // namespace te
 
-#endif  // TE_RESOURCE_FRESOURCE_H
+// Placeholder type for FResource concept; concrete disk formats per module.
+struct FResource {};
+
+} // namespace resource
+} // namespace te

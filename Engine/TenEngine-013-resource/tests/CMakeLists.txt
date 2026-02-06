@@ -1,41 +1,17 @@
-# Unit tests for 001-Core (contract: specs/_contracts/001-core-public-api.md).
-add_executable(test_alloc unit/test_alloc.cpp)
-target_link_libraries(test_alloc PRIVATE te_core)
-add_test(NAME test_alloc COMMAND test_alloc)
+# 013-Resource tests; link te_resource only (te_core via dependency).
+# Include path for 001-core (FileRead etc.) when test uses 001 API.
+set(TENENGINE_001_CORE_INCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/../../TenEngine-001-core/include")
 
-add_executable(test_thread unit/test_thread.cpp)
-target_link_libraries(test_thread PRIVATE te_core)
-add_test(NAME test_thread COMMAND test_thread)
+add_executable(test_resource_contract contract/test_abi_contract.cpp)
+target_link_libraries(test_resource_contract PRIVATE te_resource)
+add_test(NAME test_resource_contract COMMAND test_resource_contract)
 
-add_executable(test_platform unit/test_platform.cpp)
-target_link_libraries(test_platform PRIVATE te_core)
-add_test(NAME test_platform COMMAND test_platform)
+add_executable(test_resource_unit unit/test_resource_id_and_cache.cpp)
+target_include_directories(test_resource_unit PRIVATE ${TENENGINE_001_CORE_INCLUDE})
+target_link_libraries(test_resource_unit PRIVATE te_resource)
+add_test(NAME test_resource_unit COMMAND test_resource_unit)
 
-add_executable(test_log unit/test_log.cpp)
-target_link_libraries(test_log PRIVATE te_core)
-add_test(NAME test_log COMMAND test_log)
-
-add_executable(test_math unit/test_math.cpp)
-target_link_libraries(test_math PRIVATE te_core)
-add_test(NAME test_math COMMAND test_math)
-
-add_executable(test_containers unit/test_containers.cpp)
-target_link_libraries(test_containers PRIVATE te_core)
-add_test(NAME test_containers COMMAND test_containers)
-
-add_executable(test_module_load unit/test_module_load.cpp)
-target_link_libraries(test_module_load PRIVATE te_core)
-add_test(NAME test_module_load COMMAND test_module_load)
-
-add_executable(test_engine unit/test_engine.cpp)
-target_link_libraries(test_engine PRIVATE te_core)
-add_test(NAME test_engine COMMAND test_engine)
-
-add_executable(test_check unit/test_check.cpp)
-target_link_libraries(test_check PRIVATE te_core)
-add_test(NAME test_check COMMAND test_check)
-
-# ABI contract consistency: includes and symbols must match specs/_contracts/001-core-ABI.md
-add_executable(test_abi_contract unit/test_abi_contract.cpp)
-target_link_libraries(test_abi_contract PRIVATE te_core)
-add_test(NAME test_abi_contract COMMAND test_abi_contract)
+add_executable(test_resource_integration integration/test_load_sync_unload.cpp)
+target_include_directories(test_resource_integration PRIVATE ${TENENGINE_001_CORE_INCLUDE})
+target_link_libraries(test_resource_integration PRIVATE te_resource)
+add_test(NAME test_resource_integration COMMAND test_resource_integration)

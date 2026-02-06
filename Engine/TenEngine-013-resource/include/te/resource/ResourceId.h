@@ -1,27 +1,29 @@
-/**
- * @file ResourceId.h
- * @brief Resource global unique ID / GUID (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_RESOURCE_ID_H
-#define TE_RESOURCE_RESOURCE_ID_H
+// 013-Resource: ResourceId (GUID equivalent) per ABI (te/resource/ResourceId.h)
+#pragma once
 
 #include <cstdint>
+#include <cstddef>
+#include <functional>
 
 namespace te {
 namespace resource {
 
-/** Opaque resource ID; equivalent to GUID for FResource references and addressing. */
+// Opaque resource identifier; equivalent to GUID for FResource references and cache key.
 struct ResourceId {
-  uint64_t data[2] = {0, 0};
+    static constexpr size_t kSize = 16;
+    uint8_t data[kSize];
 
-  bool operator==(ResourceId const& o) const { return data[0] == o.data[0] && data[1] == o.data[1]; }
-  bool operator!=(ResourceId const& o) const { return !(*this == o); }
-  bool operator<(ResourceId const& o) const {
-    return data[0] != o.data[0] ? data[0] < o.data[0] : data[1] < o.data[1];
-  }
+    bool operator==(ResourceId const& other) const;
+    bool operator!=(ResourceId const& other) const { return !(*this == other); }
 };
 
-}  // namespace resource
-}  // namespace te
+} // namespace resource
+} // namespace te
 
-#endif  // TE_RESOURCE_RESOURCE_ID_H
+// Hash support for use as map key
+namespace std {
+template<>
+struct hash<te::resource::ResourceId> {
+    size_t operator()(te::resource::ResourceId const& id) const;
+};
+} // namespace std

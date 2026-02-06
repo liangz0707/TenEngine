@@ -1,15 +1,15 @@
-/**
- * @file RResource.h
- * @brief Runtime/memory representation of resource (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_RRESOURCE_H
-#define TE_RESOURCE_RRESOURCE_H
+// 013-Resource: RResource concept — runtime/memory representation (te/resource/RResource.h)
+#pragma once
 
-/** RResource: in-memory resource representation; DResource is stored inside RResource. */
+// RResource: resource in memory; references other resources by pointer.
+// DResource is stored inside RResource; RResource manages lifetime.
+// This header declares the concept; IResource is the runtime handle (see Resource.h).
+
 namespace te {
 namespace resource {
-struct RResource;  // Concept; IResource is the interface to RResource.
-}  // namespace resource
-}  // namespace te
 
-#endif  // TE_RESOURCE_RRESOURCE_H
+// Placeholder type for RResource concept; runtime handle is IResource*.
+struct RResource {};
+
+} // namespace resource
+} // namespace te

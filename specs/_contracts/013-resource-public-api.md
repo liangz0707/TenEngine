@@ -35,7 +35,7 @@
 |------|------|----------|
 | **IResource** | 可加载资源的**统一基类/接口**；013 返回 IResource*，缓存按 IResource* 存储；提供 GetResourceType()、Release() 等；Model 类型的具体接口 IModelResource 由 029-World 定义 | 013 缓存或下游经 ResourceId/句柄解析持有 |
 | **ResourceType** | 资源类型枚举（Texture、Mesh、Material、Model、Effect、Terrain、Shader、Audio 等）；用于请求加载与 IResource::GetResourceType() | 与类型绑定 |
-| **ResourceId / GUID** | 资源全局唯一标识；缓存键、FResource 间引用、可寻址路径、与 Object 引用解析对接 | 与资源绑定 |
+| **ResourceId / GUID** | 资源全局唯一标识；缓存键、FResource 间引用、可寻址路径、与 Object 引用解析对接。与 **002::GUID 内存布局一致**（16 字节）；path→ResourceId 由 013 确定性生成（如 path 的 128 位 hash）。 | 与资源绑定 |
 
 ### 2. 统一加载接口与加载工具
 
@@ -44,7 +44,7 @@
 | **IResourceManager** | 统一加载入口与加载工具入口；RequestLoadAsync、LoadSync、GetCached、Unload、GetLoadStatus、GetLoadProgress、CancelLoad、RequestStreaming、SetStreamingPriority、RegisterResourceLoader | 由 Subsystems 或单例提供，调用方不拥有指针 |
 | **LoadRequestId** | 异步加载请求句柄；由 RequestLoadAsync 返回 | 请求发出至完成或取消 |
 | **LoadStatus / LoadResult** | 加载状态与结果；Pending/Loading/Completed/Failed/Cancelled；供 GetLoadStatus、回调使用 | 与请求或回调绑定 |
-| **LoadCompleteCallback** | 异步加载完成回调；参数为 IResource*、LoadResult、user_data | 由调用方或框架管理 |
+| **LoadCompleteCallback** | 异步加载完成回调；参数为 IResource*、LoadResult、user_data。**默认在 001 线程池的 worker 线程**调用；若已调用 **SetLoadCompleteDispatcher(LoadCompleteDispatcherFn)**，则在 Dispatcher 指定的上下文中执行（如主线程）。 | 由调用方或框架管理 |
 
 ### 3. 资源缓存
 
@@ -68,8 +68,8 @@
 | 能力 | 013 提供 | 各模块实现 |
 |------|----------|------------|
 | **Import（导入）** | **统一接口**：RegisterImporter(ResourceType, IResourceImporter*)、Import(path, type) 等；按 type 分发到已注册的 Importer；元数据与依赖记录由 013 或各模块在实现中填充 | 各模块实现 **IResourceImporter**：DetectFormat、Convert、产出引擎格式描述/数据；如 028 实现 Texture 导入、012 实现 Mesh 导入、029 实现 Model 聚合等 |
-| **Serialize（序列化）** | **统一接口**：Serialize(ResourceType, payload, buffer)、Deserialize(ResourceType, buffer, out payload) 或通过 002 注册各类型序列化器；013 在 Load/Save 流程中调用 | 各模块实现本类型 ***Desc/内存结构** 的序列化与反序列化（与 002-Object 约定一致）；013 不解析具体 *Desc 内容，只按 type 分发 |
-| **Save（存盘）** | **统一接口**：Save(IResource*, path) 或 Save(ResourceId, path)；负责**写入路径解析、打开文件/包、调用统一写接口**将内存内容落盘 | **存盘过程**：013 根据 IResource::GetResourceType() 分发到对应模块；**各模块从 IResource 产出可存盘的内存内容**（序列化后的缓冲或 *Desc + 二进制块），**返回给 013**；013 再调用**统一保存接口**（如 001 文件写或包写入）将内容写入磁盘。即：各模块不直接写文件，只负责“IResource → 内存内容”；013 负责“内存内容 → 磁盘” |
+| **Serialize（序列化）** | **统一接口**：**IResourceSerializer** 单接口、单注册（RegisterSerializer）；同一实现提供 **Deserialize**(buffer, size)（供 Load）与 **Serialize**(resource, out_buffer, size, out_written)（供 Save）；013 按 ResourceType 查表调用，**格式与语义由同一实现保证，Save 写出即 Load 可读、往返等价**。废除 RegisterDeserializer/IDeserializer。 | 各模块实现 **IResourceSerializer**（Deserialize + Serialize）；可内部调用 002 的序列化；013 不解析 payload 内容，只按 type 分发 |
+| **Save（存盘）** | **统一接口**：Save(IResource*, path)；013 根据 IResource::GetResourceType() 查已注册 **IResourceSerializer**，调用 **Serialize(resource, buffer, size, &written)** 得到内存块，再经 001 写盘。各模块不直接写文件；013 负责“内存内容 → 磁盘”。 | 各模块的 IResourceSerializer 实现负责从 IResource 产出可存盘的内存内容；与 Load 的 Deserialize 格式一致 |
 | **Load（加载）** | **统一接口**：RequestLoadAsync、LoadSync 为唯一入口；读文件、按 ResourceType 分发、调用反序列化与各模块 Loader、缓存并返回 IResource* | 各模块实现 **IResourceLoader** / Create*：接收 013 传入的**不透明负载（payload）**，**创建并初始化 IResource 实现体**（RResource），返回 IResource*；依赖资源通过 013 统一 Load 递归加载 |
 
 **小结**：Import、序列化、Save、Load 均为「013 统一接口，各模块按 ResourceType 实现」；Save 时各模块只返回内存内容，由 013 调用统一接口完成写盘。
@@ -98,12 +98,12 @@
 | 2 | **统一加载** | RequestLoadAsync、LoadSync 为唯一入口；按 ResourceType 分发；通过注册调用 010/011/012/028/029 的 Create*/Loader；Load 阶段不创建 DResource |
 | 3 | **资源缓存** | 按 ResourceId 缓存 IResource*；GetCached(ResourceId)；与 Unload/GC 协调 |
 | 4 | **加载工具** | GetLoadStatus、GetLoadProgress、CancelLoad；RequestStreaming、SetStreamingPriority；可选 RegisterResourceLoader |
-| 5 | **寻址** | ResourceId、GUID、可寻址路径、BundleMapping；GUID→路径解析（ResolvePath 或等价） |
+| 5 | **寻址** | ResourceId、GUID、可寻址路径、BundleMapping；**ResolvePath(ResourceId)**：GUID→路径，返回指针**有效期至下次可能修改缓存的 API 调用前**；**ResolvePathCopy(id, buf, size)**：将路径拷贝到缓冲区，供长期持有。**SetLoadCompleteDispatcher**：设置后异步加载完成回调经 Dispatcher 投递（如主线程）。 |
 | 6 | **卸载** | Unload(IResource*)、IResource::Release()；与各模块句柄协调 |
 | 7 | **EnsureDeviceResources** | EnsureDeviceResourcesAsync/EnsureDeviceResources 由下游触发并转发给具体 IResource 实现；013 不参与 DResource 创建 |
 | 8 | **导入（统一接口）** | 013 提供 RegisterImporter(type, IResourceImporter*)、Import(path, type) 等统一接口；各模块实现 IResourceImporter（DetectFormat、Convert、Metadata、Dependencies） |
-| 9 | **序列化（统一接口）** | 013 提供 Serialize/Deserialize 统一入口或与 002 配合按类型分发；各模块实现本类型 *Desc/内存结构的序列化与反序列化 |
-| 10 | **Save（统一接口）** | 013 提供 Save(IResource*, path) 等统一接口；存盘时各模块从 IResource 返回内存内容，013 调用统一写接口落盘；各模块不直接写文件 |
+| 9 | **序列化（统一接口）** | 013 提供 **IResourceSerializer**（Deserialize + Serialize）单接口、**RegisterSerializer** 单注册；Load 用 Deserialize，Save 用 Serialize，格式一致、往返等价；各模块实现 IResourceSerializer |
+| 10 | **Save（统一接口）** | 013 提供 Save(IResource*, path)；按类型调已注册 IResourceSerializer::Serialize 得到内存块后 001 写盘；各模块不直接写文件 |
 | 11 | **Load（统一接口）** | RequestLoadAsync/LoadSync 为唯一入口；013 读文件、反序列化后交各模块 Loader/Create* 创建 IResource；各模块实现 IResourceLoader |
 
 *Desc 归属：ModelAssetDesc、IModelResource→029-World；TextureAssetDesc→028-Texture；ShaderAssetDesc→010，MaterialAssetDesc→011，LevelAssetDesc/SceneNodeDesc→029，MeshAssetDesc→012。013 不拥有各模块 *Desc，仅在使用时反序列化或交对应模块组装。*
@@ -135,3 +135,4 @@
 | 2026-02-05 | 明确 Load 时 *Desc 对 013 不可见：通过不透明 payload 传递；013 读文件→反序列化得 payload→按 type 调用 Loader 并传入 payload，Loader 由拥有 *Desc 的模块实现并解释 payload |
 | 2026-02-05 | ABI 写回（plan 013-resource-fullmodule-001）：GetCached、RegisterDeserializer、RegisterImporter、Import、Save、ResolvePath、IResourceLoader::CreateFromPayload、IResourceImporter、IDeserializer::Deserialize 正式纳入 ABI 表 |
 | 2026-02-05 | 清除 TODO 列表：plan 013-resource-fullmodule-001 已完成，相关任务已从 public-api 移除；归属（Model/Texture Desc→029/028）已在契约与文档中明确 |
+| 2026-02-05 | **契约写回（plan 013-resource-fullmodule-002）**：IDeserializer/RegisterDeserializer 替换为 IResourceSerializer/RegisterSerializer；新增 SetLoadCompleteDispatcher、ResolvePathCopy、LoadCompleteDispatcherFn；约定 ResolvePath 指针有效期、LoadCompleteCallback 默认 worker 线程与 Dispatcher 行为；ResourceId 与 002::GUID 布局一致、path→ID 由 013 确定性生成；Save 流程为按类型调 IResourceSerializer::Serialize 后 001 写盘 |

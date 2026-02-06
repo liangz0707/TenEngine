@@ -46,11 +46,14 @@ target_sources(te_object PUBLIC
   ${TE_OBJECT_INCLUDE_DIR}/te/object/detail/CoreMemory.hpp
 )
 
-tenengine_add_module_test(NAME te_object_TypeRegistry_test MODULE_TARGET te_object
-  SOURCES tests/unit/TypeRegistry_test.cpp ENABLE_CTEST)
-tenengine_add_module_test(NAME te_object_CreateInstance_test MODULE_TARGET te_object
-  SOURCES tests/unit/CreateInstance_test.cpp ENABLE_CTEST)
-tenengine_add_module_test(NAME te_object_Serializer_roundtrip_test MODULE_TARGET te_object
-  SOURCES tests/unit/Serializer_roundtrip_test.cpp ENABLE_CTEST)
-tenengine_add_module_test(NAME te_object_PropertyBag_test MODULE_TARGET te_object
-  SOURCES tests/unit/PropertyBag_test.cpp ENABLE_CTEST)
+# Do not add upstream (002) tests when built as dependency (e.g. from 013-resource repo).
+if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
+  tenengine_add_module_test(NAME te_object_TypeRegistry_test MODULE_TARGET te_object
+    SOURCES tests/unit/TypeRegistry_test.cpp ENABLE_CTEST)
+  tenengine_add_module_test(NAME te_object_CreateInstance_test MODULE_TARGET te_object
+    SOURCES tests/unit/CreateInstance_test.cpp ENABLE_CTEST)
+  tenengine_add_module_test(NAME te_object_Serializer_roundtrip_test MODULE_TARGET te_object
+    SOURCES tests/unit/Serializer_roundtrip_test.cpp ENABLE_CTEST)
+  tenengine_add_module_test(NAME te_object_PropertyBag_test MODULE_TARGET te_object
+    SOURCES tests/unit/PropertyBag_test.cpp ENABLE_CTEST)
+endif()

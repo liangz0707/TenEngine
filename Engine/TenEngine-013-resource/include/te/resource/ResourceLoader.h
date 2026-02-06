@@ -1,26 +1,20 @@
-/**
- * @file ResourceLoader.h
- * @brief IResourceLoader (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_RESOURCE_LOADER_H
-#define TE_RESOURCE_RESOURCE_LOADER_H
+// 013-Resource: IResourceLoader interface per ABI (te/resource/ResourceLoader.h)
+#pragma once
 
-#include <te/resource/Resource.h>
-#include <te/resource/ResourceTypes.h>
+#include "te/resource/ResourceTypes.h"
 
 namespace te {
 namespace resource {
 
+class IResource;
 class IResourceManager;
 
-/** Per-type loader; creates IResource from opaque payload. Dependencies loaded via manager. */
 class IResourceLoader {
- public:
-  virtual ~IResourceLoader() = default;
-  virtual IResource* CreateFromPayload(ResourceType type, void* payload, IResourceManager* manager) = 0;
+public:
+    virtual ~IResourceLoader() = default;
+    // Creates IResource from opaque payload; 013 does not parse payload.
+    virtual IResource* CreateFromPayload(ResourceType type, void* payload, IResourceManager* manager) = 0;
 };
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_RESOURCE_LOADER_H
+} // namespace resource
+} // namespace te

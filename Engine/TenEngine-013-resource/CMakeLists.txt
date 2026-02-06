@@ -1,34 +1,42 @@
-# 013-Resource worktree (build convention: docs/engine-build-module-convention.md).
-# 本 worktree 仅包含：001-Core（in-tree）+ 013-Resource；src/ 与 include/ 不得包含 004-Scene、019-PipelineCore 等它模块代码。
-# C++17, contract-first (specs/_contracts/013-resource-ABI.md).
-# Build root: worktree root. Dependencies: 001-core (in-tree), 002-object, 028-texture (resolve via TENENGINE_*_DIR when present).
+# 013-Resource module; per docs/engine-build-module-convention.md §2.5.
+# Depends on te_core and te_object. Public headers (include/te/resource/*.h) only include
+# own-module headers (te/resource/*); no #include te/object or te/core in public API.
 cmake_minimum_required(VERSION 3.16)
-project(TenEngine-013-resource LANGUAGES CXX)
+project(te_resource LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# --- 001-Core (in-tree for this worktree) ---
-add_library(te_core
-  src/alloc.cpp
-  src/engine.cpp
-  src/thread.cpp
-  src/platform.cpp
-  src/log.cpp
-  src/math.cpp
-  src/containers.cpp
-  src/module_load.cpp
-)
-target_include_directories(te_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(TE_RESOURCE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-# --- 013-Resource (depends on te_core; 002-object and 028-texture via TenEngineHelpers when TENENGINE_*_DIR set) ---
 add_library(te_resource
-  src/ResourceManager.cpp
   src/Resource.cpp
   src/ResourceId.cpp
+  src/ResourceManager.cpp
 )
-target_include_directories(te_resource PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(te_resource PRIVATE te_core)
+target_include_directories(te_resource PUBLIC
+  $<BUILD_INTERFACE:${TE_RESOURCE_INCLUDE_DIR}>
+  $<INSTALL_INTERFACE:include>
+)
+# List public headers so they appear in IDE (e.g. Visual Studio solution explorer).
+target_sources(te_resource PUBLIC
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/Resource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceId.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceTypes.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceManager.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceLoader.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceSerializer.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/ResourceImporter.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/FResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/RResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/DResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/TextureResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/MeshResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/MaterialResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/EffectResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/TerrainResource.h
+  ${TE_RESOURCE_INCLUDE_DIR}/te/resource/Deserializer.h
+)
+target_link_libraries(te_resource PRIVATE te_core te_object)
 
-if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
-  add_subdirectory(tests)
-endif()
+# Always build 013's own tests (TENENGINE_SKIP_DEPENDENCY_TESTS only skips upstream 001/002 tests).
+add_subdirectory(tests)

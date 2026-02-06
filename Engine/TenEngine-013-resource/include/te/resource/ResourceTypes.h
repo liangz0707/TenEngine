@@ -1,28 +1,20 @@
-/**
- * @file ResourceTypes.h
- * @brief Resource type enumeration (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_RESOURCE_TYPES_H
-#define TE_RESOURCE_RESOURCE_TYPES_H
+// 013-Resource: ResourceType enum per ABI (te/resource/ResourceTypes.h)
+#pragma once
 
 namespace te {
 namespace resource {
 
 enum class ResourceType {
-  Texture,
-  Mesh,
-  Material,
-  Model,
-  Effect,
-  Terrain,
-  Shader,
-  Audio,
-  Custom,
-  // Reserve for extension
-  _Count
+    Texture,
+    Mesh,
+    Material,
+    Model,
+    Effect,
+    Terrain,
+    Shader,
+    Audio,
+    Custom,
 };
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_RESOURCE_TYPES_H
+} // namespace resource
+} // namespace te

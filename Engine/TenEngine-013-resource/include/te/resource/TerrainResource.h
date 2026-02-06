@@ -1,22 +1,13 @@
-/**
- * @file TerrainResource.h
- * @brief ITerrainResource view (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_TERRAIN_RESOURCE_H
-#define TE_RESOURCE_TERRAIN_RESOURCE_H
+// 013-Resource: ITerrainResource type view (te/resource/TerrainResource.h)
+#pragma once
 
-#include <te/resource/Resource.h>
+#include "te/resource/Resource.h"
 
 namespace te {
 namespace resource {
 
-/** Terrain resource view; heightmap etc.; 013 returns IResource* then caller may cast. */
-class ITerrainResource : public IResource {
- public:
-  ~ITerrainResource() override = default;
-};
+// Terrain resource view; cast from IResource* when GetResourceType() == ResourceType::Terrain.
+struct ITerrainResource : IResource {};
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_TERRAIN_RESOURCE_H
+} // namespace resource
+} // namespace te

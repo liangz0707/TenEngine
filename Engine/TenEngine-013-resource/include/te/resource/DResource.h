@@ -1,15 +1,15 @@
-/**
- * @file DResource.h
- * @brief GPU-side resource (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_DRESOURCE_H
-#define TE_RESOURCE_DRESOURCE_H
+// 013-Resource: DResource concept — GPU representation (te/resource/DResource.h)
+#pragma once
 
-/** DResource: GPU resource; stored inside RResource, managed by 011/012/028; 013 does not create. */
+// DResource: GPU-side resource; not used as cross-object reference.
+// Stored inside RResource; RResource manages lifecycle and binding.
+// 013 does not create DResource; 008/011/012/028 create in EnsureDeviceResources.
+
 namespace te {
 namespace resource {
-struct DResource;  // Concept; 013 does not create or hold.
-}  // namespace resource
-}  // namespace te
 
-#endif  // TE_RESOURCE_DRESOURCE_H
+// Placeholder type for DResource concept; concrete D* types in owning modules.
+struct DResource {};
+
+} // namespace resource
+} // namespace te

@@ -1,22 +1,14 @@
-/**
- * @file MaterialResource.h
- * @brief IMaterialResource view (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_MATERIAL_RESOURCE_H
-#define TE_RESOURCE_MATERIAL_RESOURCE_H
+// 013-Resource: IMaterialResource type view (te/resource/MaterialResource.h)
+#pragma once
 
-#include <te/resource/Resource.h>
+#include "te/resource/Resource.h"
 
 namespace te {
 namespace resource {
 
-/** Material resource view; implemented by 011; 013 returns IResource* then caller may cast. */
-class IMaterialResource : public IResource {
- public:
-  ~IMaterialResource() override = default;
-};
+// Material resource view; cast from IResource* when GetResourceType() == ResourceType::Material.
+// Concrete fields (shader, textures, params) defined by 011-Material.
+struct IMaterialResource : IResource {};
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_MATERIAL_RESOURCE_H
+} // namespace resource
+} // namespace te

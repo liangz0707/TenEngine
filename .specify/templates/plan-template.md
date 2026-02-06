@@ -57,6 +57,34 @@
 |-----------|----------|------|------|
 | （无则填「本 feature 无第三方依赖」） | — | — | — |
 
+## 构建规约与目录、CMake 检查（TenEngine，engine-build-module-convention）
+
+> 若本 feature 涉及 CMake/构建，**必须**填写本小节。执行 cmake/构建任务前须满足以下约定；规约见 `docs/engine-build-module-convention.md` §2.5、§3。
+
+### 构建根目录
+
+| 模式 | 构建根目录 | CMakeLists.txt 位置 |
+|------|------------|---------------------|
+| **单仓** | **仓库根** | 根目录 `CMakeLists.txt` 仅 `project(...)`、`add_subdirectory(Engine/...)`；**不**在根定义库或可执行文件。 |
+| 多 worktree | 当前模块 worktree 根 | worktree 根目录下 `CMakeLists.txt` 定义本模块。 |
+
+**本 feature**：[单仓则填「构建根目录 = 仓库根；out-of-source 推荐 build/ 在仓库根下」；多 worktree 则填 worktree 路径。]
+
+### 目录结构（§2.5）
+
+| 约定 | 要求 |
+|------|------|
+| Engine 为代码根 | 所有可构建模块的 **src/、include/、tests/、cmake/** 均在 **`Engine/`** 下；**禁止**在仓库根直接放置 `src/`、`include/`、`tests/`。 |
+| 模块目录命名 | **`Engine/TenEngine-NNN-modulename/`**（如 Engine/TenEngine-013-resource）。 |
+| 模块内必选 | **`src/`**、**`include/`**、**`tests/`**、**`cmake/`**、**`CMakeLists.txt`**。 |
+
+### CMake 检查清单
+
+- [ ] 根 `CMakeLists.txt` 仅含 project、set(CMAKE_CXX_STANDARD)、add_subdirectory(Engine/...)；无 add_library/add_executable。
+- [ ] 本模块 `Engine/TenEngine-NNN-xxx/CMakeLists.txt` 以**该模块目录**为当前作用域；相对路径 `src/`、`include/`、`tests/`；target 名与 ABI 一致（如 te_resource）；target_link_libraries 仅 link 上游 target。
+- [ ] 本模块 tests 仅在本模块 `tests/` 下；**不** add_subdirectory(上游/tests)；测试只 link **本模块 target**。
+- [ ] target_include_directories 与契约头文件路径一致（如 include/te/resource/ 对应 te/resource/*.h）。
+
 **Technical Context（可选续）**：**Project Type**: [single/web/mobile - determines source structure]  
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
@@ -82,52 +110,29 @@ specs/[###-feature]/
 └── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code（仓库布局）
+
+<!-- TenEngine 单仓：代码在 Engine/ 下，见上方「构建规约与目录、CMake 检查」；根目录无 src/include/tests。 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+# TenEngine 单仓（§2.5）：代码在 Engine/ 下；根目录仅 CMakeLists.txt、Engine/、docs/、specs/
+CMakeLists.txt           # 仅 add_subdirectory(Engine/...)
+Engine/
+├── TenEngine-NNN-modulename/
+│   ├── CMakeLists.txt
+│   ├── include/         # 公开头文件（与契约路径一致，如 te/resource/）
+│   ├── src/
+│   ├── tests/           # contract/, unit/, integration/
+│   └── cmake/
 
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+# 非 TenEngine 或多 worktree 时可用下方结构替代
+# Option 1: Single project
+# src/, tests/
+# Option 2: Web (backend/, frontend/)
+# Option 3: Mobile + API (api/, ios/ or android/)
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: [TenEngine 单仓：本模块代码在 `Engine/TenEngine-NNN-modulename/`；根仅 add_subdirectory。或写明所选 Option。]
 
 ## 契约更新（TenEngine，仅新增/修改部分 - 用于写回）
 

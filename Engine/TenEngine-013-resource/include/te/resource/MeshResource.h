@@ -1,22 +1,14 @@
-/**
- * @file MeshResource.h
- * @brief IMeshResource view (contract: specs/_contracts/013-resource-ABI.md).
- */
-#ifndef TE_RESOURCE_MESH_RESOURCE_H
-#define TE_RESOURCE_MESH_RESOURCE_H
+// 013-Resource: IMeshResource type view (te/resource/MeshResource.h)
+#pragma once
 
-#include <te/resource/Resource.h>
+#include "te/resource/Resource.h"
 
 namespace te {
 namespace resource {
 
-/** Mesh resource view; implemented by 012; 013 returns IResource* then caller may cast. */
-class IMeshResource : public IResource {
- public:
-  ~IMeshResource() override = default;
-};
+// Mesh resource view; cast from IResource* when GetResourceType() == ResourceType::Mesh.
+// Concrete fields (vertices, indices, submeshes, LOD) defined by 012-Mesh.
+struct IMeshResource : IResource {};
 
-}  // namespace resource
-}  // namespace te
-
-#endif  // TE_RESOURCE_MESH_RESOURCE_H
+} // namespace resource
+} // namespace te

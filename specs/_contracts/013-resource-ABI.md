@@ -22,7 +22,7 @@
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 取消加载 | te/resource/ResourceManager.h | IResourceManager::CancelLoad | `void CancelLoad(LoadRequestId id);` 取消未完成的请求；回调仍会触发，result 为 Cancelled |
 | 013-Resource | te::resource | — | 类型别名/句柄 | 加载请求 ID | te/resource/ResourceManager.h | LoadRequestId | 不透明句柄，由 RequestLoadAsync 返回 |
 | 013-Resource | te::resource | — | 枚举 | 加载状态 | te/resource/ResourceManager.h | LoadStatus | `enum class LoadStatus { Pending, Loading, Completed, Failed, Cancelled };` |
-| 013-Resource | te::resource | — | 回调类型 | 加载完成回调 | te/resource/ResourceManager.h | LoadCompleteCallback | `void (*LoadCompleteCallback)(IResource* resource, LoadResult result, void* user_data);` 在约定线程调用 |
+| 013-Resource | te::resource | — | 回调类型 | 加载完成回调 | te/resource/ResourceManager.h | LoadCompleteCallback | `void (*LoadCompleteCallback)(IResource* resource, LoadResult result, void* user_data);` 默认在 001 worker 线程调用；若已 SetLoadCompleteDispatcher 则在 Dispatcher 指定上下文（如主线程）调用 |
 | 013-Resource | te::resource | IResource | 抽象接口 | 资源句柄 | te/resource/Resource.h | IResource | 不直接构造；由 RequestLoadAsync 回调返回 |
 | 013-Resource | te::resource | IResource | 抽象接口 | 查询资源类型 | te/resource/Resource.h | IResource::GetResourceType | `ResourceType GetResourceType() const;` 回调拿到 IResource* 后可根据类型向下转型 |
 | 013-Resource | te::resource | ITextureResource | 抽象接口 | 纹理资源视图 | te/resource/TextureResource.h | ITextureResource | 纹理宽高、格式、GPU 句柄等；由 requestLoadAsync(..., ResourceType::Texture, ...) 回调返回或 IResource 转型 |
@@ -39,14 +39,17 @@
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 释放/卸载 | te/resource/ResourceManager.h | IResourceManager::Unload, IResource::Release | `void Unload(IResource* resource);` `void IResource::Release();` 与各模块句柄协调；卸载策略由实现约定 |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 流式请求与优先级 | te/resource/ResourceManager.h | IResourceManager::RequestStreaming, SetStreamingPriority | `StreamingHandle RequestStreaming(ResourceId id, int priority);` `void SetStreamingPriority(StreamingHandle h, int priority);` 与 LOD/Terrain 对接 |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 缓存查询 | te/resource/ResourceManager.h | IResourceManager::GetCached | `IResource* GetCached(ResourceId id) const;` 仅查缓存，未命中返回 nullptr，不触发加载 |
-| 013-Resource | te::resource | IResourceManager | 抽象接口 | 注册反序列化器 | te/resource/ResourceManager.h | IResourceManager::RegisterDeserializer | `void RegisterDeserializer(ResourceType type, IDeserializer* deserializer);` 各模块注册，013 按 type 调用得到 opaque payload |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 注册序列化器 | te/resource/ResourceManager.h | IResourceManager::RegisterSerializer | `void RegisterSerializer(ResourceType type, IResourceSerializer* serializer);` 单接口负责 Load(Deserialize)+Save(Serialize)，格式一致；废除 RegisterDeserializer |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 注册 Importer | te/resource/ResourceManager.h | IResourceManager::RegisterImporter | `void RegisterImporter(ResourceType type, IResourceImporter* importer);` |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | Import | te/resource/ResourceManager.h | IResourceManager::Import | `bool Import(char const* path, ResourceType type, void* out_metadata_or_null);` 按 type 分发到已注册 Importer |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | Save | te/resource/ResourceManager.h | IResourceManager::Save | `bool Save(IResource* resource, char const* path);` 各模块产出内存内容，013 统一写盘 |
-| 013-Resource | te::resource | IResourceManager | 抽象接口 | 寻址解析 | te/resource/ResourceManager.h | IResourceManager::ResolvePath | `char const* ResolvePath(ResourceId id) const;` GUID→路径；未解析返回 nullptr |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 寻址解析 | te/resource/ResourceManager.h | IResourceManager::ResolvePath | `char const* ResolvePath(ResourceId id) const;` GUID→路径；未解析返回 nullptr；**指针有效期至下次可能修改缓存的 API 调用前**；长期持有请用 ResolvePathCopy |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 寻址解析（拷贝） | te/resource/ResourceManager.h | IResourceManager::ResolvePathCopy | `bool ResolvePathCopy(ResourceId id, char* out_buffer, size_t buffer_size) const;` 将 id 对应路径写入 out_buffer，最多 buffer_size-1 字符并加 `\0`；返回 true 表示成功 |
+| 013-Resource | te::resource | IResourceManager | 抽象接口 | 设置加载完成投递 | te/resource/ResourceManager.h | IResourceManager::SetLoadCompleteDispatcher | `void SetLoadCompleteDispatcher(LoadCompleteDispatcherFn fn);` 若设置则回调经 fn 投递（如主线程）；null 表示直接调 LoadCompleteCallback |
+| 013-Resource | te::resource | — | 类型别名 | 加载完成投递函数 | te/resource/ResourceManager.h | LoadCompleteDispatcherFn | `void (*)(LoadCompleteCallback cb, IResource* r, LoadResult res, void* user_data);` |
 | 013-Resource | te::resource | IResourceLoader | 抽象接口 | Loader 接口 | te/resource/ResourceLoader.h | IResourceLoader::CreateFromPayload | `IResource* CreateFromPayload(ResourceType type, void* payload, IResourceManager* manager);` 接收不透明 payload，创建 IResource 并返回 |
 | 013-Resource | te::resource | IResourceImporter | 抽象接口 | Importer 接口 | te/resource/ResourceImporter.h | IResourceImporter | DetectFormat、Convert、产出描述/数据、Metadata、Dependencies |
-| 013-Resource | te::resource | IDeserializer | 抽象接口 | 反序列化器接口 | te/resource/Deserializer.h | IDeserializer::Deserialize | `void* Deserialize(void const* buffer, size_t size);` 产出 opaque payload，013 不解析 |
+| 013-Resource | te::resource | IResourceSerializer | 抽象接口 | 序列化/反序列化一致 | te/resource/ResourceSerializer.h | IResourceSerializer::Deserialize, Serialize | `void* Deserialize(void const* buffer, size_t size);` `bool Serialize(IResource* resource, void* out_buffer, size_t buffer_size, size_t* out_written);` Load 用 Deserialize，Save 用 Serialize，同一实现保证格式一致、往返等价 |
 
 *来源：用户故事 US-resource-001/002/003。契约能力：Import、Load、Unload、Streaming、Addressing（ResourceId/GUID）。*
 
