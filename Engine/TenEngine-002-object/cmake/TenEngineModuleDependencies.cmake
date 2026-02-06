@@ -1,12 +1,8 @@
 # TenEngine T0 module dependency map (for CMake).
 # Matches specs/_contracts/000-module-dependency-map.md.
-# Each TENENGINE_<NNN>_<NAME>_DEPS lists direct dependency module IDs (e.g. "001-core").
-# This file lives in every branch: TenEngine-XXX-Module/cmake/
 
 set(TENENGINE_001_CORE_DEPS "")
 set(TENENGINE_002_OBJECT_DEPS "001-core")
-# 003-app：示例用，仅依赖 002（001→002→003 链的第三项）
-set(TENENGINE_003_APP_DEPS "002-object")
 set(TENENGINE_003_APPLICATION_DEPS "001-core")
 set(TENENGINE_004_SCENE_DEPS "001-core" "002-object")
 set(TENENGINE_005_ENTITY_DEPS "001-core" "002-object" "004-scene")
@@ -33,15 +29,12 @@ set(TENENGINE_025_TOOLS_DEPS "")
 set(TENENGINE_026_NETWORKING_DEPS "001-core" "005-entity")
 set(TENENGINE_027_XR_DEPS "001-core" "007-subsystems" "006-input" "020-pipeline")
 
-# Map module ID (e.g. 001-core) -> CMake target name (e.g. te_core)
-# Used by TenEngineHelpers to know expected target name for SOURCE build.
 function(tenengine_module_id_to_target mod_id out_var)
   string(REGEX REPLACE "^[0-9]+-" "" name_part "${mod_id}")
   string(REPLACE "-" "_" target_suffix "${name_part}")
   set(${out_var} "te_${target_suffix}" PARENT_SCOPE)
 endfunction()
 
-# Get direct dependency list for module id (e.g. 002-object -> TENENGINE_002_OBJECT_DEPS)
 function(tenengine_get_deps mod_id out_list_var)
   string(REPLACE "-" "_" u "${mod_id}")
   string(TOUPPER "${u}" U)
