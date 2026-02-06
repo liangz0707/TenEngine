@@ -38,17 +38,11 @@
 
 - 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 解析得到内存数据后调用 012 CreateMesh；DResource 在下游触发 EnsureDeviceResources 时由 012 调用 008 创建。蒙皮数据与 Animation 骨骼名称/索引约定须一致。
 
-## TODO 列表
-
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
-
-- [ ] **描述归属**：MeshAssetDesc 归属 012；.mesh/.meshdata 描述与数据格式与 002 注册；一目录一资源（.mesh + .meshdata + 可选 .obj/.fbx）。
-- [ ] **CreateMesh**：CreateMesh(vertexData, indexData, layout, submeshes) 仅接受内存，入参由 013 传入；EnsureDeviceResources 时对依赖链先 Ensure 再调用 008 CreateBuffer 创建顶点/索引缓冲。
-- [ ] **MeshAssetDesc/.mesh**：formatVersion、vertexLayout、vertexData、indexData、indexFormat、submeshes、可选 LOD/蒙皮；MeshHandle 内持顶点/索引 IBuffer*（DResource）、子网格信息；CreateMesh(…)、EnsureDeviceResources(handle, device)、ReleaseMesh(handle)；调用 009 VertexFormat/IndexFormat/BufferDesc、008 CreateBuffer/DestroyBuffer。
-
 ## 变更记录
 
 | 日期 | 变更说明 |
 |------|----------|
 | T0 新增 | 012-Mesh 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
+| 2026-02-05 | ABI 写回（plan 012-mesh-full-module-001）：MeshHandle、MeshAssetDesc、SubmeshDesc、LODLevel、SkinningData、CreateMesh、ReleaseMesh、EnsureDeviceResources、GetSubmeshCount、GetSubmesh、GetLODCount、SelectLOD、GetSkinningData、GetVertexBufferHandle/GetIndexBufferHandle、MeshResourceLoader::CreateFromPayload、MeshDeserializer::Deserialize、SerializeMeshToBuffer、与 002 注册；全量 ABI 表写入 012-mesh-ABI.md |
+| 2026-02-05 | 清除 TODO 列表：plan 012-mesh-full-module-001 已完成，描述归属、CreateMesh、MeshAssetDesc/.mesh 相关任务已从 public-api 移除 |

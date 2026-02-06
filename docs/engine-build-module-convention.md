@@ -1,8 +1,10 @@
 # CMake 构建规约与目录约定
 
-本文档定义 TenEngine **T0 架构（27 模块）** 下各模块的 CMake 构建方式、目录结构与依赖管理约定。Agent 在执行 `/speckit.implement` 或任何涉及 CMake 的任务前，**必须**先澄清本文档中的关键配置。
+本文档定义 TenEngine **T0 架构**下各模块的 CMake 构建方式、目录结构与依赖管理约定（**build 规约**）。Agent 在执行 `/speckit.implement` 或任何涉及 CMake 的任务前，**必须**先澄清本文档中的关键配置。
 
-**章节说明**：构建方式澄清（根目录、依赖方式等）见 **§3**；本文档**无 §1.1**，引用时请使用 §3（构建方式澄清）。
+**Build 规约要点**：① **目录**：单仓时所有代码在 **`Engine/TenEngine-NNN-modulename/`** 下（§2.5）；多 worktree 时每模块独立根目录（§2）。② **构建根**：单仓为仓库根，多 worktree 为 worktree 根（§3.1）。③ **依赖**：统一源码方式（§3.2）。④ **Target 命名**：与 ABI 一致（如 `te_core`、`te_rhi`）（§1）。
+
+**章节说明**：构建方式澄清（根目录、依赖方式等）见 **§3**；单仓 Engine 目录规约见 **§2.5**。
 
 ---
 
@@ -41,6 +43,45 @@ TenEngine-NNN-modulename/         # worktree 根目录（即构建根目录）
 └── .specify/                     # Spec Kit 配置与脚本
 ```
 
+### 2.5 单仓多模块：Engine 目录规约
+
+当采用**单仓（mono repo）**、所有代码集中在同一仓库时，**全部代码相关目录**须置于 **`Engine/`** 下，按模块分目录；仓库根仅保留顶层 CMake、文档、契约与配置。
+
+| 约定 | 说明 |
+|------|------|
+| **Engine 为代码根** | 所有可构建模块的源码、头文件、测试、模块级 cmake 与 CMakeLists.txt 均放在 `Engine/` 下，不得在仓库根直接放置 `src/`、`include/`、`tests/`（根目录仅保留 `Engine/`、`docs/`、`specs/`、`cmake/` 等）。 |
+| **模块目录命名** | 每个模块占一个子目录：**`Engine/TenEngine-NNN-modulename/`**（如 `Engine/TenEngine-001-core`、`Engine/TenEngine-008-rhi`）。NNN 为三位数模块编号，modulename 与契约/依赖图一致。 |
+| **模块内必选目录与文件** | 每个 `Engine/TenEngine-NNN-modulename/` 下须包含：**`src/`**、**`include/`**、**`tests/`**、**`cmake/`**、**`CMakeLists.txt`**。可选：`apps/`、`deps/`。 |
+| **根 CMakeLists.txt** | 仓库根目录的 `CMakeLists.txt` 仅做顶层驱动：`project(TenEngine)`、`add_subdirectory(Engine/TenEngine-001-core)`、按需 `add_subdirectory(Engine/TenEngine-NNN-...)`。不在此处定义具体库或可执行文件。 |
+| **构建根目录** | 在单仓模式下，**构建根目录**为**仓库根目录**；out-of-source 构建目录推荐为仓库根下的 **`build/`**（如 `TenEngine/build/`）。 |
+| **模块 CMake 自包含** | 每个 `Engine/TenEngine-NNN-modulename/CMakeLists.txt` 以**该模块目录为当前作用域**，使用相对路径 `src/`、`include/`、`tests/`；依赖上游模块时通过 `add_subdirectory(../TenEngine-xxx)` 或 TenEngineHelpers 解析同仓内其他 `Engine/TenEngine-xxx`。 |
+
+**单仓目录示例**：
+
+```
+TenEngine/                        # 仓库根 = 构建根
+├── CMakeLists.txt                # 仅 add_subdirectory(Engine/...)
+├── build/                        # out-of-source 构建输出（推荐）
+├── Engine/
+│   ├── TenEngine-001-core/
+│   │   ├── CMakeLists.txt
+│   │   ├── src/
+│   │   ├── include/
+│   │   ├── tests/
+│   │   └── cmake/
+│   └── TenEngine-008-rhi/
+│       ├── CMakeLists.txt
+│       ├── src/
+│       ├── include/
+│       ├── tests/
+│       └── cmake/
+├── docs/
+├── specs/
+└── ...
+```
+
+**与 §2 的关系**：§2 描述单模块单 worktree（每个模块独立仓库/分支）；本节描述单仓内多模块共存的目录与构建规约。两种方式下，**模块内部**的 `src/`、`include/`、`tests/`、`cmake/`、`CMakeLists.txt` 语义一致，仅顶层驱动方式不同。
+
 ---
 
 ## 3. 构建方式澄清（implement 前必问）
@@ -51,9 +92,10 @@ TenEngine-NNN-modulename/         # worktree 根目录（即构建根目录）
 
 | 问题 | 说明 |
 |------|------|
-| **worktree 路径** | 当前工作的 worktree 绝对路径（如 `G:\AIHUMAN\WorkSpaceSDD\TenEngine-008-rhi`）。 |
-| **CMakeLists.txt 位置** | 是否使用 worktree 根目录下的 `CMakeLists.txt`？若有嵌套，需明确。 |
-| **out-of-source build** | 构建输出目录（如 `build/`、`out/`）位于何处？推荐 `{worktree}/build`。 |
+| **单仓 vs 多 worktree** | **单仓**：构建根目录为**仓库根**（如 `TenEngine/`），代码在 `Engine/TenEngine-NNN-modulename/` 下，见 **§2.5**。**多 worktree**：构建根目录为当前模块 worktree 根（如 `TenEngine-008-rhi/`），见 §2。 |
+| **worktree / 仓库路径** | 当前工作的 worktree 或仓库绝对路径（如 `G:\AIHUMAN\WorkSpaceSDD\TenEngine` 或 `TenEngine-008-rhi`）。 |
+| **CMakeLists.txt 位置** | 单仓：根目录 `CMakeLists.txt` 仅 `add_subdirectory(Engine/...)`；各模块在 `Engine/TenEngine-NNN-xxx/CMakeLists.txt`。多 worktree：worktree 根目录下的 `CMakeLists.txt`。 |
+| **out-of-source build** | 构建输出目录（如 `build/`、`out/`）位于何处？推荐：单仓为 **`{仓库根}/build`**，多 worktree 为 `{worktree}/build`。 |
 
 ### 3.2 依赖构建方式
 
@@ -157,9 +199,10 @@ apps/
 
 ## 7. 检查清单（构建配置前）
 
-- [ ] 已明确 **worktree 路径**与 **构建根目录**。
-- [ ] 已确认**构建根目录**；对上游模块**统一使用源码方式**（add_subdirectory / FetchContent）。
-- [ ] `CMakeLists.txt` 中的 `target_include_directories` 与契约中的公开头文件路径一致。
+- [ ] 已明确 **单仓（Engine/）** 或 **多 worktree** 模式，以及 **构建根目录**（仓库根或 worktree 根）。
+- [ ] 若单仓：根目录仅保留 `CMakeLists.txt`（add_subdirectory Engine/...）、`Engine/`、`docs/`、`specs/` 等；各模块在 `Engine/TenEngine-NNN-modulename/` 下含 `src/`、`include/`、`tests/`、`cmake/`、`CMakeLists.txt`。
+- [ ] 已确认对上游模块**统一使用源码方式**（add_subdirectory / FetchContent）。
+- [ ] 各模块 `CMakeLists.txt` 中的 `target_include_directories` 与契约中的公开头文件路径一致。
 - [ ] `target_link_libraries` 中的依赖与 `000-module-dependency-map.md` 一致。
 - [ ] 已配置 **out-of-source build**（如 `build/`）。
 

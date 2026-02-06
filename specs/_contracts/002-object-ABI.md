@@ -32,7 +32,7 @@
 
 ## 调用流程（resource-serialization）
 
-1. 引擎启动 → 各模块调用 `RegisterType` 注册描述类型（MaterialAssetDesc、ModelAssetDesc、LevelAssetDesc 等）
+1. 引擎启动 → 各模块调用 `RegisterType` 注册描述类型（MaterialAssetDesc、LevelAssetDesc 等；ModelAssetDesc 由 029 注册，TextureAssetDesc 由 028 注册）
 2. Load 流程 → 调用方 `GetTypeByName(扩展名/类型名)` 取得 TypeDescriptor → `Deserialize(buf, obj, typeId)`
 3. Save 流程 → 调用方 `GetTypeById(typeId)` 取得类型 → `Serialize(obj, buf, typeId)`
 4. 版本迁移：反序列化前若读出版本低于当前支持版本，先 `IVersionMigration::Migrate` 再 `Deserialize`
