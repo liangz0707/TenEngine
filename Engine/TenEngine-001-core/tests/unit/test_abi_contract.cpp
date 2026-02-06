@@ -18,6 +18,13 @@
 
 using namespace te::core;
 
+// Module init/shutdown callbacks for testing
+static void noop_init() {}
+static void noop_shutdown() {}
+
+// Task callback for testing thread pool
+static void noop_task(void*) {}
+
 int main() {
   // --- alloc.h (te/core/alloc.h) ---
   void* p = Alloc(8, 8);
@@ -28,6 +35,15 @@ int main() {
   (void)def;
   DefaultAllocator default_alloc;
   (void)default_alloc;
+  // Test new enhanced functions
+  void* p2 = AllocAligned(16, 16);
+  Free(p2);
+  void* p3 = Realloc(nullptr, 32);
+  Free(p3);
+  MemoryStats stats = GetMemoryStats();
+  (void)stats.allocated_bytes;
+  (void)stats.peak_bytes;
+  (void)stats.allocation_count;
 
   // --- engine.h ---
   InitParams params{};
@@ -52,6 +68,14 @@ int main() {
   (void)q;
   IThreadPool* pool = GetThreadPool();
   (void)pool;
+  // Test new enhanced thread pool functions
+  TaskId taskId = pool->SubmitTaskWithPriority(noop_task, nullptr, 1);
+  (void)taskId;
+  bool cancelled = pool->CancelTask(taskId);
+  (void)cancelled;
+  TaskStatus status = pool->GetTaskStatus(taskId);
+  (void)status;
+  pool->SetCallbackThread(CallbackThreadType::MainThread);
 
   // --- platform.h ---
 #if TE_PLATFORM_WINDOWS + TE_PLATFORM_LINUX + TE_PLATFORM_MACOS + TE_PLATFORM_ANDROID + TE_PLATFORM_IOS >= 1
@@ -67,6 +91,19 @@ int main() {
   (void)HighResolutionTimer();
   (void)GetEnv("");
   (void)PathNormalize("");
+  // Test new enhanced file I/O functions
+  char buffer[1024];
+  std::size_t readSize = 0;
+  (void)FileReadBinary("", buffer, &readSize, 0, 1024);
+  (void)FileWriteBinary("", buffer, 0, 0);
+  (void)FileGetSize("");
+  (void)FileExists("");
+  // Test new enhanced path functions
+  (void)PathJoin("", "");
+  (void)PathGetDirectory("");
+  (void)PathGetFileName("");
+  (void)PathGetExtension("");
+  (void)PathResolveRelative("", "");
 
   // --- log.h ---
   Log(LogLevel::Debug, "abi test");
@@ -121,8 +158,6 @@ int main() {
   (void)LoadLibrary("");
   UnloadLibrary(nullptr);
   (void)GetSymbol(nullptr, "");
-  static void noop_init() {}
-  static void noop_shutdown() {}
   RegisterModuleInit(noop_init);
   RegisterModuleShutdown(noop_shutdown);
   RunModuleInit();

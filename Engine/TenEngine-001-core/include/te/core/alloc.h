@@ -31,6 +31,22 @@ void* Alloc(std::size_t size, std::size_t alignment);
 /** Global Free: no-op for nullptr or double-free. */
 void Free(void* ptr);
 
+/** Aligned allocation (semantically equivalent to Alloc but more explicit). Returns nullptr on failure. */
+void* AllocAligned(std::size_t size, std::size_t alignment);
+
+/** Reallocate memory (optional). Returns nullptr on failure. If ptr is nullptr, equivalent to Alloc. */
+void* Realloc(void* ptr, std::size_t newSize);
+
+/** Memory statistics structure (optional). */
+struct MemoryStats {
+  std::size_t allocated_bytes = 0;
+  std::size_t peak_bytes = 0;
+  std::size_t allocation_count = 0;
+};
+
+/** Get memory statistics (optional). Returns current memory usage stats. */
+MemoryStats GetMemoryStats();
+
 /** Return default heap allocator; caller does not own the pointer. Thread-safe. */
 Allocator* GetDefaultAllocator();
 

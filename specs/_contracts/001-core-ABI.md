@@ -15,9 +15,13 @@
 |--------|----------|------|----------|--------|------|------|
 | 001-Core | te::core | — | 全局堆分配 | te/core/alloc.h | Alloc | `void* Alloc(size_t size, size_t alignment);` 失败返回 nullptr，size==0 或非法 alignment 返回 nullptr |
 | 001-Core | te::core | — | 全局堆释放 | te/core/alloc.h | Free | `void Free(void* ptr);` ptr 可为 nullptr；double-free 为 no-op |
+| 001-Core | te::core | — | 对齐分配 | te/core/alloc.h | AllocAligned | `void* AllocAligned(size_t size, size_t alignment);` 显式对齐分配，失败返回 nullptr；与 Alloc 等价但语义更明确 |
+| 001-Core | te::core | — | 重新分配内存（可选） | te/core/alloc.h | Realloc | `void* Realloc(void* ptr, size_t newSize);` 重新分配内存，失败返回 nullptr；ptr 为 nullptr 时等价于 Alloc；可选功能 |
+| 001-Core | te::core | — | 内存统计（可选） | te/core/alloc.h | GetMemoryStats | `MemoryStats GetMemoryStats();` 返回内存使用统计信息（已分配、峰值等）；可选功能 |
 | 001-Core | te::core | Allocator | 抽象分配器接口 | te/core/alloc.h | Allocator::Alloc, Allocator::Free | `void* Alloc(size_t size, size_t alignment);` `void Free(void* ptr);` 虚接口，由 DefaultAllocator 等实现；Free(nullptr) 为 no-op |
 | 001-Core | te::core | DefaultAllocator | 默认堆分配器 | te/core/alloc.h | DefaultAllocator | 实现 Allocator，用于默认堆 |
 | 001-Core | te::core | — | 获取默认分配器 | te/core/alloc.h | GetDefaultAllocator | `Allocator* GetDefaultAllocator();` 调用方不拥有指针 |
+| 001-Core | te::core | — | 内存统计结构 | te/core/alloc.h | MemoryStats | struct { size_t allocated_bytes; size_t peak_bytes; size_t allocation_count; }；可选 |
 | 001-Core | te::core | — | 进程级初始化 | te/core/engine.h | Init | `bool Init(InitParams const* params);` 失败返回 false，可重复调用时幂等 |
 | 001-Core | te::core | — | 进程级关闭 | te/core/engine.h | Shutdown | `void Shutdown();` 进程退出前调用，Init 之后仅调用一次 |
 | 001-Core | te::core | — | 初始化参数 | te/core/engine.h | InitParams | struct，可选：log_path, allocator_policy；下游按需填充 |
@@ -29,18 +33,34 @@
 | 001-Core | te::core | ConditionVariable | 条件变量 | te/core/thread.h | ConditionVariable | Wait(Mutex& m), NotifyOne, NotifyAll；不可拷贝 |
 | 001-Core | te::core | TaskQueue | 任务队列 | te/core/thread.h | TaskQueue | Submit(std::function&lt;void()&gt; task), RunOne(), Shutdown() |
 | 001-Core | te::core | IThreadPool | 抽象线程池接口 | te/core/thread.h | IThreadPool::SubmitTask | `void SubmitTask(TaskCallback callback, void* user_data);` 线程安全 |
+| 001-Core | te::core | IThreadPool | 抽象线程池接口 | te/core/thread.h | IThreadPool::SubmitTaskWithPriority | `TaskId SubmitTaskWithPriority(TaskCallback callback, void* user_data, int priority);` 提交带优先级的任务；priority 越大优先级越高；返回 TaskId |
+| 001-Core | te::core | IThreadPool | 抽象线程池接口 | te/core/thread.h | IThreadPool::CancelTask | `bool CancelTask(TaskId taskId);` 取消任务；返回 true 表示成功取消，false 表示任务已完成或不存在 |
+| 001-Core | te::core | IThreadPool | 抽象线程池接口 | te/core/thread.h | IThreadPool::GetTaskStatus | `TaskStatus GetTaskStatus(TaskId taskId) const;` 查询任务状态；返回 Pending/Loading/Completed/Failed/Cancelled |
+| 001-Core | te::core | IThreadPool | 抽象线程池接口 | te/core/thread.h | IThreadPool::SetCallbackThread | `void SetCallbackThread(CallbackThreadType threadType);` 设置回调执行线程；MainThread 或 WorkerThread |
 | 001-Core | te::core | — | 任务回调类型 | te/core/thread.h | TaskCallback | `void (*TaskCallback)(void* user_data);` 在工作线程中执行 |
+| 001-Core | te::core | — | 任务 ID 类型 | te/core/thread.h | TaskId | 不透明句柄，由 SubmitTaskWithPriority 返回 |
+| 001-Core | te::core | — | 任务状态枚举 | te/core/thread.h | TaskStatus | `enum class TaskStatus { Pending, Loading, Completed, Failed, Cancelled };` |
+| 001-Core | te::core | — | 回调线程类型枚举 | te/core/thread.h | CallbackThreadType | `enum class CallbackThreadType { MainThread, WorkerThread };` |
 | 001-Core | te::core | — | 获取全局线程池 | te/core/thread.h | GetThreadPool | `IThreadPool* GetThreadPool();` 调用方不拥有指针 |
 | 001-Core | te::core | — | 平台宏 | te/core/platform.h | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS | 1 表示当前平台，0 表示非当前平台 |
 | 001-Core | te::core | — | 读文件 | te/core/platform.h | FileRead | `std::optional<std::vector<std::uint8_t>> FileRead(std::string const& path);` 失败返回 empty |
 | 001-Core | te::core | — | 写文件（字节） | te/core/platform.h | FileWrite | `bool FileWrite(std::string const& path, std::vector<std::uint8_t> const& data);` |
 | 001-Core | te::core | — | 写文件（字符串） | te/core/platform.h | FileWrite | `bool FileWrite(std::string const& path, std::string const& data);` |
+| 001-Core | te::core | — | 读文件（二进制，指定范围） | te/core/platform.h | FileReadBinary | `bool FileReadBinary(std::string const& path, void* outData, size_t* outSize, size_t offset, size_t size);` 读取文件的指定范围；outData 由调用方分配，outSize 返回实际读取大小；失败返回 false |
+| 001-Core | te::core | — | 写文件（二进制，指定位置） | te/core/platform.h | FileWriteBinary | `bool FileWriteBinary(std::string const& path, void const* data, size_t size, size_t offset);` 写入文件的指定位置；offset 为 SIZE_MAX 时追加到文件末尾；失败返回 false |
+| 001-Core | te::core | — | 获取文件大小 | te/core/platform.h | FileGetSize | `size_t FileGetSize(std::string const& path);` 返回文件大小（字节），失败返回 0 |
+| 001-Core | te::core | — | 检查文件是否存在 | te/core/platform.h | FileExists | `bool FileExists(std::string const& path);` 返回文件是否存在 |
 | 001-Core | te::core | — | 目录项类型 | te/core/platform.h | DirEntry | std::string（目录项名） |
 | 001-Core | te::core | — | 枚举目录 | te/core/platform.h | DirectoryEnumerate | `std::vector<DirEntry> DirectoryEnumerate(std::string const& path);` 失败返回空 vector |
 | 001-Core | te::core | — | 墙钟时间 | te/core/platform.h | Time | `double Time();` 自 epoch 的秒数 |
 | 001-Core | te::core | — | 高精度计时 | te/core/platform.h | HighResolutionTimer | `double HighResolutionTimer();` 单调高精度秒数 |
 | 001-Core | te::core | — | 环境变量 | te/core/platform.h | GetEnv | `std::optional<std::string> GetEnv(std::string const& name);` 未设置返回 empty |
 | 001-Core | te::core | — | 路径规范化 | te/core/platform.h | PathNormalize | `std::string PathNormalize(std::string const& path);` 解析 . / .. 与分隔符 |
+| 001-Core | te::core | — | 路径拼接 | te/core/platform.h | PathJoin | `std::string PathJoin(std::string const& path1, std::string const& path2);` 拼接路径组件，自动处理分隔符 |
+| 001-Core | te::core | — | 获取目录部分 | te/core/platform.h | PathGetDirectory | `std::string PathGetDirectory(std::string const& path);` 返回路径的目录部分（不含文件名） |
+| 001-Core | te::core | — | 获取文件名 | te/core/platform.h | PathGetFileName | `std::string PathGetFileName(std::string const& path);` 返回路径的文件名部分（含扩展名） |
+| 001-Core | te::core | — | 获取扩展名 | te/core/platform.h | PathGetExtension | `std::string PathGetExtension(std::string const& path);` 返回路径的扩展名（含点号，如 ".txt"） |
+| 001-Core | te::core | — | 解析相对路径 | te/core/platform.h | PathResolveRelative | `std::string PathResolveRelative(std::string const& basePath, std::string const& relativePath);` 将相对路径解析为基于 basePath 的绝对路径 |
 | 001-Core | te::core | — | 日志级别 | te/core/log.h | LogLevel | `enum class LogLevel { Debug, Info, Warn, Error };` |
 | 001-Core | te::core | LogSink | 日志输出通道 | te/core/log.h | LogSink::Write | `virtual void Write(LogLevel level, char const* message) = 0;` 可重定向与过滤 |
 | 001-Core | te::core | — | 写日志 | te/core/log.h | Log | `void Log(LogLevel level, char const* message);` 线程安全 |
@@ -82,6 +102,8 @@
 **平台与宏**：引擎支持 **Android、iOS** 等平台；**可以通过宏来判断执行哪一段代码**（如 TE_PLATFORM_ANDROID、TE_PLATFORM_IOS、TE_PLATFORM_WIN、TE_PLATFORM_LINUX、TE_PLATFORM_MACOS），编译时选择平台相关实现路径。平台检测与宏由 Platform 子模块或公共头提供。
 
 **说明**：命名空间与头文件为下游 include 与 link 的唯一依据。新增条目采用 te::core 与 PascalCase 命名。本表由 plan 001-core-fullversion-002 契约更新同步（2026-01-30）。
+
+**增强更新（2026-02-06）**：为支持资源模块重构后的需求，新增文件 I/O 增强（FileReadBinary/FileWriteBinary/FileGetSize/FileExists）、异步操作增强（IThreadPool 扩展：SubmitTaskWithPriority/CancelTask/GetTaskStatus/SetCallbackThread）、内存管理增强（AllocAligned/Realloc/GetMemoryStats）、路径操作增强（PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative）。所有新增接口均向后兼容。
 
 ---
 

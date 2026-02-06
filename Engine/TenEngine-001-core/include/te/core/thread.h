@@ -17,7 +17,7 @@ namespace core {
 /** Thread handle: create, join, detach per contract capability 2. */
 class Thread {
  public:
-  Thread() = default;
+  Thread();
   /** Creates a thread that runs \a fn. */
   explicit Thread(std::function<void()> fn);
   ~Thread();
@@ -142,9 +142,35 @@ class TaskQueue {
 /** Task callback type per ABI: executed on worker thread. */
 using TaskCallback = void (*)(void* user_data);
 
+/** Task ID type: opaque handle returned by SubmitTaskWithPriority. */
+using TaskId = std::uint64_t;
+
+/** Task status enumeration per ABI. */
+enum class TaskStatus {
+  Pending,
+  Loading,
+  Completed,
+  Failed,
+  Cancelled
+};
+
+/** Callback thread type enumeration per ABI. */
+enum class CallbackThreadType {
+  MainThread,
+  WorkerThread
+};
+
 /** Thread pool interface per ABI; SubmitTask is thread-safe. */
 struct IThreadPool {
   virtual void SubmitTask(TaskCallback callback, void* user_data) = 0;
+  /** Submit task with priority. Higher priority values have higher priority. Returns TaskId. */
+  virtual TaskId SubmitTaskWithPriority(TaskCallback callback, void* user_data, int priority) = 0;
+  /** Cancel task. Returns true if successfully cancelled, false if task already completed or doesn't exist. */
+  virtual bool CancelTask(TaskId taskId) = 0;
+  /** Get task status. Returns Pending/Loading/Completed/Failed/Cancelled. */
+  virtual TaskStatus GetTaskStatus(TaskId taskId) const = 0;
+  /** Set callback thread type (MainThread or WorkerThread). */
+  virtual void SetCallbackThread(CallbackThreadType threadType) = 0;
   virtual ~IThreadPool() = default;
 };
 

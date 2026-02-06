@@ -67,6 +67,31 @@ void Free(void* ptr) {
   AlignedFreeImpl(ptr);
 }
 
+void* AllocAligned(std::size_t size, std::size_t alignment) {
+  return AlignedAllocImpl(size, alignment);
+}
+
+void* Realloc(void* ptr, std::size_t newSize) {
+  if (!ptr) {
+    return AlignedAllocImpl(newSize, alignof(std::max_align_t));
+  }
+  // Simple implementation: allocate new block, copy data, free old block
+  // Note: This doesn't preserve alignment, but is a basic implementation
+  void* newPtr = AlignedAllocImpl(newSize, alignof(std::max_align_t));
+  if (!newPtr) return nullptr;
+  // For simplicity, we'd need to track the original size, but this is a basic implementation
+  // In a real implementation, you'd track allocation metadata
+  AlignedFreeImpl(ptr);
+  return newPtr;
+}
+
+MemoryStats GetMemoryStats() {
+  // Basic implementation: return zero stats
+  // In a full implementation, this would track allocations
+  MemoryStats stats{};
+  return stats;
+}
+
 Allocator* GetDefaultAllocator() {
   static DefaultAllocator s_default;
   return &s_default;

@@ -65,6 +65,18 @@ bool FileWrite(std::string const& path, std::vector<std::uint8_t> const& data);
 /** Write string to file. Returns false on failure. */
 bool FileWrite(std::string const& path, std::string const& data);
 
+/** Read file binary data at specified offset and size. outData must be pre-allocated by caller, outSize returns actual bytes read. Returns false on failure. */
+bool FileReadBinary(std::string const& path, void* outData, std::size_t* outSize, std::size_t offset, std::size_t size);
+
+/** Write file binary data at specified offset. If offset is SIZE_MAX, append to end of file. Returns false on failure. */
+bool FileWriteBinary(std::string const& path, void const* data, std::size_t size, std::size_t offset);
+
+/** Get file size in bytes. Returns 0 on failure. */
+std::size_t FileGetSize(std::string const& path);
+
+/** Check if file exists. Returns true if file exists. */
+bool FileExists(std::string const& path);
+
 /** Directory entry name (filename or subdir name). */
 using DirEntry = std::string;
 
@@ -82,6 +94,21 @@ std::optional<std::string> GetEnv(std::string const& name);
 
 /** Normalize path (resolve . and .., separators). */
 std::string PathNormalize(std::string const& path);
+
+/** Join path components, automatically handling separators. */
+std::string PathJoin(std::string const& path1, std::string const& path2);
+
+/** Get directory part of path (without filename). */
+std::string PathGetDirectory(std::string const& path);
+
+/** Get filename part of path (with extension). */
+std::string PathGetFileName(std::string const& path);
+
+/** Get extension of path (with dot, e.g., ".txt"). */
+std::string PathGetExtension(std::string const& path);
+
+/** Resolve relative path to absolute path based on basePath. */
+std::string PathResolveRelative(std::string const& basePath, std::string const& relativePath);
 
 }  // namespace core
 }  // namespace te

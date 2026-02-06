@@ -16,9 +16,9 @@
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| Allocator / 内存块 | 抽象分配器 Allocator、DefaultAllocator；Alloc(size, alignment)、Free(ptr)；GetDefaultAllocator() | 分配后直至显式释放；Free(nullptr) 为 no-op |
-| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、TaskCallback、GetThreadPool | 按 C++ 或实现约定 |
-| 平台句柄与宏 | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS；FileRead/FileWrite、DirectoryEnumerate、DirEntry、Time、HighResolutionTimer、GetEnv、PathNormalize | 按具体 API 约定 |
+| Allocator / 内存块 | 抽象分配器 Allocator、DefaultAllocator；Alloc(size, alignment)、AllocAligned(size, alignment)、Free(ptr)、Realloc(ptr, newSize)（可选）；GetDefaultAllocator()、GetMemoryStats()（可选） | 分配后直至显式释放；Free(nullptr) 为 no-op |
+| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、TaskCallback、TaskId、TaskStatus、GetThreadPool；IThreadPool::SubmitTaskWithPriority、CancelTask、GetTaskStatus、SetCallbackThread | 按 C++ 或实现约定 |
+| 平台句柄与宏 | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS；FileRead/FileWrite、FileReadBinary/FileWriteBinary、FileGetSize/FileExists、DirectoryEnumerate、DirEntry、Time、HighResolutionTimer、GetEnv、PathNormalize、PathJoin、PathGetDirectory/PathGetFileName/PathGetExtension、PathResolveRelative | 按具体 API 约定 |
 | 数学类型 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray；Lerp、Dot、Cross、Length、Normalize | 值类型或调用方管理 |
 | 容器 | Array\<T\>、Map\<K,V\>、String、UniquePtr\<T\>、SharedPtr\<T\>（可指定分配器） | 调用方管理 |
 | 日志与校验 | LogLevel、LogSink、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、CrashHandlerFn、SetCrashHandler；CheckWarning、CheckError 宏 | 进程级 |
@@ -28,9 +28,9 @@
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
-| 1 | 内存管理 | Alloc/Free、Allocator 接口、GetDefaultAllocator；分配失败返回 nullptr；可选池化与统计 |
-| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool::SubmitTask、GetThreadPool；语义明确 |
-| 3 | 平台抽象 | 文件 FileRead/FileWrite、目录 DirectoryEnumerate、时间 Time/HighResolutionTimer、GetEnv、PathNormalize；平台宏 TE_PLATFORM_* 编译时选择 |
+| 1 | 内存管理 | Alloc/Free、AllocAligned、Allocator 接口、GetDefaultAllocator；分配失败返回 nullptr；可选 Realloc、内存统计、池化与统计 |
+| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool::SubmitTask、IThreadPool::SubmitTaskWithPriority、IThreadPool::CancelTask、IThreadPool::GetTaskStatus、IThreadPool::SetCallbackThread、GetThreadPool；语义明确；支持任务优先级、取消、状态查询、回调线程控制 |
+| 3 | 平台抽象 | 文件 FileRead/FileWrite、FileReadBinary/FileWriteBinary（支持大文件和指定偏移）、FileGetSize/FileExists、目录 DirectoryEnumerate、时间 Time/HighResolutionTimer、GetEnv、路径 PathNormalize/PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative；平台宏 TE_PLATFORM_* 编译时选择 |
 | 4 | 日志 | LogLevel、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、SetCrashHandler；可重定向与过滤 |
 | 5 | 数学 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize；无 GPU 依赖 |
 | 6 | 容器 | Array、Map、String、UniquePtr、SharedPtr；无反射/ECS，可与自定义分配器配合 |
@@ -52,6 +52,44 @@
 
 - [ ] **010-Shader 依赖**：确保下列接口已实现且可供 010 使用——FileRead（LoadSource 读文件）、Log（编译失败/缓存错误）、Alloc/Free 或 GetDefaultAllocator、PathNormalize、DirectoryEnumerate、FileWrite（SaveCache）、CheckError/Assert；确认通过 010 集成测试。
 
+## 增强功能说明（2026-02-06）
+
+### 文件 I/O 增强
+
+为支持资源模块的大文件加载需求，新增以下接口：
+
+- **FileReadBinary**：读取文件的指定范围（支持偏移和大小），用于大文件分块读取
+- **FileWriteBinary**：写入文件的指定位置，支持追加和覆盖模式
+- **FileGetSize**：获取文件大小，用于预分配内存
+- **FileExists**：检查文件是否存在，用于资源路径验证
+
+### 异步操作增强
+
+为支持资源模块的异步加载需求，扩展 IThreadPool 接口：
+
+- **SubmitTaskWithPriority**：提交带优先级的任务，资源加载任务可设置优先级
+- **CancelTask**：取消正在执行的任务，支持资源加载取消
+- **GetTaskStatus**：查询任务执行状态，用于资源加载状态跟踪
+- **SetCallbackThread**：设置回调执行线程（主线程或工作线程），确保资源加载回调在正确线程执行
+
+### 内存管理增强
+
+为支持资源模块的大块内存分配需求：
+
+- **AllocAligned**：显式对齐分配接口，确保资源数据满足对齐要求
+- **Realloc**（可选）：重新分配内存，用于动态调整资源缓冲区大小
+- **GetMemoryStats**（可选）：获取内存统计信息，用于调试和性能分析
+
+### 路径操作增强
+
+为支持资源模块的路径管理需求，新增以下接口：
+
+- **PathJoin**：拼接路径组件，用于构建资源路径
+- **PathGetDirectory**：获取目录部分，用于资源路径解析
+- **PathGetFileName**：获取文件名，用于资源标识
+- **PathGetExtension**：获取扩展名，用于资源类型识别
+- **PathResolveRelative**：解析相对路径为绝对路径，用于资源路径规范化
+
 ## 变更记录
 
 | 日期 | 变更说明 |
@@ -59,3 +97,4 @@
 | （初始） | 从 001-engine-core-module spec 提炼 |
 | T0 更新 | 对齐 T0 架构；移除 ECS/序列化（归 002-Object）；消费者按依赖图 |
 | 2026-02-05 | 统一目录；能力列表用表格描述类型与句柄、能力；不引用 ABI 文件 |
+| 2026-02-06 | 增强功能：文件 I/O（FileReadBinary/FileWriteBinary/FileGetSize/FileExists）、异步操作（任务优先级/取消/状态查询/回调线程控制）、内存管理（AllocAligned/Realloc/GetMemoryStats）、路径操作（PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative）；支持资源模块重构后的需求 |
