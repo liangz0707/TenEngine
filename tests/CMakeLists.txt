@@ -39,3 +39,18 @@ add_test(NAME test_check COMMAND test_check)
 add_executable(test_abi_contract unit/test_abi_contract.cpp)
 target_link_libraries(test_abi_contract PRIVATE te_core)
 add_test(NAME test_abi_contract COMMAND test_abi_contract)
+
+# 012-mesh: submesh API (T018)
+add_executable(test_mesh_submesh unit/test_mesh_submesh.cpp)
+target_link_libraries(test_mesh_submesh PRIVATE te_mesh)
+add_test(NAME test_mesh_submesh COMMAND test_mesh_submesh)
+
+# 012-mesh: CreateMesh, ReleaseMesh, LOD, Skinning (T023)
+add_executable(test_mesh_api unit/test_mesh_api.cpp)
+target_link_libraries(test_mesh_api PRIVATE te_mesh)
+add_test(NAME test_mesh_api COMMAND test_mesh_api)
+
+# 012-mesh: 013 Load path integration (T024)
+add_executable(test_mesh_013_load integration/test_mesh_013_load.cpp)
+target_link_libraries(test_mesh_013_load PRIVATE te_mesh)
+add_test(NAME test_mesh_013_load COMMAND test_mesh_013_load)
