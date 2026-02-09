@@ -1,41 +1,20 @@
-# Unit tests for 001-Core (contract: specs/_contracts/001-core-public-api.md).
-add_executable(test_alloc unit/test_alloc.cpp)
-target_link_libraries(test_alloc PRIVATE te_core)
-add_test(NAME test_alloc COMMAND test_alloc)
+# Unit tests for 013-Resource module (contract: specs/_contracts/013-resource-ABI.md).
+# Note: Only 013-Resource module tests are included here. 
+# Upstream module tests (001-core, 004-scene, etc.) should not be included per build convention.
 
-add_executable(test_thread unit/test_thread.cpp)
-target_link_libraries(test_thread PRIVATE te_core)
-add_test(NAME test_thread COMMAND test_thread)
+enable_testing()
 
-add_executable(test_platform unit/test_platform.cpp)
-target_link_libraries(test_platform PRIVATE te_core)
-add_test(NAME test_platform COMMAND test_platform)
+# Test ResourceId
+add_executable(test_resource_id unit/test_resource_id.cpp)
+target_link_libraries(test_resource_id PRIVATE te_resource te_object)
+add_test(NAME test_resource_id COMMAND test_resource_id)
 
-add_executable(test_log unit/test_log.cpp)
-target_link_libraries(test_log PRIVATE te_core)
-add_test(NAME test_log COMMAND test_log)
+# Test ResourceManager
+add_executable(test_resource_manager unit/test_resource_manager.cpp)
+target_link_libraries(test_resource_manager PRIVATE te_resource te_object)
+add_test(NAME test_resource_manager COMMAND test_resource_manager)
 
-add_executable(test_math unit/test_math.cpp)
-target_link_libraries(test_math PRIVATE te_core)
-add_test(NAME test_math COMMAND test_math)
-
-add_executable(test_containers unit/test_containers.cpp)
-target_link_libraries(test_containers PRIVATE te_core)
-add_test(NAME test_containers COMMAND test_containers)
-
-add_executable(test_module_load unit/test_module_load.cpp)
-target_link_libraries(test_module_load PRIVATE te_core)
-add_test(NAME test_module_load COMMAND test_module_load)
-
-add_executable(test_engine unit/test_engine.cpp)
-target_link_libraries(test_engine PRIVATE te_core)
-add_test(NAME test_engine COMMAND test_engine)
-
-add_executable(test_check unit/test_check.cpp)
-target_link_libraries(test_check PRIVATE te_core)
-add_test(NAME test_check COMMAND test_check)
-
-# ABI contract consistency: includes and symbols must match specs/_contracts/001-core-ABI.md
-add_executable(test_abi_contract unit/test_abi_contract.cpp)
-target_link_libraries(test_abi_contract PRIVATE te_core)
-add_test(NAME test_abi_contract COMMAND test_abi_contract)
+# Test IResource base class
+add_executable(test_resource unit/test_resource.cpp)
+target_link_libraries(test_resource PRIVATE te_resource te_object)
+add_test(NAME test_resource COMMAND test_resource)

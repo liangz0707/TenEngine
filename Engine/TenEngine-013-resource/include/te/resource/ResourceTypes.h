@@ -22,6 +22,23 @@ enum class ResourceType {
   _Count
 };
 
+/** Loading status enumeration. */
+enum class LoadStatus {
+  Pending,     // Request created, not yet started
+  Loading,     // Currently loading
+  Completed,   // Load completed successfully
+  Failed,      // Load failed
+  Cancelled    // Load was cancelled
+};
+
+/** Loading result enumeration. */
+enum class LoadResult {
+  Ok,          // Load succeeded
+  NotFound,    // Resource file not found
+  Error,        // Load error occurred
+  Cancelled     // Load was cancelled
+};
+
 }  // namespace resource
 }  // namespace te
 
