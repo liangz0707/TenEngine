@@ -379,15 +379,7 @@ public:
         
         // Cache resource
         ResourceId id = resource->GetResourceId();
-        {
-            std::lock_guard<std::mutex> lock(cache_mutex_);
-            CacheEntry& entry = cache_[id];
-            entry.resource = resource;
-            entry.refcount.store(1);
-            entry.path = path;
-            resource_to_id_[resource] = id;
-            id_to_path_[id] = path;
-        }
+        CacheResource(id, resource, path);
         
         return resource;
     }
@@ -464,15 +456,7 @@ public:
         
         // Cache resource
         ResourceId id = resource->GetResourceId();
-        {
-            std::lock_guard<std::mutex> lock(cache_mutex_);
-            CacheEntry& entry = cache_[id];
-            entry.resource = resource;
-            entry.refcount.store(1);
-            entry.path = path;  // Use source path as cache key
-            resource_to_id_[resource] = id;
-            id_to_path_[id] = path;
-        }
+        CacheResource(id, resource, path);  // Use source path as cache key
         
         // Output metadata if requested
         if (out_metadata_or_null) {

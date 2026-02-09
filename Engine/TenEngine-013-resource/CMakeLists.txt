@@ -88,7 +88,7 @@ set_property(GLOBAL PROPERTY TENENGINE_ADDED_001-core TRUE)
 # Resolve 002-object dependency only
 tenengine_resolve_dependency("002-object" _te_object_target)
 if(_te_object_target AND TARGET ${_te_object_target})
-  target_link_libraries(te_resource PRIVATE ${_te_object_target})
+  target_link_libraries(te_resource PUBLIC ${_te_object_target})
 endif()
 
 if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
