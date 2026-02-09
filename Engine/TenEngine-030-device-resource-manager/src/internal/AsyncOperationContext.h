@@ -9,6 +9,9 @@
 #include <te/rhi/sync.hpp>
 #include <te/deviceresource/CommandListPool.h>
 #include <te/deviceresource/StagingBufferManager.h>
+#include <te/deviceresource/ResourceOperationTypes.h>
+#include <atomic>
+#include <mutex>
 
 namespace te {
 namespace deviceresource {
@@ -17,6 +20,7 @@ namespace internal {
 /**
  * Base class for async operation contexts.
  * Manages common resources like command lists, staging buffers, and fences.
+ * Tracks operation status and progress.
  */
 struct AsyncOperationContext {
   rhi::IDevice* device;
@@ -27,6 +31,12 @@ struct AsyncOperationContext {
   rhi::IBuffer* stagingBuffer;
   rhi::IFence* fence;
 
+  // Operation tracking
+  std::atomic<ResourceOperationStatus> status{ResourceOperationStatus::Pending};
+  std::atomic<float> progress{0.0f};
+  std::atomic<bool> cancelled{false};
+  std::mutex statusMutex;  // Protect status changes
+
   AsyncOperationContext(
       rhi::IDevice* dev,
       CommandListPool* pool,
@@ -36,7 +46,10 @@ struct AsyncOperationContext {
         stagingBufferManager(stagingMgr),
         cmd(nullptr),
         stagingBuffer(nullptr),
-        fence(nullptr) {}
+        fence(nullptr),
+        status(ResourceOperationStatus::Pending),
+        progress(0.0f),
+        cancelled(false) {}
 
   virtual ~AsyncOperationContext() = default;
 
@@ -55,6 +68,27 @@ struct AsyncOperationContext {
     if (device && fence) {
       device->DestroyFence(fence);
       fence = nullptr;
+    }
+  }
+
+  /**
+   * Check if operation is cancelled.
+   */
+  bool IsCancelled() const {
+    return cancelled.load();
+  }
+
+  /**
+   * Cancel the operation.
+   */
+  void Cancel() {
+    cancelled.store(true);
+    std::lock_guard<std::mutex> lock(statusMutex);
+    ResourceOperationStatus current = status.load();
+    if (current == ResourceOperationStatus::Pending ||
+        current == ResourceOperationStatus::Uploading ||
+        current == ResourceOperationStatus::Submitted) {
+      status.store(ResourceOperationStatus::Cancelled);
     }
   }
 };

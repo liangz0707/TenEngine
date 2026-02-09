@@ -12,14 +12,17 @@
 |--------|----------|------|----------|----------|--------|------|------|
 | 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 类 | GPU资源管理器（静态方法） | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager | 提供静态方法统一管理GPU资源创建（Texture、Buffer等） |
 | 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 同步创建GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTexture | `static rhi::ITexture* CreateDeviceTexture(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device);` 从像素数据创建GPU纹理，返回ITexture*，失败返回nullptr |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTextureAsync | `static bool CreateDeviceTextureAsync(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device, void (*callback)(rhi::ITexture* texture, bool success, void* user_data), void* user_data);` 异步创建GPU纹理，回调在约定线程执行 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 更新GPU纹理数据 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::UpdateDeviceTexture | `static bool UpdateDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device, void const* data, size_t size);` 更新GPU纹理数据 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTextureAsync | `static ResourceOperationHandle CreateDeviceTextureAsync(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device, void (*callback)(rhi::ITexture* texture, bool success, void* user_data), void* user_data);` 异步创建GPU纹理，返回操作句柄用于状态查询，回调在约定线程执行 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 更新GPU纹理数据 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::UpdateDeviceTexture | `static bool UpdateDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device, void const* data, size_t size, rhi::TextureDesc const& textureDesc);` 更新GPU纹理数据，需要提供纹理描述以确定更新区域 |
 | 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 销毁GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceTexture | `static void DestroyDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device);` 销毁GPU纹理资源 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 同步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBuffer | `static rhi::IBuffer* CreateDeviceBuffer(resource::IResource* meshResource, rhi::BufferUsage bufferType, rhi::IDevice* device);` 从MeshResource创建GPU缓冲（顶点/索引），返回IBuffer*，失败返回nullptr |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBufferAsync | `static bool CreateDeviceBufferAsync(resource::IResource* meshResource, rhi::BufferUsage bufferType, rhi::IDevice* device, void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data), void* user_data);` 异步创建GPU缓冲，回调在约定线程执行 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 同步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBuffer | `static rhi::IBuffer* CreateDeviceBuffer(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device);` 从原始数据创建GPU缓冲（顶点/索引），返回IBuffer*，失败返回nullptr；调用方（如012-Mesh）应在EnsureDeviceResources中获取数据后调用 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBufferAsync | `static ResourceOperationHandle CreateDeviceBufferAsync(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device, void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data), void* user_data);` 异步创建GPU缓冲，返回操作句柄用于状态查询，回调在约定线程执行 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 查询操作状态 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationStatus | `static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);` 查询异步操作状态，线程安全 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 查询操作进度 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationProgress | `static float GetOperationProgress(ResourceOperationHandle handle);` 查询异步操作进度（0.0~1.0），线程安全 |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 取消操作 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CancelOperation | `static void CancelOperation(ResourceOperationHandle handle);` 取消未完成的异步操作，回调仍会触发，线程安全 |
+| 030-DeviceResourceManager | te::deviceresource | — | 枚举 | 操作状态 | te/deviceresource/ResourceOperationTypes.h | ResourceOperationStatus | `enum class ResourceOperationStatus { Pending, Uploading, Submitted, Completed, Failed, Cancelled };` 异步操作状态枚举 |
+| 030-DeviceResourceManager | te::deviceresource | — | 类型别名/句柄 | 操作句柄 | te/deviceresource/ResourceOperationTypes.h | ResourceOperationHandle | `using ResourceOperationHandle = void*;` 不透明句柄，由异步创建接口返回 |
 | 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 销毁GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceBuffer | `static void DestroyDeviceBuffer(rhi::IBuffer* buffer, rhi::IDevice* device);` 销毁GPU缓冲资源 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 批量创建GPU资源 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceResourcesBatch | `static bool CreateDeviceResourcesBatch(resource::IResource** resources, size_t count, rhi::IDevice* device);` 批量创建GPU资源，按类型分组，同一类型合并到一个命令列表 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步批量创建GPU资源 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceResourcesBatchAsync | `static bool CreateDeviceResourcesBatchAsync(resource::IResource** resources, size_t count, rhi::IDevice* device, void (*callback)(resource::IResource** resources, size_t count, bool* success_flags, void* user_data), void* user_data);` 异步批量创建GPU资源，通过success_flags数组传递每个资源的创建结果 |
 | 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 清理设备资源 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CleanupDevice | `static void CleanupDevice(rhi::IDevice* device);` 清理指定设备的命令列表池和暂存缓冲，应在IDevice销毁前调用 |
 | 030-DeviceResourceManager | te::deviceresource | CommandListPool | 类 | 命令列表池 | te/deviceresource/CommandListPool.h | CommandListPool | 命令列表池管理，用于高效的异步GPU资源创建，按IDevice管理，线程安全 |
 | 030-DeviceResourceManager | te::deviceresource | CommandListPool | 构造函数 | 创建命令列表池 | te/deviceresource/CommandListPool.h | CommandListPool::CommandListPool | `explicit CommandListPool(rhi::IDevice* device);` 创建命令列表池 |
@@ -55,7 +58,7 @@
 |------|----------|------|
 | **001-Core** | 日志、内存分配 | 日志记录、内存管理 |
 | **008-RHI** | IDevice、ITexture、IBuffer、ICommandList、IFence、IQueue、ResourceState、TextureDesc、BufferUsage | GPU资源创建、命令列表、同步 |
-| **013-Resource** | IResource、ResourceType | 资源类型识别、批量操作 |
+| **013-Resource** | （无直接依赖） | 030采用数据导向接口，不依赖013-Resource的具体类型 |
 
 ### 下游依赖
 
@@ -72,8 +75,10 @@
 
 030模块采用数据导向接口设计，避免循环依赖：
 - `CreateDeviceTexture`接受原始像素数据和纹理描述，不直接依赖`TextureResource`类型
-- 028-Texture模块通过`EnsureDeviceResources`方法调用030，传入数据参数
-- 这种设计保持了模块间的解耦，符合依赖关系图的要求
+- `CreateDeviceBuffer`接受原始缓冲数据和缓冲描述，不直接依赖`MeshResource`类型
+- 028-Texture模块通过`EnsureDeviceResources`方法调用030，传入`GetPixelData()`等数据参数
+- 012-Mesh模块通过`EnsureDeviceResources`方法调用030，传入`GetVertexData()`等数据参数
+- 这种设计保持了模块间的解耦，符合依赖关系图的要求（030不依赖028或012）
 
 ### 命令列表池和暂存缓冲管理
 
@@ -85,4 +90,4 @@
 
 - 异步操作使用命令列表池和Fence同步
 - 回调在约定线程执行（默认主线程）
-- 支持批量异步操作，通过`success_flags`数组传递每个资源的创建结果
+- 各资源模块（028-Texture、012-Mesh）可在自己的`EnsureDeviceResources`实现中处理批量优化，调用030的单个资源创建接口

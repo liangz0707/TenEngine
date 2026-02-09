@@ -41,6 +41,27 @@ DeviceResourceManager 提供静态方法统一管理GPU资源创建，无需实�
 |------|------|----------|
 | **DeviceResourceManager** | GPU资源管理器（静态方法类） | 全局静态，无需实例化 |
 
+### 0. 操作状态类型
+
+**操作状态枚举**：
+```cpp
+enum class ResourceOperationStatus {
+  Pending,     // 请求已创建，等待开始
+  Uploading,   // 正在上传数据（分配暂存缓冲、录制命令）
+  Submitted,   // 命令已提交到GPU，等待Fence完成
+  Completed,   // 操作成功完成
+  Failed,      // 操作失败
+  Cancelled    // 操作已取消
+};
+```
+
+**操作句柄类型**：
+```cpp
+using ResourceOperationHandle = void*;  // 不透明句柄
+```
+- 由`CreateDeviceTextureAsync`或`CreateDeviceBufferAsync`返回
+- 用于查询状态、进度和取消操作
+
 #### 1.1 纹理资源创建
 
 **同步创建GPU纹理**：
@@ -61,7 +82,7 @@ static rhi::ITexture* CreateDeviceTexture(
 
 **异步创建GPU纹理**：
 ```cpp
-static bool CreateDeviceTextureAsync(
+static ResourceOperationHandle CreateDeviceTextureAsync(
     void const* pixelData,
     size_t pixelDataSize,
     rhi::TextureDesc const& textureDesc,
@@ -76,8 +97,8 @@ static bool CreateDeviceTextureAsync(
   - `device`：RHI设备
   - `callback`：完成回调函数
   - `user_data`：用户数据
-- **返回**：`true`表示异步操作已启动，`false`表示启动失败
-- **说明**：使用命令列表池异步创建GPU纹理，回调在约定线程执行
+- **返回**：操作句柄（`ResourceOperationHandle`），用于状态查询和取消操作；失败返回`nullptr`
+- **说明**：使用命令列表池异步创建GPU纹理，回调在约定线程执行。返回的操作句柄可用于查询状态、进度和取消操作
 
 **更新GPU纹理数据**：
 ```cpp
@@ -85,14 +106,17 @@ static bool UpdateDeviceTexture(
     rhi::ITexture* texture,
     rhi::IDevice* device,
     void const* data,
-    size_t size);
+    size_t size,
+    rhi::TextureDesc const& textureDesc);
 ```
 - **参数**：
   - `texture`：GPU纹理句柄
   - `device`：RHI设备
   - `data`：源数据
   - `size`：数据大小（字节）
+  - `textureDesc`：纹理描述（宽度、高度、格式等），用于确定更新区域
 - **返回**：`true`表示成功，`false`表示失败
+- **说明**：更新GPU纹理数据，需要提供纹理描述以确定更新区域
 
 **销毁GPU纹理**：
 ```cpp
@@ -110,33 +134,38 @@ static void DestroyDeviceTexture(
 **同步创建GPU缓冲**：
 ```cpp
 static rhi::IBuffer* CreateDeviceBuffer(
-    resource::IResource* meshResource,
-    rhi::BufferUsage bufferType,
+    void const* data,
+    size_t dataSize,
+    rhi::BufferDesc const& bufferDesc,
     rhi::IDevice* device);
 ```
 - **参数**：
-  - `meshResource`：网格资源（必须是`ResourceType::Mesh`）
-  - `bufferType`：缓冲类型（Vertex或Index）
+  - `data`：缓冲数据指针（顶点数据或索引数据）
+  - `dataSize`：数据大小（字节）
+  - `bufferDesc`：RHI缓冲描述（大小、用途等）
   - `device`：RHI设备
 - **返回**：GPU缓冲句柄，失败返回`nullptr`
-- **说明**：从MeshResource创建GPU缓冲并上传数据
+- **说明**：从原始数据创建GPU缓冲并上传数据，设置资源屏障。调用方（如012-Mesh）应在EnsureDeviceResources中获取数据后调用此接口。
 
 **异步创建GPU缓冲**：
 ```cpp
-static bool CreateDeviceBufferAsync(
-    resource::IResource* meshResource,
-    rhi::BufferUsage bufferType,
+static ResourceOperationHandle CreateDeviceBufferAsync(
+    void const* data,
+    size_t dataSize,
+    rhi::BufferDesc const& bufferDesc,
     rhi::IDevice* device,
     void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data),
     void* user_data);
 ```
 - **参数**：
-  - `meshResource`：网格资源
-  - `bufferType`：缓冲类型
+  - `data`：缓冲数据指针
+  - `dataSize`：数据大小（字节）
+  - `bufferDesc`：RHI缓冲描述
   - `device`：RHI设备
   - `callback`：完成回调函数
   - `user_data`：用户数据
-- **返回**：`true`表示异步操作已启动，`false`表示启动失败
+- **返回**：操作句柄（`ResourceOperationHandle`），用于状态查询和取消操作；失败返回`nullptr`
+- **说明**：使用命令列表池异步创建GPU缓冲，回调在约定线程执行。返回的操作句柄可用于查询状态、进度和取消操作
 
 **销毁GPU缓冲**：
 ```cpp
@@ -149,38 +178,33 @@ static void DestroyDeviceBuffer(
   - `device`：RHI设备
 - **说明**：销毁GPU缓冲资源
 
-#### 1.3 批量操作
+#### 1.3 操作状态查询
 
-**同步批量创建GPU资源**：
+**查询操作状态**：
 ```cpp
-static bool CreateDeviceResourcesBatch(
-    resource::IResource** resources,
-    size_t count,
-    rhi::IDevice* device);
+static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);
 ```
 - **参数**：
-  - `resources`：资源指针数组
-  - `count`：资源数量
-  - `device`：RHI设备
-- **返回**：`true`表示所有资源创建成功，`false`表示部分或全部失败
-- **说明**：按资源类型分组，同一类型合并到一个命令列表处理
+  - `handle`：操作句柄（由`CreateDeviceTextureAsync`或`CreateDeviceBufferAsync`返回）
+- **返回**：当前操作状态（`Pending`、`Uploading`、`Submitted`、`Completed`、`Failed`、`Cancelled`）
+- **说明**：线程安全，可随时查询异步操作的状态
 
-**异步批量创建GPU资源**：
+**查询操作进度**：
 ```cpp
-static bool CreateDeviceResourcesBatchAsync(
-    resource::IResource** resources,
-    size_t count,
-    rhi::IDevice* device,
-    void (*callback)(resource::IResource** resources, size_t count, bool* success_flags, void* user_data),
-    void* user_data);
+static float GetOperationProgress(ResourceOperationHandle handle);
 ```
 - **参数**：
-  - `resources`：资源指针数组
-  - `count`：资源数量
-  - `device`：RHI设备
-  - `callback`：完成回调函数，`success_flags`数组指示每个资源的创建结果
-  - `user_data`：用户数据
-- **返回**：`true`表示异步操作已启动，`false`表示启动失败
+  - `handle`：操作句柄
+- **返回**：进度值（0.0 ~ 1.0），0.0表示开始，1.0表示完成
+- **说明**：线程安全，返回当前操作的完成进度
+
+**取消操作**：
+```cpp
+static void CancelOperation(ResourceOperationHandle handle);
+```
+- **参数**：
+  - `handle`：操作句柄
+- **说明**：取消未完成的操作。回调仍会触发，但`success`参数为`false`。线程安全
 
 #### 1.4 清理操作
 
@@ -272,7 +296,6 @@ void Clear();
 |------|----------|------|
 | **TextureCreateCallback** | `void (*)(rhi::ITexture* texture, bool success, void* user_data)` | 纹理创建完成回调 |
 | **BufferCreateCallback** | `void (*)(rhi::IBuffer* buffer, bool success, void* user_data)` | 缓冲创建完成回调 |
-| **BatchCreateCallback** | `void (*)(resource::IResource** resources, size_t count, bool* success_flags, void* user_data)` | 批量创建完成回调 |
 
 ---
 
@@ -292,10 +315,11 @@ void Clear();
 
 - 须在 Core、RHI、Resource 初始化之后使用。
 - 调用方在IDevice销毁前必须调用`CleanupDevice`清理资源。
-- 资源类型识别：通过`IResource::GetResourceType()`识别资源类型，然后使用`dynamic_cast`转换。
 - 命令列表池和暂存缓冲按IDevice管理，线程安全。
 - 异步操作的回调在约定线程执行（默认主线程，与013-Resource的LoadCompleteCallback一致）。
-- **数据导向接口**：纹理创建接口接受原始数据参数，不直接依赖028-Texture的具体类型，避免循环依赖。
+- **数据导向接口**：所有资源创建接口（Texture、Buffer）都接受原始数据参数，不直接依赖028-Texture或012-Mesh的具体类型，避免循环依赖。
+  - 028-Texture在`EnsureDeviceResources`中调用`CreateDeviceTexture`，传入`GetPixelData()`等数据
+  - 012-Mesh在`EnsureDeviceResources`中调用`CreateDeviceBuffer`，传入`GetVertexData()`等数据
 
 ---
 
@@ -331,6 +355,39 @@ void OnTextureCreated(rhi::ITexture* texture, bool success, void* user_data) {
 te::deviceresource::DeviceResourceManager::CreateDeviceTextureAsync(
     pixelData, pixelDataSize, textureDesc, device,
     OnTextureCreated, textureResource);
+```
+
+### 同步创建缓冲
+
+```cpp
+// 从MeshResource获取数据
+void const* vertexData = meshResource->GetVertexData();
+size_t vertexDataSize = meshResource->GetVertexDataSize();
+rhi::BufferDesc vertexBufferDesc{};
+vertexBufferDesc.size = vertexDataSize;
+vertexBufferDesc.usage = static_cast<uint32_t>(rhi::BufferUsage::Vertex);
+
+// 创建GPU顶点缓冲
+rhi::IBuffer* vertexBuffer = te::deviceresource::DeviceResourceManager::CreateDeviceBuffer(
+    vertexData, vertexDataSize, vertexBufferDesc, device);
+
+if (vertexBuffer) {
+    meshResource->SetDeviceVertexBuffer(vertexBuffer);
+}
+
+// 类似地创建索引缓冲
+void const* indexData = meshResource->GetIndexData();
+size_t indexDataSize = meshResource->GetIndexDataSize();
+rhi::BufferDesc indexBufferDesc{};
+indexBufferDesc.size = indexDataSize;
+indexBufferDesc.usage = static_cast<uint32_t>(rhi::BufferUsage::Index);
+
+rhi::IBuffer* indexBuffer = te::deviceresource::DeviceResourceManager::CreateDeviceBuffer(
+    indexData, indexDataSize, indexBufferDesc, device);
+
+if (indexBuffer) {
+    meshResource->SetDeviceIndexBuffer(indexBuffer);
+}
 ```
 
 ### 清理设备资源

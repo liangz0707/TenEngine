@@ -1,7 +1,7 @@
-/** @file TextureDeviceImpl.cpp
- *  030-DeviceResourceManager internal: Texture device resource creation implementation.
+/** @file BufferDeviceImpl.cpp
+ *  030-DeviceResourceManager internal: Buffer device resource creation implementation.
  */
-#include "TextureDeviceImpl.h"
+#include "BufferDeviceImpl.h"
 #include "ResourceUploadHelper.h"
 #include "AsyncOperationContext.h"
 #include "DeviceResources.h"
@@ -27,26 +27,26 @@ namespace te {
 namespace deviceresource {
 namespace internal {
 
-rhi::ITexture* CreateDeviceTextureSync(
-    void const* pixelData,
-    size_t pixelDataSize,
-    rhi::TextureDesc const& textureDesc,
+rhi::IBuffer* CreateDeviceBufferSync(
+    void const* data,
+    size_t dataSize,
+    rhi::BufferDesc const& bufferDesc,
     rhi::IDevice* device,
     DeviceResources& deviceResources) {
-  if (!pixelData || pixelDataSize == 0 || !device) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureSync: Invalid parameters");
+  if (!data || dataSize == 0 || !device) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferSync: Invalid parameters");
     return nullptr;
   }
 
-  if (textureDesc.width == 0 || textureDesc.height == 0) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureSync: Invalid texture dimensions");
+  if (bufferDesc.size == 0) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferSync: Invalid buffer description");
     return nullptr;
   }
 
-  // Create GPU texture
-  rhi::ITexture* texture = device->CreateTexture(textureDesc);
-  if (!texture) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureSync: Failed to create GPU texture");
+  // Create GPU buffer
+  rhi::IBuffer* buffer = device->CreateBuffer(bufferDesc);
+  if (!buffer) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferSync: Failed to create GPU buffer");
     return nullptr;
   }
 
@@ -54,20 +54,20 @@ rhi::ITexture* CreateDeviceTextureSync(
   rhi::IBuffer* stagingBuffer = AllocateAndCopyStagingBuffer(
       device,
       deviceResources.stagingBufferManager.get(),
-      pixelData,
-      pixelDataSize);
+      data,
+      dataSize);
   if (!stagingBuffer) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureSync: Failed to allocate staging buffer");
-    device->DestroyTexture(texture);
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferSync: Failed to allocate staging buffer");
+    device->DestroyBuffer(buffer);
     return nullptr;
   }
 
   // Create command list for upload
   rhi::ICommandList* cmd = device->CreateCommandList();
   if (!cmd) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureSync: Failed to create command list");
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferSync: Failed to create command list");
     deviceResources.stagingBufferManager->Release(stagingBuffer);
-    device->DestroyTexture(texture);
+    device->DestroyBuffer(buffer);
     return nullptr;
   }
 
@@ -75,13 +75,28 @@ rhi::ITexture* CreateDeviceTextureSync(
   cmd->Begin();
 
   // Resource barrier: Common -> CopyDst
-  SetupTextureBarrier(cmd, texture, rhi::ResourceState::Common, rhi::ResourceState::CopyDst);
+  rhi::BufferBarrier barrier{};
+  barrier.buffer = buffer;
+  barrier.offset = 0;
+  barrier.size = bufferDesc.size;
+  barrier.srcState = rhi::ResourceState::Common;
+  barrier.dstState = rhi::ResourceState::CopyDst;
+  cmd->ResourceBarrier(1, &barrier, 0, nullptr);
 
-  // Copy buffer to texture
-  CopyBufferToTexture(cmd, stagingBuffer, 0, texture, textureDesc);
+  // Copy staging buffer to GPU buffer
+  cmd->CopyBuffer(stagingBuffer, 0, buffer, 0, dataSize);
 
-  // Resource barrier: CopyDst -> ShaderResource
-  SetupTextureBarrier(cmd, texture, rhi::ResourceState::CopyDst, rhi::ResourceState::ShaderResource);
+  // Resource barrier: CopyDst -> VertexBuffer/IndexBuffer (based on usage)
+  rhi::ResourceState finalState = rhi::ResourceState::Common;
+  if (bufferDesc.usage & static_cast<uint32_t>(rhi::BufferUsage::Vertex)) {
+    finalState = rhi::ResourceState::VertexBuffer;
+  } else if (bufferDesc.usage & static_cast<uint32_t>(rhi::BufferUsage::Index)) {
+    finalState = rhi::ResourceState::IndexBuffer;
+  }
+  
+  barrier.srcState = rhi::ResourceState::CopyDst;
+  barrier.dstState = finalState;
+  cmd->ResourceBarrier(1, &barrier, 0, nullptr);
 
   // End command list
   cmd->End();
@@ -90,7 +105,7 @@ rhi::ITexture* CreateDeviceTextureSync(
   if (!SubmitCommandListSync(cmd, device)) {
     device->DestroyCommandList(cmd);
     deviceResources.stagingBufferManager->Release(stagingBuffer);
-    device->DestroyTexture(texture);
+    device->DestroyBuffer(buffer);
     return nullptr;
   }
 
@@ -98,11 +113,11 @@ rhi::ITexture* CreateDeviceTextureSync(
   device->DestroyCommandList(cmd);
   deviceResources.stagingBufferManager->Release(stagingBuffer);
 
-  return texture;
+  return buffer;
 }
 
-void AsyncTextureCreateWorker(void* ctx) {
-  auto* context = static_cast<AsyncTextureCreateContext*>(ctx);
+void AsyncBufferCreateWorker(void* ctx) {
+  auto* context = static_cast<AsyncBufferCreateContext*>(ctx);
   if (!context) {
     return;
   }
@@ -127,10 +142,10 @@ void AsyncTextureCreateWorker(void* ctx) {
   context->stagingBuffer = AllocateAndCopyStagingBuffer(
       context->device,
       context->stagingBufferManager,
-      context->pixelData,
-      context->pixelDataSize);
+      context->data,
+      context->dataSize);
   if (!context->stagingBuffer) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::AsyncTextureCreateWorker: Failed to allocate staging buffer");
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::AsyncBufferCreateWorker: Failed to allocate staging buffer");
     std::lock_guard<std::mutex> lock(context->statusMutex);
     context->status.store(ResourceOperationStatus::Failed);
     context->callback(nullptr, false, context->user_data);
@@ -153,7 +168,7 @@ void AsyncTextureCreateWorker(void* ctx) {
   // Acquire command list from pool
   context->cmd = context->commandListPool->Acquire();
   if (!context->cmd) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::AsyncTextureCreateWorker: Failed to acquire command list");
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::AsyncBufferCreateWorker: Failed to acquire command list");
     std::lock_guard<std::mutex> lock(context->statusMutex);
     context->status.store(ResourceOperationStatus::Failed);
     context->stagingBufferManager->Release(context->stagingBuffer);
@@ -179,13 +194,28 @@ void AsyncTextureCreateWorker(void* ctx) {
   context->cmd->Begin();
 
   // Resource barrier: Common -> CopyDst
-  SetupTextureBarrier(context->cmd, context->texture, rhi::ResourceState::Common, rhi::ResourceState::CopyDst);
+  rhi::BufferBarrier barrier{};
+  barrier.buffer = context->buffer;
+  barrier.offset = 0;
+  barrier.size = context->bufferDesc.size;
+  barrier.srcState = rhi::ResourceState::Common;
+  barrier.dstState = rhi::ResourceState::CopyDst;
+  context->cmd->ResourceBarrier(1, &barrier, 0, nullptr);
 
-  // Copy buffer to texture
-  CopyBufferToTexture(context->cmd, context->stagingBuffer, 0, context->texture, context->rhiDesc);
+  // Copy staging buffer to GPU buffer
+  context->cmd->CopyBuffer(context->stagingBuffer, 0, context->buffer, 0, context->dataSize);
 
-  // Resource barrier: CopyDst -> ShaderResource
-  SetupTextureBarrier(context->cmd, context->texture, rhi::ResourceState::CopyDst, rhi::ResourceState::ShaderResource);
+  // Resource barrier: CopyDst -> VertexBuffer/IndexBuffer
+  rhi::ResourceState finalState = rhi::ResourceState::Common;
+  if (context->bufferDesc.usage & static_cast<uint32_t>(rhi::BufferUsage::Vertex)) {
+    finalState = rhi::ResourceState::VertexBuffer;
+  } else if (context->bufferDesc.usage & static_cast<uint32_t>(rhi::BufferUsage::Index)) {
+    finalState = rhi::ResourceState::IndexBuffer;
+  }
+  
+  barrier.srcState = rhi::ResourceState::CopyDst;
+  barrier.dstState = finalState;
+  context->cmd->ResourceBarrier(1, &barrier, 0, nullptr);
 
   // End command list
   context->cmd->End();
@@ -195,7 +225,7 @@ void AsyncTextureCreateWorker(void* ctx) {
   // Create fence for synchronization
   context->fence = context->device->CreateFence(false);
   if (!context->fence) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::AsyncTextureCreateWorker: Failed to create fence");
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::AsyncBufferCreateWorker: Failed to create fence");
     std::lock_guard<std::mutex> lock(context->statusMutex);
     context->status.store(ResourceOperationStatus::Failed);
     context->commandListPool->Release(context->cmd);
@@ -228,7 +258,7 @@ void AsyncTextureCreateWorker(void* ctx) {
   te::core::IThreadPool* threadPool = te::core::GetThreadPool();
   if (threadPool) {
     threadPool->SubmitTask([](void* ctx) {
-      auto* ctxt = static_cast<AsyncTextureCreateContext*>(ctx);
+      auto* ctxt = static_cast<AsyncBufferCreateContext*>(ctx);
       if (!ctxt || !ctxt->fence) {
         return;
       }
@@ -252,8 +282,8 @@ void AsyncTextureCreateWorker(void* ctx) {
       ctxt->Cleanup();
 
       // Call user callback
-      bool success = (ctxt->texture != nullptr && !wasCancelled);
-      ctxt->callback(ctxt->texture, success, ctxt->user_data);
+      bool success = (ctxt->buffer != nullptr && !wasCancelled);
+      ctxt->callback(ctxt->buffer, success, ctxt->user_data);
 
       // Unregister operation before deleting context
       ResourceOperationHandle handle = reinterpret_cast<ResourceOperationHandle>(ctxt);
@@ -276,8 +306,8 @@ void AsyncTextureCreateWorker(void* ctx) {
     context->progress.store(1.0f);
     
     context->Cleanup();
-    bool success = (context->texture != nullptr && !wasCancelled);
-    context->callback(context->texture, success, context->user_data);
+    bool success = (context->buffer != nullptr && !wasCancelled);
+    context->callback(context->buffer, success, context->user_data);
     
     // Unregister operation before deleting context
     ResourceOperationHandle handle = reinterpret_cast<ResourceOperationHandle>(context);
@@ -287,44 +317,44 @@ void AsyncTextureCreateWorker(void* ctx) {
   }
 }
 
-ResourceOperationHandle CreateDeviceTextureAsync(
-    void const* pixelData,
-    size_t pixelDataSize,
-    rhi::TextureDesc const& textureDesc,
+ResourceOperationHandle CreateDeviceBufferAsync(
+    void const* data,
+    size_t dataSize,
+    rhi::BufferDesc const& bufferDesc,
     rhi::IDevice* device,
     DeviceResources& deviceResources,
-    void (*callback)(rhi::ITexture* texture, bool success, void* user_data),
+    void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data),
     void* user_data) {
-  if (!pixelData || pixelDataSize == 0 || !device || !callback) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Invalid parameters");
+  if (!data || dataSize == 0 || !device || !callback) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Invalid parameters");
     return nullptr;
   }
 
-  if (textureDesc.width == 0 || textureDesc.height == 0) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Invalid texture dimensions");
+  if (bufferDesc.size == 0) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Invalid buffer description");
     callback(nullptr, false, user_data);
     return nullptr;
   }
 
-  // Create GPU texture (synchronous, but fast)
-  rhi::ITexture* texture = device->CreateTexture(textureDesc);
-  if (!texture) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Failed to create GPU texture");
+  // Create GPU buffer (synchronous, but fast)
+  rhi::IBuffer* buffer = device->CreateBuffer(bufferDesc);
+  if (!buffer) {
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Failed to create GPU buffer");
     callback(nullptr, false, user_data);
     return nullptr;
   }
 
   // Create async context
-  auto* context = new AsyncTextureCreateContext(
-      pixelData,
-      pixelDataSize,
-      textureDesc,
+  auto* context = new AsyncBufferCreateContext(
+      data,
+      dataSize,
+      bufferDesc,
       device,
       callback,
       user_data,
       deviceResources.commandListPool.get(),
       deviceResources.stagingBufferManager.get());
-  context->texture = texture;
+  context->buffer = buffer;
 
   // Register operation and get handle
   ResourceOperationHandle handle = internal::RegisterOperation(context);
@@ -332,79 +362,14 @@ ResourceOperationHandle CreateDeviceTextureAsync(
   // Submit async work to thread pool
   te::core::IThreadPool* threadPool = te::core::GetThreadPool();
   if (threadPool) {
-    threadPool->SubmitTask(AsyncTextureCreateWorker, context);
+    threadPool->SubmitTask(AsyncBufferCreateWorker, context);
     return handle;
   } else {
     // Fallback: synchronous creation
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Thread pool not available, falling back to sync");
-    AsyncTextureCreateWorker(context);
+    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Thread pool not available, falling back to sync");
+    AsyncBufferCreateWorker(context);
     return handle;
   }
-}
-
-bool UpdateDeviceTexture(
-    rhi::ITexture* texture,
-    rhi::IDevice* device,
-    DeviceResources& deviceResources,
-    void const* data,
-    size_t size,
-    rhi::TextureDesc const& textureDesc) {
-  if (!texture || !device || !data || size == 0) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::UpdateDeviceTexture: Invalid parameters");
-    return false;
-  }
-
-  if (textureDesc.width == 0 || textureDesc.height == 0) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::UpdateDeviceTexture: Invalid texture dimensions");
-    return false;
-  }
-
-  // Allocate staging buffer
-  rhi::IBuffer* stagingBuffer = AllocateAndCopyStagingBuffer(
-      device,
-      deviceResources.stagingBufferManager.get(),
-      data,
-      size);
-  if (!stagingBuffer) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::UpdateDeviceTexture: Failed to allocate staging buffer");
-    return false;
-  }
-
-  // Create command list
-  rhi::ICommandList* cmd = device->CreateCommandList();
-  if (!cmd) {
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::UpdateDeviceTexture: Failed to create command list");
-    deviceResources.stagingBufferManager->Release(stagingBuffer);
-    return false;
-  }
-
-  // Begin command list
-  cmd->Begin();
-
-  // Resource barrier: ShaderResource -> CopyDst
-  SetupTextureBarrier(cmd, texture, rhi::ResourceState::ShaderResource, rhi::ResourceState::CopyDst);
-
-  // Copy buffer to texture using provided texture description
-  CopyBufferToTexture(cmd, stagingBuffer, 0, texture, textureDesc);
-
-  // Resource barrier: CopyDst -> ShaderResource
-  SetupTextureBarrier(cmd, texture, rhi::ResourceState::CopyDst, rhi::ResourceState::ShaderResource);
-
-  // End command list
-  cmd->End();
-
-  // Submit command list
-  if (!SubmitCommandListSync(cmd, device)) {
-    device->DestroyCommandList(cmd);
-    deviceResources.stagingBufferManager->Release(stagingBuffer);
-    return false;
-  }
-
-  // Cleanup
-  device->DestroyCommandList(cmd);
-  deviceResources.stagingBufferManager->Release(stagingBuffer);
-
-  return true;
 }
 
 }  // namespace internal

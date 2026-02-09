@@ -6,6 +6,9 @@ project(TenEngine-030-device-resource-manager LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
+# 跳过上游依赖模块的测试，只构建本模块的测试
+set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
+
 # 上游 worktree 根目录：所有依赖模块都在 Engine/ 目录下
 # TENENGINE_ROOT 应该指向包含 Engine 目录的父目录（即 TenEngine 仓库根目录）
 if(NOT DEFINED TENENGINE_ROOT)
@@ -75,6 +78,7 @@ set(DEVICE_RESOURCE_MANAGER_SOURCES
   src/StagingBufferManager.cpp
   src/TextureDevice.cpp
   src/internal/TextureDeviceImpl.cpp
+  src/internal/BufferDeviceImpl.cpp
   src/internal/ResourceUploadHelper.cpp
 )
 
@@ -108,6 +112,7 @@ source_group("Source Files" FILES
 )
 source_group("Source Files\\Internal" FILES
   src/internal/TextureDeviceImpl.cpp
+  src/internal/BufferDeviceImpl.cpp
   src/internal/ResourceUploadHelper.cpp
 )
 source_group("Header Files" FILES ${DEVICE_RESOURCE_MANAGER_HEADERS})
@@ -115,7 +120,6 @@ source_group("Header Files" FILES ${DEVICE_RESOURCE_MANAGER_HEADERS})
 # Enable testing for this module
 enable_testing()
 
-# 030-device-resource-manager 本模块测试始终加入（不受上游设置的 TENENGINE_SKIP_DEPENDENCY_TESTS 影响）
-if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
-  add_subdirectory(tests)
-endif()
+# 030-device-resource-manager 本模块测试始终加入
+# 注意：TENENGINE_SKIP_DEPENDENCY_TESTS 只影响上游依赖模块的测试，不影响本模块测试
+add_subdirectory(tests)

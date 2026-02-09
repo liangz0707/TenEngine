@@ -8,6 +8,7 @@
 #include <te/resource/Resource.h>
 #include <te/deviceresource/CommandListPool.h>
 #include <te/deviceresource/StagingBufferManager.h>
+#include "AsyncOperationContext.h"
 #include <cstddef>
 
 namespace te {
@@ -30,8 +31,7 @@ rhi::ITexture* CreateDeviceTextureSync(
 /**
  * Async context for texture creation.
  */
-struct AsyncTextureCreateContext {
-  rhi::IDevice* device;
+struct AsyncTextureCreateContext : public AsyncOperationContext {
   void (*callback)(rhi::ITexture* texture, bool success, void* user_data);
   void* user_data;
   
@@ -40,14 +40,6 @@ struct AsyncTextureCreateContext {
   size_t pixelDataSize;
   rhi::TextureDesc rhiDesc;
   rhi::ITexture* texture;
-  
-  // Resources (managed by DeviceResources)
-  CommandListPool* commandListPool;
-  StagingBufferManager* stagingBufferManager;
-  
-  rhi::ICommandList* cmd;
-  rhi::IBuffer* stagingBuffer;
-  rhi::IFence* fence;
 
   AsyncTextureCreateContext(
       void const* pData,
@@ -58,18 +50,13 @@ struct AsyncTextureCreateContext {
       void* ud,
       CommandListPool* pool,
       StagingBufferManager* stagingMgr)
-      : device(dev),
+      : AsyncOperationContext(dev, pool, stagingMgr),
         callback(cb),
         user_data(ud),
         pixelData(pData),
         pixelDataSize(pDataSize),
         rhiDesc(desc),
-        texture(nullptr),
-        commandListPool(pool),
-        stagingBufferManager(stagingMgr),
-        cmd(nullptr),
-        stagingBuffer(nullptr),
-        fence(nullptr) {}
+        texture(nullptr) {}
 };
 
 /**
@@ -79,8 +66,9 @@ void AsyncTextureCreateWorker(void* ctx);
 
 /**
  * Create GPU texture asynchronously.
+ * Returns operation handle for status tracking.
  */
-bool CreateDeviceTextureAsync(
+ResourceOperationHandle CreateDeviceTextureAsync(
     void const* pixelData,
     size_t pixelDataSize,
     rhi::TextureDesc const& textureDesc,
@@ -97,7 +85,8 @@ bool UpdateDeviceTexture(
     rhi::IDevice* device,
     DeviceResources& deviceResources,
     void const* data,
-    size_t size);
+    size_t size,
+    rhi::TextureDesc const& textureDesc);
 
 }  // namespace internal
 }  // namespace deviceresource

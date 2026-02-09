@@ -5,14 +5,11 @@
 
 #include <te/rhi/device.hpp>
 #include <te/rhi/resources.hpp>
-#include <te/resource/Resource.h>
+#include <te/deviceresource/ResourceOperationTypes.h>
 #include <cstddef>
 
 namespace te {
 namespace deviceresource {
-
-// Forward declarations
-struct IResource;
 
 /**
  * DeviceResourceManager provides static methods for creating GPU resources (DResource)
@@ -48,9 +45,9 @@ class DeviceResourceManager {
    * @param device RHI device
    * @param callback Completion callback: void(*)(rhi::ITexture* texture, bool success, void* user_data)
    * @param user_data User data passed to callback
-   * @return true if async operation started successfully
+   * @return Operation handle for status tracking, or nullptr on failure
    */
-  static bool CreateDeviceTextureAsync(
+  static ResourceOperationHandle CreateDeviceTextureAsync(
       void const* pixelData,
       size_t pixelDataSize,
       rhi::TextureDesc const& textureDesc,
@@ -65,13 +62,15 @@ class DeviceResourceManager {
    * @param device RHI device
    * @param data Source data
    * @param size Data size in bytes
+   * @param textureDesc Texture description (width, height, format, etc.) to determine update region
    * @return true on success
    */
   static bool UpdateDeviceTexture(
       rhi::ITexture* texture,
       rhi::IDevice* device,
       void const* data,
-      size_t size);
+      size_t size,
+      rhi::TextureDesc const& textureDesc);
 
   /**
    * Destroy GPU texture.
@@ -83,36 +82,71 @@ class DeviceResourceManager {
       rhi::ITexture* texture,
       rhi::IDevice* device);
 
-  // Buffer creation (for Mesh resources)
+  // Buffer creation (data-oriented interface)
   /**
-   * Synchronously create GPU buffer from mesh resource.
+   * Synchronously create GPU buffer from raw data.
    * 
-   * @param meshResource Mesh resource (must be ResourceType::Mesh)
-   * @param bufferType Buffer type (Vertex or Index)
+   * Callers (e.g., 012-Mesh) should call this from EnsureDeviceResources after
+   * obtaining vertex/index data from their resource objects.
+   * 
+   * @param data Buffer data pointer (vertex data or index data)
+   * @param dataSize Data size in bytes
+   * @param bufferDesc RHI buffer description (size, usage, etc.)
    * @param device RHI device
    * @return GPU buffer handle, or nullptr on failure
    */
   static rhi::IBuffer* CreateDeviceBuffer(
-      resource::IResource* meshResource,
-      rhi::BufferUsage bufferType,
+      void const* data,
+      size_t dataSize,
+      rhi::BufferDesc const& bufferDesc,
       rhi::IDevice* device);
 
   /**
-   * Asynchronously create GPU buffer from mesh resource.
+   * Asynchronously create GPU buffer from raw data.
    * 
-   * @param meshResource Mesh resource (must be ResourceType::Mesh)
-   * @param bufferType Buffer type (Vertex or Index)
+   * @param data Buffer data pointer
+   * @param dataSize Data size in bytes
+   * @param bufferDesc RHI buffer description
    * @param device RHI device
    * @param callback Completion callback: void(*)(rhi::IBuffer* buffer, bool success, void* user_data)
    * @param user_data User data passed to callback
-   * @return true if async operation started successfully
+   * @return Operation handle for status tracking, or nullptr on failure
    */
-  static bool CreateDeviceBufferAsync(
-      resource::IResource* meshResource,
-      rhi::BufferUsage bufferType,
+  static ResourceOperationHandle CreateDeviceBufferAsync(
+      void const* data,
+      size_t dataSize,
+      rhi::BufferDesc const& bufferDesc,
       rhi::IDevice* device,
       void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data),
       void* user_data);
+
+  // Operation status query
+  /**
+   * Get operation status.
+   * Thread-safe.
+   * 
+   * @param handle Operation handle returned by CreateDeviceTextureAsync or CreateDeviceBufferAsync
+   * @return Current operation status
+   */
+  static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);
+
+  /**
+   * Get operation progress (0.0 to 1.0).
+   * Thread-safe.
+   * 
+   * @param handle Operation handle
+   * @return Progress value (0.0 = started, 1.0 = completed)
+   */
+  static float GetOperationProgress(ResourceOperationHandle handle);
+
+  /**
+   * Cancel operation.
+   * Callback will still be called with success=false.
+   * Thread-safe.
+   * 
+   * @param handle Operation handle
+   */
+  static void CancelOperation(ResourceOperationHandle handle);
 
   /**
    * Destroy GPU buffer.
@@ -123,39 +157,6 @@ class DeviceResourceManager {
   static void DestroyDeviceBuffer(
       rhi::IBuffer* buffer,
       rhi::IDevice* device);
-
-  // Batch operations
-  /**
-   * Synchronously create multiple GPU resources in batch.
-   * 
-   * Resources are grouped by type and processed together for efficiency.
-   * 
-   * @param resources Array of resource pointers
-   * @param count Number of resources
-   * @param device RHI device
-   * @return true if all resources created successfully
-   */
-  static bool CreateDeviceResourcesBatch(
-      resource::IResource** resources,
-      size_t count,
-      rhi::IDevice* device);
-
-  /**
-   * Asynchronously create multiple GPU resources in batch.
-   * 
-   * @param resources Array of resource pointers
-   * @param count Number of resources
-   * @param device RHI device
-   * @param callback Completion callback: void(*)(resource::IResource** resources, size_t count, bool* success_flags, void* user_data)
-   * @param user_data User data passed to callback
-   * @return true if async operation started successfully
-   */
-  static bool CreateDeviceResourcesBatchAsync(
-      resource::IResource** resources,
-      size_t count,
-      rhi::IDevice* device,
-      void (*callback)(resource::IResource** resources, size_t count, bool* success_flags, void* user_data),
-      void* user_data);
 
   // Cleanup
   /**
