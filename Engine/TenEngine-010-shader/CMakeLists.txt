@@ -102,12 +102,14 @@ if(TE_RHI_D3D12 AND WIN32)
   endif()
 endif()
 
-tenengine_add_module_test(
-  NAME te_shader_compile_test
-  MODULE_TARGET te_shader
-  SOURCES tests/test_compile.cpp
-  ENABLE_CTEST
-)
+# Do not add tests when built as dependency (e.g. by 011-material) to avoid pulling shader tests into material project
+if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
+  tenengine_add_module_test(
+    NAME te_shader_compile_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_compile.cpp
+    ENABLE_CTEST
+  )
   tenengine_add_module_test(
     NAME te_shader_variants_test
     MODULE_TARGET te_shader
@@ -154,3 +156,4 @@ tenengine_add_module_test(
   )
   target_compile_definitions(te_shader_vertex_input_reflection_test PRIVATE TE_SHADER_USE_CORE=1)
   target_link_libraries(te_shader_vertex_input_reflection_test PRIVATE te_rendercore)
+endif()

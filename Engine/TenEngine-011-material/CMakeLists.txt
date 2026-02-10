@@ -31,7 +31,24 @@ set(TE_MATERIAL_SOURCES
   src/binding.cpp
 )
 
-add_library(te_material STATIC ${TE_MATERIAL_SOURCES})
+# Header files (for Visual Studio project view)
+set(TE_MATERIAL_HEADERS
+  include/te/material/api.hpp
+  include/te/material/binding.hpp
+  include/te/material/factory.hpp
+  include/te/material/instancing.hpp
+  include/te/material/material_def.hpp
+  include/te/material/material_json.hpp
+  include/te/material/MaterialModuleInit.h
+  include/te/material/MaterialResource.h
+  include/te/material/parameters.hpp
+  include/te/material/storage_format.hpp
+  include/te/material/types.hpp
+)
+
+add_library(te_material STATIC ${TE_MATERIAL_SOURCES} ${TE_MATERIAL_HEADERS})
+source_group("Source Files" FILES ${TE_MATERIAL_SOURCES})
+source_group("Header Files" FILES ${TE_MATERIAL_HEADERS})
 target_include_directories(te_material
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
