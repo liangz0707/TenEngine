@@ -11,6 +11,7 @@
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
 #include <te/rendercore/uniform_layout.hpp>
 #include <te/rendercore/shader_reflection.hpp>
+#include <te/rendercore/resource_desc.hpp>
 #endif
 
 namespace te::shader {
@@ -37,6 +38,8 @@ public:
     std::vector<te::rendercore::UniformMember> reflectionMembers_;
     uint32_t reflectionTotalSize_ = 0;
     std::vector<te::rendercore::ShaderResourceBinding> reflectionResourceBindings_;
+    std::vector<te::rendercore::VertexAttribute> vertexAttributes_;
+    uint32_t vertexStride_ = 0;
 #endif
 
     void SetMacros(MacroSet const& macros) override;

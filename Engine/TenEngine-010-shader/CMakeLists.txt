@@ -118,3 +118,31 @@ tenengine_add_module_test(
     SOURCES tests/test_hot_reload.cpp
     ENABLE_CTEST
   )
+  tenengine_add_module_test(
+    NAME te_shader_hlsl_compile_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_hlsl_compile.cpp
+    ENABLE_CTEST
+  )
+  tenengine_add_module_test(
+    NAME te_shader_msl_hlsl_source_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_msl_hlsl_source.cpp
+    ENABLE_CTEST
+  )
+  tenengine_add_module_test(
+    NAME te_shader_reflection_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_reflection.cpp
+    ENABLE_CTEST
+  )
+  target_compile_definitions(te_shader_reflection_test PRIVATE TE_SHADER_USE_CORE=1)
+  target_link_libraries(te_shader_reflection_test PRIVATE te_rendercore)
+  tenengine_add_module_test(
+    NAME te_shader_vertex_input_reflection_test
+    MODULE_TARGET te_shader
+    SOURCES tests/test_vertex_input_reflection.cpp
+    ENABLE_CTEST
+  )
+  target_compile_definitions(te_shader_vertex_input_reflection_test PRIVATE TE_SHADER_USE_CORE=1)
+  target_link_libraries(te_shader_vertex_input_reflection_test PRIVATE te_rendercore)

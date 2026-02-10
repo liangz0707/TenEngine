@@ -1,9 +1,9 @@
 #include <te/shader/detail/glslang_backend.hpp>
 #include <te/shader/detail/handle_impl.hpp>
+#include <te/shader/types.hpp>
 #include <glslang/Public/ShaderLang.h>
 #include <SPIRV/GlslangToSpv.h>
-#include <fstream>
-#include <sstream>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -11,7 +11,28 @@ namespace te::shader {
 
 namespace {
 
-bool compileGlslToSpirv(char const* source, EShLanguage stage, std::vector<uint32_t>& outSpirv, std::string& outError) {
+EShLanguage shaderStageToEShLanguage(ShaderStage stage) {
+    switch (stage) {
+        case ShaderStage::Vertex: return EShLangVertex;
+        case ShaderStage::Fragment: return EShLangFragment;
+        case ShaderStage::Compute: return EShLangCompute;
+        case ShaderStage::Geometry: return EShLangGeometry;
+        case ShaderStage::TessControl: return EShLangTessControl;
+        case ShaderStage::TessEvaluation: return EShLangTessEvaluation;
+        default: return EShLangVertex;
+    }
+}
+
+EShLanguage inferStageFromPath(std::string const& path) {
+    if (path.find(".frag") != std::string::npos) return EShLangFragment;
+    if (path.find(".comp") != std::string::npos) return EShLangCompute;
+    if (path.find(".geom") != std::string::npos) return EShLangGeometry;
+    if (path.find(".tesc") != std::string::npos) return EShLangTessControl;
+    if (path.find(".tese") != std::string::npos) return EShLangTessEvaluation;
+    return EShLangVertex;
+}
+
+bool compileGlslToSpirv(char const* source, EShLanguage stage, CompileOptions const* options, std::vector<uint32_t>& outSpirv, std::string& outError) {
     glslang::InitializeProcess();
 
     const char* const sources[] = { source };
@@ -127,15 +148,20 @@ bool compileGlslToSpirv(char const* source, EShLanguage stage, std::vector<uint3
         return false;
     }
 
-    glslang::SpvOptions options;
-    glslang::GlslangToSpv(*program.getIntermediate(stage), outSpirv, &options);
+    glslang::SpvOptions spvOpts;
+    if (options) {
+        spvOpts.generateDebugInfo = options->generateDebugInfo;
+        spvOpts.disableOptimizer = (options->optimizationLevel == 0);
+        spvOpts.optimizeSize = (options->optimizationLevel >= 2);
+    }
+    glslang::GlslangToSpv(*program.getIntermediate(stage), outSpirv, &spvOpts);
     glslang::FinalizeProcess();
     return true;
 }
 
 }  // namespace
 
-bool CompileGlslToSpirv(ShaderHandleImpl* handle, std::string& outError) {
+bool CompileGlslToSpirv(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError) {
     std::string source = handle->sourceCode_;
     if (handle->macros_.count > 0) {
         std::string preamble;
@@ -155,14 +181,79 @@ bool CompileGlslToSpirv(ShaderHandleImpl* handle, std::string& outError) {
         }
         source.insert(insertPos, preamble);
     }
-    EShLanguage stage = EShLangVertex;
-    if (handle->sourceCode_.find("main") != std::string::npos) {
-        if (handle->sourcePath_.find(".frag") != std::string::npos)
-            stage = EShLangFragment;
-        else if (handle->sourcePath_.find(".comp") != std::string::npos)
-            stage = EShLangCompute;
+    EShLanguage stage = (options.stage != ShaderStage::Unknown)
+        ? shaderStageToEShLanguage(options.stage)
+        : inferStageFromPath(handle->sourcePath_);
+    return compileGlslToSpirv(source.c_str(), stage, &options, handle->bytecode_, outError);
+}
+
+bool CompileHlslToSpirv(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError) {
+    EShLanguage stage = (options.stage != ShaderStage::Unknown)
+        ? shaderStageToEShLanguage(options.stage)
+        : EShLangVertex;
+    glslang::InitializeProcess();
+    char const* sources[] = { handle->sourceCode_.c_str() };
+    glslang::TShader shader(stage);
+    shader.setEnvInput(glslang::EShSourceHlsl, stage, glslang::EShClientVulkan, 100);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+    shader.setEntryPoint(options.entryPoint[0] != '\0' ? options.entryPoint : "main");
+    shader.setStrings(sources, 1);
+
+    TBuiltInResource resources = {};
+    resources.maxLights = 32;
+    resources.maxClipPlanes = 6;
+    resources.maxTextureUnits = 32;
+    resources.maxVertexAttribs = 64;
+    resources.maxVertexUniformComponents = 4096;
+    resources.maxVaryingFloats = 64;
+    resources.maxVertexTextureImageUnits = 32;
+    resources.maxCombinedTextureImageUnits = 80;
+    resources.maxTextureImageUnits = 32;
+    resources.maxFragmentUniformComponents = 4096;
+    resources.maxDrawBuffers = 32;
+    resources.maxVertexUniformVectors = 128;
+    resources.maxVaryingVectors = 8;
+    resources.maxFragmentUniformVectors = 16;
+    resources.maxVertexOutputVectors = 16;
+    resources.maxFragmentInputVectors = 15;
+    resources.minProgramTexelOffset = -8;
+    resources.maxProgramTexelOffset = 7;
+    resources.maxClipDistances = 8;
+    resources.maxComputeWorkGroupCountX = 65535;
+    resources.maxComputeWorkGroupCountY = 65535;
+    resources.maxComputeWorkGroupCountZ = 65535;
+    resources.maxComputeWorkGroupSizeX = 1024;
+    resources.maxComputeWorkGroupSizeY = 1024;
+    resources.maxComputeWorkGroupSizeZ = 64;
+    resources.maxComputeUniformComponents = 1024;
+    resources.maxComputeTextureImageUnits = 16;
+    resources.limits.nonInductiveForLoops = true;
+    resources.limits.whileLoops = true;
+    resources.limits.doWhileLoops = true;
+    resources.limits.generalUniformIndexing = true;
+    resources.limits.generalVariableIndexing = true;
+
+    EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
+    if (!shader.parse(&resources, 100, false, messages)) {
+        outError = shader.getInfoLog();
+        glslang::FinalizeProcess();
+        return false;
     }
-    return compileGlslToSpirv(source.c_str(), stage, handle->bytecode_, outError);
+    glslang::TProgram program;
+    program.addShader(&shader);
+    if (!program.link(messages)) {
+        outError = program.getInfoLog();
+        glslang::FinalizeProcess();
+        return false;
+    }
+    glslang::SpvOptions spvOpts;
+    spvOpts.generateDebugInfo = options.generateDebugInfo;
+    spvOpts.disableOptimizer = (options.optimizationLevel == 0);
+    spvOpts.optimizeSize = (options.optimizationLevel >= 2);
+    glslang::GlslangToSpv(*program.getIntermediate(stage), handle->bytecode_, &spvOpts);
+    glslang::FinalizeProcess();
+    return true;
 }
 
 }  // namespace te::shader

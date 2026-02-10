@@ -18,6 +18,16 @@ enum class BackendType : uint32_t {
     HLSL_SOURCE,  // D3D11: SPIR-V -> HLSL source via SPIRV-Cross
 };
 
+enum class ShaderStage : uint32_t {
+    Vertex = 0,
+    Fragment,
+    Compute,
+    Geometry,
+    TessControl,
+    TessEvaluation,
+    Unknown
+};
+
 struct MacroSet {
     static constexpr size_t kMaxPairs = 32;
     char names[kMaxPairs][64];
@@ -35,6 +45,9 @@ struct CompileOptions {
     BackendType targetBackend = BackendType::SPIRV;
     uint32_t optimizationLevel = 1;
     bool generateDebugInfo = false;
+    ShaderStage stage = ShaderStage::Unknown;  // Unknown = infer from path or default Vertex
+    static constexpr size_t kMaxEntryPointLen = 64;
+    char entryPoint[kMaxEntryPointLen] = "main";
 };
 
 class IVariantEnumerator {

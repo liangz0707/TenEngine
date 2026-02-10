@@ -3,6 +3,7 @@
 
 #include <te/shader/compiler.hpp>
 #include <te/shader/detail/handle_impl.hpp>
+#include <te/shader/types.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -18,6 +19,7 @@ public:
     std::string lastError_;
     std::unordered_map<std::string, std::string> keywords_;
     BackendType targetBackend_ = BackendType::SPIRV;
+    CompileOptions lastOptions_{};
     std::vector<std::unique_ptr<ShaderHandleImpl>> handles_;
     ShaderCacheImpl* cache_ = nullptr;
 
@@ -35,6 +37,7 @@ public:
     bool Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) override;
     bool GetReflection(IShaderHandle* handle, void* outDesc) override;
     bool GetShaderReflection(IShaderHandle* handle, void* outDesc) override;
+    bool GetVertexInputReflection(IShaderHandle* handle, void* outDesc) override;
 };
 
 }  // namespace te::shader

@@ -26,9 +26,11 @@ namespace te::shader {
 
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE && defined(TENENGINE_USE_SPIRV_CROSS) && TENENGINE_USE_SPIRV_CROSS
 static void ExtractReflectionFromSpirv(ShaderHandleImpl* impl);
+static void ExtractVertexInputFromSpirv(ShaderHandleImpl* impl);
 #endif
 
 IShaderHandle* ShaderCompilerImpl::LoadSource(char const* path, ShaderSourceFormat format) {
+    std::string sourceCode;
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
     auto opt = te::core::FileRead(path ? std::string(path) : std::string());
     if (!opt || opt->empty()) {
@@ -37,9 +39,12 @@ IShaderHandle* ShaderCompilerImpl::LoadSource(char const* path, ShaderSourceForm
         te::core::Log(te::core::LogLevel::Error, lastError_.c_str());
         return nullptr;
     }
-    std::string src(opt->begin(), opt->end());
-    return LoadSourceFromMemory(src.data(), src.size(), format);
+    sourceCode.assign(opt->begin(), opt->end());
 #else
+    if (!path) {
+        lastError_ = "LoadSource: path is null";
+        return nullptr;
+    }
     std::ifstream f(path);
     if (!f) {
         lastError_ = "File not found: ";
@@ -48,8 +53,16 @@ IShaderHandle* ShaderCompilerImpl::LoadSource(char const* path, ShaderSourceForm
     }
     std::ostringstream oss;
     oss << f.rdbuf();
-    return LoadSourceFromMemory(oss.str().data(), oss.str().size(), format);
+    sourceCode = oss.str();
 #endif
+    auto h = std::make_unique<ShaderHandleImpl>();
+    h->sourceCode_ = std::move(sourceCode);
+    h->sourceFormat_ = format;
+    h->sourcePath_ = path ? path : std::string();
+    h->currentKey_.hash = 0;
+    IShaderHandle* p = h.get();
+    handles_.push_back(std::move(h));
+    return p;
 }
 
 IShaderHandle* ShaderCompilerImpl::LoadSourceFromMemory(void const* data, size_t size, ShaderSourceFormat format) {
@@ -75,6 +88,7 @@ void ShaderCompilerImpl::ReleaseHandle(IShaderHandle* handle) {
 bool ShaderCompilerImpl::Compile(IShaderHandle* handle, CompileOptions const& options) {
     if (!handle) return false;
     auto* impl = static_cast<ShaderHandleImpl*>(handle);
+    lastOptions_ = options;
     targetBackend_ = options.targetBackend;
 
     if (cache_ && cache_->TryLoadToHandle(impl)) {
@@ -83,20 +97,28 @@ bool ShaderCompilerImpl::Compile(IShaderHandle* handle, CompileOptions const& op
     }
 
     bool ok = false;
-    if (impl->sourceFormat_ == ShaderSourceFormat::GLSL || impl->sourceFormat_ == ShaderSourceFormat::HLSL) {
+    if (impl->sourceFormat_ == ShaderSourceFormat::GLSL) {
         if (targetBackend_ == BackendType::SPIRV) {
-            ok = CompileGlslToSpirv(impl, lastError_);
+            ok = CompileGlslToSpirv(impl, options, lastError_);
         } else if (targetBackend_ == BackendType::MSL || targetBackend_ == BackendType::HLSL_SOURCE) {
-            if (!CompileGlslToSpirv(impl, lastError_)) return false;
+            if (!CompileGlslToSpirv(impl, options, lastError_)) return false;
             SpirvCrossTarget t = (targetBackend_ == BackendType::MSL) ? SpirvCrossTarget::MSL : SpirvCrossTarget::HLSL;
             ok = CompileSpirvToTarget(impl, t, lastError_);
         }
-    }
+    } else if (impl->sourceFormat_ == ShaderSourceFormat::HLSL) {
+        if (targetBackend_ == BackendType::SPIRV) {
+            ok = CompileHlslToSpirv(impl, options, lastError_);
+        } else if (targetBackend_ == BackendType::MSL || targetBackend_ == BackendType::HLSL_SOURCE) {
+            if (!CompileHlslToSpirv(impl, options, lastError_)) return false;
+            SpirvCrossTarget t = (targetBackend_ == BackendType::MSL) ? SpirvCrossTarget::MSL : SpirvCrossTarget::HLSL;
+            ok = CompileSpirvToTarget(impl, t, lastError_);
+        }
 #if defined(TE_RHI_D3D12) && TE_RHI_D3D12
-    if (!ok && impl->sourceFormat_ == ShaderSourceFormat::HLSL && targetBackend_ == BackendType::DXIL) {
-        ok = CompileHlslToDxil(impl, lastError_);
-    }
+        else if (targetBackend_ == BackendType::DXIL) {
+            ok = CompileHlslToDxil(impl, options, lastError_);
+        }
 #endif
+    }
     if (!ok && lastError_.empty()) {
         lastError_ = "Unsupported format/backend combination";
         return false;
@@ -109,6 +131,7 @@ bool ShaderCompilerImpl::Compile(IShaderHandle* handle, CompileOptions const& op
         if (cache_) cache_->StoreFromHandle(impl);
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE && defined(TENENGINE_USE_SPIRV_CROSS) && TENENGINE_USE_SPIRV_CROSS
         ExtractReflectionFromSpirv(impl);
+        ExtractVertexInputFromSpirv(impl);
 #endif
     }
     return ok;
@@ -298,6 +321,65 @@ static void ExtractReflectionFromSpirv(ShaderHandleImpl* impl) {
     } catch (...) {}
 }
 
+static void ExtractVertexInputFromSpirv(ShaderHandleImpl* impl) {
+    if (!impl || impl->bytecode_.empty()) return;
+    try {
+        spirv_cross::Compiler comp(impl->bytecode_.data(), impl->bytecode_.size());
+        if (comp.get_execution_model() != spv::ExecutionModelVertex) return;
+        auto res = comp.get_shader_resources();
+        impl->vertexAttributes_.clear();
+        impl->vertexStride_ = 0;
+        if (res.stage_inputs.empty()) return;
+        using BT = spirv_cross::SPIRType::BaseType;
+        auto mapFormat = [](BT bt, uint32_t vecsize) -> te::rendercore::VertexAttributeFormat {
+            if (bt == BT::Float) {
+                if (vecsize == 1) return te::rendercore::VertexAttributeFormat::Float;
+                if (vecsize == 2) return te::rendercore::VertexAttributeFormat::Float2;
+                if (vecsize == 3) return te::rendercore::VertexAttributeFormat::Float3;
+                if (vecsize == 4) return te::rendercore::VertexAttributeFormat::Float4;
+            } else if (bt == BT::Int || bt == BT::Int64) {
+                if (vecsize == 1) return te::rendercore::VertexAttributeFormat::Int;
+                if (vecsize == 2) return te::rendercore::VertexAttributeFormat::Int2;
+                if (vecsize == 3) return te::rendercore::VertexAttributeFormat::Int3;
+                if (vecsize == 4) return te::rendercore::VertexAttributeFormat::Int4;
+            } else if (bt == BT::UInt || bt == BT::UInt64) {
+                if (vecsize == 1) return te::rendercore::VertexAttributeFormat::UInt;
+                if (vecsize == 2) return te::rendercore::VertexAttributeFormat::UInt2;
+                if (vecsize == 3) return te::rendercore::VertexAttributeFormat::UInt3;
+                if (vecsize == 4) return te::rendercore::VertexAttributeFormat::UInt4;
+            }
+            return te::rendercore::VertexAttributeFormat::Unknown;
+        };
+        struct InputInfo { uint32_t location; uint32_t size; BT bt; uint32_t vecsize; };
+        std::vector<InputInfo> infos;
+        auto typeSize = [](spirv_cross::SPIRType const& t) -> uint32_t {
+            uint32_t w = (t.width > 0) ? t.width : 32u;
+            return (w / 8u) * t.vecsize * (t.columns > 0 ? t.columns : 1u);
+        };
+        for (auto const& input : res.stage_inputs) {
+            uint32_t loc = comp.has_decoration(input.id, spv::DecorationLocation)
+                ? static_cast<uint32_t>(comp.get_decoration(input.id, spv::DecorationLocation))
+                : 0u;
+            auto const& t = comp.get_type(input.base_type_id);
+            uint32_t size = typeSize(t);
+            if (size == 0) size = 4u * t.vecsize;
+            infos.push_back({loc, size, t.basetype, t.vecsize});
+        }
+        std::sort(infos.begin(), infos.end(), [](InputInfo const& a, InputInfo const& b) { return a.location < b.location; });
+        uint32_t offset = 0;
+        for (auto const& info : infos) {
+            if (impl->vertexAttributes_.size() >= te::rendercore::kMaxVertexAttributes) break;
+            te::rendercore::VertexAttribute attr{};
+            attr.location = info.location;
+            attr.format = mapFormat(info.bt, info.vecsize);
+            attr.offset = offset;
+            impl->vertexAttributes_.push_back(attr);
+            offset += info.size;
+        }
+        impl->vertexStride_ = offset;
+    } catch (...) {}
+}
+
 #endif
 
 void ShaderCompilerImpl::EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) {
@@ -378,16 +460,38 @@ bool ShaderCompilerImpl::GetShaderReflection(IShaderHandle* handle, void* outDes
 #endif
 }
 
+bool ShaderCompilerImpl::GetVertexInputReflection(IShaderHandle* handle, void* outDesc) {
+#if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
+    if (!handle || !outDesc) return false;
+    auto* impl = static_cast<ShaderHandleImpl*>(handle);
+    if (impl->vertexAttributes_.empty()) return false;
+    auto* desc = static_cast<te::rendercore::VertexFormatDesc*>(outDesc);
+    desc->attributes = impl->vertexAttributes_.data();
+    desc->attributeCount = static_cast<uint32_t>(impl->vertexAttributes_.size());
+    desc->stride = impl->vertexStride_;
+    return true;
+#else
+    (void)handle;
+    (void)outDesc;
+    return false;
+#endif
+}
+
 bool ShaderCompilerImpl::Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) {
     if (!handle) return false;
     if (count == 0 || !keys) {
         lastError_ = "Precompile: empty or invalid VariantKey list";
         return false;
     }
+    CompileOptions opts = lastOptions_;
+    if (opts.stage == ShaderStage::Unknown && opts.targetBackend == BackendType::SPIRV) {
+        opts.stage = ShaderStage::Vertex;
+        opts.entryPoint[0] = 'm'; opts.entryPoint[1] = 'a'; opts.entryPoint[2] = 'i'; opts.entryPoint[3] = 'n'; opts.entryPoint[4] = '\0';
+    }
     auto* impl = static_cast<ShaderHandleImpl*>(handle);
     for (size_t i = 0; i < count; ++i) {
         impl->SelectVariant(keys[i]);
-        if (!Compile(handle, CompileOptions{})) return false;
+        if (!Compile(handle, opts)) return false;
     }
     return true;
 }

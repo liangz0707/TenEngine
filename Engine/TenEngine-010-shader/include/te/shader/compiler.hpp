@@ -32,6 +32,9 @@ public:
 
     /** Fill ShaderReflectionDesc (Uniform + Texture + Sampler). \a outDesc points to te::rendercore::ShaderReflectionDesc. Returns false if no SPIR-V or reflection unavailable. */
     virtual bool GetShaderReflection(IShaderHandle* handle, void* outDesc) { (void)handle; (void)outDesc; return false; }
+
+    /** Fill VertexFormatDesc from vertex stage inputs (SPIR-V only). \a outDesc points to te::rendercore::VertexFormatDesc. Returns false if not a vertex shader or no inputs. */
+    virtual bool GetVertexInputReflection(IShaderHandle* handle, void* outDesc) { (void)handle; (void)outDesc; return false; }
 };
 
 }  // namespace te::shader

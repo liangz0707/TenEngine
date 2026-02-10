@@ -30,11 +30,13 @@
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
-| 1 | Source & Compilation | HLSL、GLSL；Compile、GetBytecode、TargetBackend、ErrorReport；多后端编译与错误报告 |
-| 2 | Macros & Variants | DefineKeyword、SetMacros、GetVariantKey、EnumerateVariants、Precompile；游戏中可动态切换宏 |
-| 3 | Cache | LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选） |
-| 4 | Hot Reload（可选） | ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游 |
+| 1 | Source & Compilation | HLSL、GLSL；LoadSource/LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetTargetBackend、GetLastError；四后端 SPIRV/DXIL/MSL/HLSL_SOURCE；CompileOptions 含 targetBackend、optimizationLevel、generateDebugInfo、stage、entryPoint |
+| 2 | Macros & Variants | DefineKeyword、SetMacros、GetVariantKey、SelectVariant、EnumerateVariants、Precompile；游戏中可动态切换宏 |
+| 3 | Cache | SetCache、LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选） |
+| 4 | Hot Reload（可选） | CreateShaderHotReload、ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游 |
 | 5 | Graph（可选） | NodeGraph、ExportSource/IR；与 Material 联动 |
+| 6 | Reflection | GetReflection(handle, outDesc)→UniformLayoutDesc；GetShaderReflection(handle, outDesc)→ShaderReflectionDesc（Uniform+Texture+Sampler）；需 TE_SHADER_USE_CORE 且链接 te_rendercore |
+| 7 | Vertex Input 反射 | GetVertexInputReflection(handle, outDesc)；outDesc 为 te::rendercore::VertexFormatDesc*；从 SPIR-V vertex stage 的 stage_inputs 解析 location/format/offset/stride；PSO 创建时与 Mesh vertexLayout 比对 |
 
 ## 版本 / ABI
 
@@ -50,7 +52,7 @@
 
 - [ ] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 可选 .hlsl/.glsl）。
 - [ ] **CreateShader**：013 加载后交 010 CreateShader/Compile；产出 Bytecode 供 008 创建 ShaderModule/PSO；010 不发起加载。
-- [ ] **接口与数据**（原 ABI 数据相关 TODO）：UniformLayoutDesc/ShaderReflectionDesc 与 009 IUniformLayout、011 scalarParams 约定一致；LoadSource(path, format)/LoadSourceFromMemory、Compile(handle, options)、GetBytecode(handle)、GetReflection(handle, outDesc)；调用 001 FileRead/FileWrite（LoadCache/SaveCache）。
+- [x] **接口与数据**（已实现）：LoadSource(path, format)、LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetReflection(handle, outDesc→UniformLayoutDesc)、GetShaderReflection(handle, outDesc→ShaderReflectionDesc)、GetVertexInputReflection(handle, outDesc→VertexFormatDesc)；与 009 UniformLayoutDesc/ShaderReflectionDesc/VertexFormatDesc 对接；LoadCache/SaveCache 使用 001 FileRead/FileWrite（TE_SHADER_USE_CORE 时）。
 
 ## 变更记录
 
@@ -58,3 +60,4 @@
 |------|----------|
 | T0 新增 | 010-Shader 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
+| 2026-02-10 | 能力 1–4、6–7 与实现对齐：CompileOptions(stage/entryPoint/optimizationLevel/generateDebugInfo)、四后端、GetReflection/GetShaderReflection/GetVertexInputReflection；TODO 接口与数据标为已实现 |

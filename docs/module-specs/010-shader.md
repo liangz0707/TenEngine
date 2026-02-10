@@ -6,8 +6,8 @@ Shader 提供**着色器编译、变体与预编译**（可选 Shader Graph 式�
 
 ## 2. 详细功能描述
 
-- **源码格式**：支持加载 **HLSL**、**GLSL** 两种源码格式；按扩展名或显式类型识别，统一编译为后端字节码（SPIR-V/DXIL/MSL）。
-- **Shader 编译**：源码（HLSL/GLSL）编译、多后端（SPIR-V/DXIL/MSL）产出、编译选项与错误报告。
+- **源码格式**：支持加载 **HLSL**、**GLSL** 两种源码格式；按扩展名或显式类型识别，统一编译为后端字节码（SPIR-V/DXIL/MSL/HLSL 源码）。
+- **Shader 编译**：源码（HLSL/GLSL）编译、四后端产出：**SPIRV**（glslang）、**DXIL**（DXC，HLSL+D3D12）、**MSL**（SPIRV-Cross）、**HLSL_SOURCE**（SPIRV-Cross，供 D3D11 等）；CompileOptions 含 targetBackend、stage、entryPoint、optimizationLevel、generateDebugInfo；编译错误通过 GetLastError 报告。
 - **变体与宏**：支持**宏**切换代码路径；关键字/宏变体、变体集合、按需或预编译；**游戏中可动态切换宏**，按新宏组合重新选择或编译变体并生效。
 - **预编译**：离线编译、缓存、与资源管线集成。
 - **实时更新**：支持 **Shader 热重载**；源码或宏变更后可**实时更新** Shader（重新编译/变体切换），无需重启应用即可在运行中生效。
@@ -30,18 +30,20 @@ Shader 提供**着色器编译、变体与预编译**（可选 Shader Graph 式�
 
 | 子模块 | 职责 |
 |--------|------|
-| Compilation | 源码（HLSL/GLSL）加载与编译、多后端目标、编译选项与错误报告 |
+| Compilation | 源码（HLSL/GLSL）加载与编译、四后端（SPIRV/DXIL/MSL/HLSL_SOURCE）、CompileOptions 与错误报告 |
 | Variants | 关键字/宏、变体枚举、变体键与缓存；运行时动态切换宏并生效 |
 | Cache | 预编译缓存、磁盘/资源管线、增量编译；热重载时按需失效与重建 |
+| Reflection | 从 SPIR-V 解析 Uniform 块、Texture/Sampler 绑定、顶点 stage_inputs，输出 009 UniformLayoutDesc/ShaderReflectionDesc/VertexFormatDesc |
 | HotReload（可选） | 监听源码/宏变更、重新编译、实时更新 Shader 并通知下游（Material/Pipeline） |
 | Graph（可选） | 节点图、导出 Shader 或 IR、与 Material 联动 |
 
 ### 5.2 具体功能
 
-Compilation：LoadSource(HLSL/GLSL)、Compile、GetBytecode、TargetBackend、ErrorReport。  
-Variants：DefineKeyword、SetMacros、GetVariantKey、EnumerateVariants、Precompile；运行时 SetMacros/SelectVariant 动态切换宏。  
-Cache：LoadCache、SaveCache、Invalidate、与 Resource 集成。  
-HotReload：ReloadShader、OnSourceChanged、NotifyShaderUpdated；可选文件监听或编辑器触发。  
+Compilation：LoadSource(path, format)、LoadSourceFromMemory、Compile(handle, CompileOptions)、GetBytecode、GetTargetBackend、GetLastError；CompileOptions 含 stage（ShaderStage）、entryPoint、optimizationLevel、generateDebugInfo。  
+Variants：DefineKeyword、SetMacros、GetVariantKey、SelectVariant、EnumerateVariants、Precompile；运行时 SetMacros/SelectVariant 动态切换宏。  
+Cache：SetCache、LoadCache、SaveCache、Invalidate、与 Resource 集成。  
+Reflection（与 009 对接）：GetReflection(handle, UniformLayoutDesc*)、GetShaderReflection(handle, ShaderReflectionDesc*)、GetVertexInputReflection(handle, VertexFormatDesc*)；从 SPIR-V 解析 Uniform/资源绑定/顶点 stage_inputs，供 Material 与 PSO 顶点布局比对。  
+HotReload：CreateShaderHotReload、ReloadShader、OnSourceChanged、NotifyShaderUpdated；可选文件监听或编辑器触发。  
 Graph：NodeGraph、ExportSource/IR、与 Material 联动。
 
 ### 5.3 子模块依赖图
@@ -65,7 +67,7 @@ flowchart LR
 ### 6.1 和上下游交互、传递的数据类型
 
 - **上游**：Core（文件、字符串）、RHI（后端类型、提交字节码）、RenderCore（Uniform 布局约定）、**013-Resource**（010 依赖 013 契约，如 ResourceId/资源生命周期约定；013 在 Load(Shader) 时调用 010 CreateShader/Compile，传入内存中的描述/源码）。  
-- **下游**：Material、Pipeline、Effects。向下游提供：ShaderHandle、VariantKey、Bytecode、Reflection（可选）。**数据归属**：Shader 资产由 013 以 IShaderResource 内部持有；010 仅产出的 ShaderHandle/字节码交给 013，010 对 IResource 不可见。
+- **下游**：Material、Pipeline、Effects。向下游提供：ShaderHandle、VariantKey、Bytecode、Reflection（UniformLayoutDesc、ShaderReflectionDesc、VertexFormatDesc，需链接 te_rendercore）。**数据归属**：Shader 资产由 013 以 IShaderResource 内部持有；010 仅产出的 ShaderHandle/字节码交给 013，010 对 IResource 不可见。
 
 ### 6.2 上下游依赖图
 
@@ -88,11 +90,12 @@ flowchart TB
 
 | 类别 | 内容 |
 |------|------|
-| **编译器** | glslang、ShaderConductor、DXC、Xcode Metal 编译器，或引擎自研编译器 |
-| **中间格式** | SPIR-V、DXIL、MSL，与 RHI 后端一一对应 |
-| **可选** | Shader 反射（SPIR-V 解析）用于 Uniform 布局、RenderDoc 等调试工具 |
+| **编译器/转译** | glslang（GLSL/HLSL→SPIR-V）、SPIRV-Cross（SPIR-V→MSL/HLSL 源码）、DXC（HLSL→DXIL，D3D12）；vulkan-headers 与 RHI 共用 |
+| **中间格式** | SPIR-V、DXIL、MSL、HLSL 源码，与 RHI 后端对应（SPIRV→Vulkan、DXIL→D3D12、MSL→Metal、HLSL_SOURCE→D3D11 等） |
+| **反射** | 基于 SPIRV-Cross 解析 SPIR-V：Uniform 块、Texture/Sampler 绑定、顶点 stage_inputs→VertexFormatDesc，与 009-RenderCore 类型对接 |
 | **协议** | 无 |
 
 ## 待办
 
 - **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
+- **已实现**（2026-02-10）：四后端编译（SPIRV/DXIL/MSL/HLSL_SOURCE）、CompileOptions(stage/entryPoint/optimizationLevel/generateDebugInfo)、GetReflection/GetShaderReflection/GetVertexInputReflection 与 009 类型对接；契约见 specs/_contracts/010-shader-ABI.md、010-shader-public-api.md。

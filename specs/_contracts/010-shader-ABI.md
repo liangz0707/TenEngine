@@ -17,7 +17,8 @@
 | 010-Shader | te::shader | ShaderSourceFormat | 枚举 | 源码格式 | te/shader/types.hpp | `enum class ShaderSourceFormat { HLSL, GLSL };` 支持 HLSL/GLSL 加载与编译 |
 | 010-Shader | te::shader | MacroSet | struct | 宏名-值集合 | te/shader/types.hpp | 用于宏切换代码路径 |
 | 010-Shader | te::shader | VariantKey | struct | 变体键 | te/shader/types.hpp | 关键字/宏组合；变体枚举与预编译 |
-| 010-Shader | te::shader | CompileOptions | struct | 编译选项 | te/shader/types.hpp | 编译参数描述 |
+| 010-Shader | te::shader | ShaderStage | 枚举 | 着色器阶段 | te/shader/types.hpp | `enum class ShaderStage { Vertex, Fragment, Compute, Geometry, TessControl, TessEvaluation, Unknown };` Unknown 时由路径或默认 Vertex 推断 |
+| 010-Shader | te::shader | CompileOptions | struct | 编译选项 | te/shader/types.hpp | targetBackend, optimizationLevel, generateDebugInfo, stage, entryPoint[kMaxEntryPointLen]；编译参数与后端选项 |
 | 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL, HLSL_SOURCE };` HLSL_SOURCE 为 SPIRV-Cross 产出 |
 | 010-Shader | te::shader | IVariantEnumerator | 抽象接口 | 变体枚举回调 | te/shader/types.hpp | 虚析构；用于 EnumerateVariants 输出 |
 | 010-Shader | te::shader | SourceChangedCallback | 类型别名 | 源码变更回调 | te/shader/types.hpp | `using SourceChangedCallback = void (*)(char const* path, void* userData);` |
@@ -40,6 +41,7 @@
 | 010-Shader | te::shader | IShaderCompiler::ReleaseHandle | 成员函数 | 释放句柄 | te/shader/compiler.hpp | `void ReleaseHandle(IShaderHandle* handle) = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::GetReflection | 成员函数 | 取 Uniform 反射 | te/shader/compiler.hpp | `bool GetReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::UniformLayoutDesc* |
 | 010-Shader | te::shader | IShaderCompiler::GetShaderReflection | 成员函数 | 取完整反射 | te/shader/compiler.hpp | `bool GetShaderReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::ShaderReflectionDesc*；含 Uniform、Texture、Sampler |
+| 010-Shader | te::shader | IShaderCompiler::GetVertexInputReflection | 成员函数 | 取顶点输入反射 | te/shader/compiler.hpp | `bool GetVertexInputReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::VertexFormatDesc*；从 SPIR-V vertex stage 的 stage_inputs 解析，供 PSO 与 Mesh 顶点布局比对 |
 
 ### 工厂（te/shader/factory.hpp）
 
@@ -83,7 +85,7 @@
 
 | 头文件 | 依赖 | 说明 |
 |--------|------|------|
-| te/shader/types.hpp | \<cstddef\> | ShaderSourceFormat, MacroSet, VariantKey, CompileOptions, SourceChangedCallback |
+| te/shader/types.hpp | \<cstddef\>, \<cstdint\> | ShaderSourceFormat, BackendType, ShaderStage, MacroSet, VariantKey, CompileOptions, IVariantEnumerator, SourceChangedCallback |
 | te/shader/compiler.hpp | te/shader/types.hpp, te/shader/handle.hpp, te/shader/cache.hpp（前向声明） | IShaderCompiler |
 | te/shader/factory.hpp | te/shader/compiler.hpp, te/shader/cache.hpp, te/shader/hot_reload.hpp | Create/Destroy 工厂 |
 | te/shader/handle.hpp | te/shader/types.hpp | IShaderHandle |
