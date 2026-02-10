@@ -234,6 +234,10 @@ void TextureResource::EnsureDeviceResourcesAsync(void (*on_done)(void*), void* u
   texture::EnsureDeviceResourcesAsync(m_textureHandle, m_device, on_done, user_data);
 }
 
+bool TextureResource::IsDeviceReady() const {
+  return GetDeviceTexture() != nullptr;
+}
+
 void TextureResource::OnLoadComplete() {}
 
 void TextureResource::OnPrepareSave() {}

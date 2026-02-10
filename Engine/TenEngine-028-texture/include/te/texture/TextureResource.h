@@ -43,6 +43,7 @@ class TextureResource : public resource::ITextureResource {
   bool Import(char const* sourcePath, resource::IResourceManager* manager) override;
   void EnsureDeviceResources() override;
   void EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) override;
+  bool IsDeviceReady() const override;
 
   TextureHandle GetTextureHandle() const { return m_textureHandle; }
   void const* GetPixelData() const;
