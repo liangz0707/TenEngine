@@ -33,6 +33,7 @@
 | 013-Resource | te::resource | IResource | 抽象基类 | 保存资源 | te/resource/Resource.h | IResource::Save | `bool Save(char const* path, IResourceManager* manager);` 虚函数，有默认实现（调用 OnPrepareSave）；子类应重写以调用 SaveAssetDesc<T>、SaveDataFile 等 |
 | 013-Resource | te::resource | IResource | 抽象基类 | 导入资源 | te/resource/Resource.h | IResource::Import | `bool Import(char const* sourcePath, IResourceManager* manager);` 虚函数，有默认实现（调用 DetectFormat、OnConvertSourceFile、OnCreateAssetDesc、GenerateGUID、SaveAssetDesc、SaveDataFile） |
 | 013-Resource | te::resource | IResource | 抽象基类 | 创建设备资源 | te/resource/Resource.h | IResource::EnsureDeviceResources | `void EnsureDeviceResources();` 虚函数，默认实现为空；创建 GPU 资源（DResource）；013 不参与，由子类调用 008-RHI |
+| 013-Resource | te::resource | IResource | 抽象基类 | 查询设备资源是否就绪 | te/resource/Resource.h | IResource::IsDeviceReady | `virtual bool IsDeviceReady() const;` 默认返回 false；028 TextureResource、011 MaterialResource 等重写；020 在 Prepare 后、录制前可过滤未就绪项 |
 | 013-Resource | te::resource | IResource | 抽象基类 | 异步创建设备资源 | te/resource/Resource.h | IResource::EnsureDeviceResourcesAsync | `void EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data);` 虚函数，默认实现为空；异步创建 GPU 资源 |
 | 013-Resource | te::resource | IResource | 保护模板方法 | 加载 AssetDesc | te/resource/Resource.h | IResource::LoadAssetDesc<T> | `template<typename T> std::unique_ptr<T> LoadAssetDesc(char const* path);` protected 模板方法；读取 AssetDesc 文件并反序列化（调用 002-Object）；需要 AssetDescTypeName<T> 特化 |
 | 013-Resource | te::resource | IResource | 保护模板方法 | 保存 AssetDesc | te/resource/Resource.h | IResource::SaveAssetDesc<T> | `template<typename T> bool SaveAssetDesc(char const* path, T const* desc);` protected 模板方法；序列化 AssetDesc 并写入文件（调用 002-Object）；需要 AssetDescTypeName<T> 特化 |
@@ -77,4 +78,4 @@
 
 | 日期 | 变更说明 |
 |------|----------|
-| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用 |
+| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用；IResource 增加 IsDeviceReady() 虚函数（默认 false），028/011 等重写，020 用于录制前过滤 |

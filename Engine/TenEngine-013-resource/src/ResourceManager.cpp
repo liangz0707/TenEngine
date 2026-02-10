@@ -13,6 +13,7 @@
 #include <te/resource/ResourceManager.h>
 #include <te/resource/Resource.h>
 #include <te/resource/ResourceTypes.h>
+#include <te/resource/ResourceId.h>
 #include <te/object/TypeRegistry.h>
 #include <te/core/thread.h>
 #include <te/core/alloc.h>
@@ -415,16 +416,18 @@ public:
     }
     
     StreamingHandle RequestStreaming(ResourceId id, int priority) override {
-        // Placeholder: streaming not fully implemented yet
-        (void)id;
-        (void)priority;
-        return nullptr;
+        std::lock_guard<std::mutex> lock(streaming_mutex_);
+        uintptr_t h = next_streaming_handle_++;
+        streaming_requests_[h] = { id, priority };
+        return reinterpret_cast<StreamingHandle>(h);
     }
-    
+
     void SetStreamingPriority(StreamingHandle h, int priority) override {
-        // Placeholder: streaming not fully implemented yet
-        (void)h;
-        (void)priority;
+        if (!h) return;
+        std::lock_guard<std::mutex> lock(streaming_mutex_);
+        auto it = streaming_requests_.find(reinterpret_cast<uintptr_t>(h));
+        if (it != streaming_requests_.end())
+            it->second.priority = priority;
     }
     
     void RegisterResourceFactory(ResourceType type, ResourceFactory factory) override {
@@ -582,6 +585,12 @@ private:
     // Dependency graph (for cycle detection)
     mutable std::mutex dep_graph_mutex_;
     std::unordered_map<ResourceId, std::vector<ResourceId>> dep_graph_;
+
+    // Streaming requests (id + priority; actual load-by-priority can be wired later)
+    struct StreamingEntry { ResourceId id; int priority; };
+    mutable std::mutex streaming_mutex_;
+    std::unordered_map<uintptr_t, StreamingEntry> streaming_requests_;
+    uintptr_t next_streaming_handle_ = 1;
     
     /**
      * Resolve path to ResourceId (for cache lookup).

@@ -57,6 +57,7 @@ IResource 是所有可加载资源的统一基类。各资源类型（Mesh、Tex
 - `Save(path, manager) -> bool`：保存资源；默认实现调用 OnPrepareSave()；子类应重写以调用 SaveAssetDesc<T>、SaveDataFile 等
 - `Import(sourcePath, manager) -> bool`：导入资源；默认实现调用 DetectFormat、OnConvertSourceFile、OnCreateAssetDesc、GenerateGUID、SaveAssetDesc、SaveDataFile
 - `EnsureDeviceResources()`：创建 GPU 资源（DResource）；默认实现为空
+- `IsDeviceReady() const -> bool`：查询 DResource 是否就绪；默认返回 false；028 TextureResource、011 MaterialResource 等重写；020 在 Prepare 后、录制前可过滤未就绪项
 - `EnsureDeviceResourcesAsync(on_done, user_data)`：异步创建 GPU 资源；默认实现为空
 
 **保护虚拟钩子方法**（子类可选择性重写）：
@@ -285,7 +286,7 @@ ResourceManager::Import(path, type)
 
 | 日期 | 变更说明 |
 |------|----------|
-| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用 |
+| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用；IResource 增加 IsDeviceReady() 虚方法（默认 false），028/011 等重写，020 用于录制前过滤 |
 
 ---
 

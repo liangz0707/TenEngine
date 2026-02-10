@@ -122,7 +122,13 @@ class IResource {
    * Subclasses call 008-RHI (or via 028/011/012) to create GPU resources.
    */
   virtual void EnsureDeviceResources() {}
-  
+
+  /**
+   * Whether GPU (DResource) is ready for use (e.g. after EnsureDeviceResources).
+   * Default false; subclasses (028/011/012) override when applicable.
+   */
+  virtual bool IsDeviceReady() const { return false; }
+
   virtual void EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) {
     (void)on_done;
     (void)user_data;
