@@ -17,6 +17,7 @@ enum class ResourceType {
   Terrain,
   Shader,
   Audio,
+  Level,   // Level/关卡资源，029-World 持有并加载
   Custom,
   // Reserve for extension
   _Count

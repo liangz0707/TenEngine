@@ -22,7 +22,7 @@
 | 004-Scene | te::scene | Frustum | struct | 视锥体 | te/scene/SceneTypes.h | Frustum | planes[6][4]，用于视锥剔除 |
 | 004-Scene | te::scene | SceneDesc | struct | 场景描述（根节点列表） | te/scene/SceneDesc.h | SceneDesc | roots(std::vector\<SceneNodeDesc\>)；用于 CreateSceneFromDesc |
 | 004-Scene | te::scene | SceneNodeDesc | struct | 节点描述（name、localTransform、children、opaqueUserData） | te/scene/SceneDesc.h | SceneNodeDesc | 004 不解析 opaqueUserData；由 029 填充并传给 NodeFactoryFn |
-| 004-Scene | te::scene | NodeFactoryFn | 类型别名 | 节点工厂：ISceneNode*(SceneNodeDesc const&) | te/scene/SceneManager.h | NodeFactoryFn | std::function\<ISceneNode*(SceneNodeDesc const&)\>；CreateSceneFromDesc 时由 029 提供 |
+| 004-Scene | te::scene | NodeFactoryFn | 类型别名 | 节点工厂：ISceneNode*(SceneNodeDesc const&, WorldRef) | te/scene/SceneManager.h | NodeFactoryFn | std::function\<ISceneNode*(SceneNodeDesc const&, WorldRef)\>；CreateSceneFromDesc 时由 029 提供，WorldRef 为当前正在构建的世界 |
 
 ### 场景管理器（SceneManager 单例）
 

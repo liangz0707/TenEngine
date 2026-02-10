@@ -35,7 +35,7 @@
 | Quadtree | 四叉树空间索引（内部实现）：2D空间索引实现 | StaticNodeManager内部使用 |
 | SceneDesc | 场景描述：roots（根节点描述列表）；仅 Core 类型，004 定义 | CreateSceneFromDesc 入参 |
 | SceneNodeDesc | 节点描述：name、localTransform、children、opaqueUserData；004 不解析 opaqueUserData | CreateSceneFromDesc 树形结构 |
-| NodeFactoryFn | 节点工厂回调：ISceneNode*(SceneNodeDesc const&)；由 029 提供 | CreateSceneFromDesc 时创建节点 |
+| NodeFactoryFn | 节点工厂回调：ISceneNode*(SceneNodeDesc const&, WorldRef)；由 029 提供，WorldRef 为当前正在构建的世界 | CreateSceneFromDesc 时创建节点 |
 
 ### 能力（提供方保证）
 

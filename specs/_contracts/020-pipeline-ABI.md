@@ -29,4 +29,7 @@
 
 ---
 
-数据与接口 TODO 已迁移至本模块契约 [020-pipeline-public-api.md](./020-pipeline-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
+## 实现说明
+
+- **待渲染项来源**：由 **029-World WorldManager::CollectRenderables** 提供；Pipeline 经此接口获取 RenderableItem 列表，不再直接使用 004 GetNodeModelGuid / 005 GetModelGuid。依赖 029-World 模块。
+- 数据与接口 TODO 已迁移至本模块契约 [020-pipeline-public-api.md](./020-pipeline-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。

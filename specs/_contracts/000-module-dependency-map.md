@@ -29,7 +29,7 @@
 | 017-UICore | Core, Application, Input | 001-core-public-api.md, 003-application-public-api.md, 006-input-public-api.md |
 | 018-UI | UICore | 017-uicore-public-api.md |
 | 019-PipelineCore | RHI, RenderCore | 008-rhi-public-api.md, 009-rendercore-public-api.md |
-| 020-Pipeline | Core, Scene, Entity, PipelineCore, RenderCore, Shader, Material, Mesh, Texture, Resource, Effects；Animation（可选） | 见 pipeline-to-rci.md 及各上游契约 |
+| 020-Pipeline | Core, Scene, Entity, World, PipelineCore, RenderCore, Shader, Material, Mesh, Texture, Resource, Effects；Animation（可选） | 见 pipeline-to-rci.md 及各上游契约；待渲染项经 029 CollectRenderables 获取 |
 | 021-Effects | PipelineCore, RenderCore, Shader, Texture | 019-pipelinecore-public-api.md, 009-rendercore-public-api.md, 010-shader-public-api.md, 028-texture-public-api.md |
 | 022-2D | Core, Resource, Physics, Pipeline, RenderCore, Texture | 001-core-public-api.md, 013-resource-public-api.md, 014-physics-public-api.md, 020-pipeline-public-api.md, 009-rendercore-public-api.md, 028-texture-public-api.md |
 | 023-Terrain | Core, Resource, Mesh, Pipeline, RenderCore, Texture | 001-core-public-api.md, 013-resource-public-api.md, 012-mesh-public-api.md, 020-pipeline-public-api.md, 009-rendercore-public-api.md, 028-texture-public-api.md |
@@ -50,7 +50,7 @@
 | 提供方模块 | 依赖它的下游 |
 |------------|--------------|
 | 001-Core | 002, 003, 004, 005, 006, 007, 008, 009, 010, 012, 013, 014, 015, 016, 017, 020, 022, 023, 024, 026, 027, 028 |
-| 002-Object | 004, 005, 007, 010（ShaderAssetDesc 注册）, 013, 015 |
+| 002-Object | 005, 007, 010（ShaderAssetDesc 注册）, 013, 015 |
 | 003-Application | 006, 017, 024 |
 | 004-Scene | 005, 014, 020, 024, 029 |
 | 005-Entity | 014, 015, 020, 024, 026 |
@@ -77,7 +77,7 @@
 | 026-Networking | — |
 | 027-XR | — |
 | 028-Texture | 011, 013（CreateTexture）, 020, 021, 022, 023, 024 |
-| 029-World | 020, 024（可选；需 Level 句柄时） |
+| 029-World | 020（CollectRenderables）、024（可选；需 Level 句柄时） |
 | 030-DeviceResourceManager | 028（EnsureDeviceResources 创建 GPU 纹理） |
 
 **流程**：修改某模块的公开 API → 更新对应 `NNN-modulename-public-api.md` 与 ABI → 在上表中查「依赖它的下游」，确认下游 spec 或实现是否需要同步修改。

@@ -39,7 +39,7 @@ IResource 是所有可加载资源的统一基类。各资源类型（Mesh、Tex
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
 | **IResource** | 可加载资源的统一基类；提供通用的文件加载、GUID 管理、序列化调用、依赖解析等逻辑；各资源类型继承并实现 Load、Save、Import 方法 | 013 缓存或下游经 ResourceId/句柄解析持有 |
-| **ResourceType** | 资源类型枚举（Texture、Mesh、Material、Model、Effect、Terrain、Shader、Audio 等）；用于请求加载与 IResource::GetResourceType() | 与类型绑定 |
+| **ResourceType** | 资源类型枚举（Texture、Mesh、Material、Model、Effect、Terrain、Shader、Audio、**Level**、Custom 等）；用于请求加载与 IResource::GetResourceType()；Level 供 029-World 关卡加载 | 与类型绑定 |
 | **ResourceId / GUID** | 资源全局唯一标识；缓存键、FResource 间引用、可寻址路径、与 Object 引用解析对接；`using ResourceId = object::GUID;` | 与资源绑定 |
 
 #### IResource 核心方法
@@ -278,6 +278,14 @@ ResourceManager::Import(path, type)
 | 12 | **资源工厂混合机制** | 优先使用 002-Object TypeRegistry，回退到 ResourceFactory 函数指针 |
 
 *Desc 归属：ModelAssetDesc、IModelResource→029-World；TextureAssetDesc→028-Texture；ShaderAssetDesc→010，MaterialAssetDesc→011，LevelAssetDesc/SceneNodeDesc→029，MeshAssetDesc→012。各资源类型拥有自己的 AssetDesc，通过 002-Object 注册和序列化。*
+
+---
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用 |
 
 ---
 

@@ -26,45 +26,31 @@ namespace entity {
 class ComponentQuery {
 public:
     /**
-     * @brief Query Entities with a specific component type
-     * @tparam T Component type
-     * @param out Output vector to store matching Entities
-     */
-    template<typename T>
-    static void Query(std::vector<Entity*>& out);
-    
-    /**
-     * @brief Query Entities with multiple component types (AND query)
-     * @tparam Components Component types
+     * @brief Query Entities with one or more component types (AND query)
+     * @tparam Components Component types (single or multiple)
      * @param out Output vector to store matching Entities
      */
     template<typename... Components>
     static void Query(std::vector<Entity*>& out);
     
     /**
-     * @brief Iterate over Entities with a specific component type
+     * @brief Iterate over Entities with one component type
      * @tparam T Component type
      * @param callback Callback function called for each matching Entity
      */
     template<typename T>
     static void ForEach(std::function<void(Entity*, T*)> const& callback);
-    
+
     /**
      * @brief Iterate over Entities with multiple component types
-     * @tparam Components Component types
+     * @tparam Components Component types (two or more)
      * @param callback Callback function called for each matching Entity
      */
     template<typename... Components>
     static void ForEach(std::function<void(Entity*, Components*...)> const& callback);
 };
 
-// Template implementations
-template<typename T>
-void ComponentQuery::Query(std::vector<Entity*>& out) {
-    EntityManager& mgr = EntityManager::GetInstance();
-    mgr.QueryEntitiesWithComponent<T>(out);
-}
-
+// Template implementations (single and multi-component use the same variadic path)
 template<typename... Components>
 void ComponentQuery::Query(std::vector<Entity*>& out) {
     EntityManager& mgr = EntityManager::GetInstance();

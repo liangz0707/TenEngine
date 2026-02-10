@@ -22,8 +22,8 @@ namespace scene {
 // Forward declaration
 class SceneWorld;
 
-/** Node factory: create ISceneNode* from node description; used by CreateSceneFromDesc. */
-using NodeFactoryFn = std::function<ISceneNode*(SceneNodeDesc const&)>;
+/** Node factory: create ISceneNode* from node description and world; used by CreateSceneFromDesc. */
+using NodeFactoryFn = std::function<ISceneNode*(SceneNodeDesc const&, WorldRef)>;
 
 /**
  * @brief Scene manager singleton

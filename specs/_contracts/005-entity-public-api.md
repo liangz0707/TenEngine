@@ -29,9 +29,9 @@
 | 1 | 实体 | Entity::Create、Entity::Destroy、Entity::GetSceneNode、Entity::SetEnabled、Entity::IsEnabled；Entity直接实现ISceneNode接口；生命周期与Scene节点绑定 |
 | 2 | 组件 | Component基类；Entity::AddComponent、Entity::GetComponent、Entity::RemoveComponent、Entity::HasComponent；ComponentRegistry::RegisterComponentType；与Object反射联动；Entity模块不提供具体Component实现 |
 | 3 | 变换 | Entity通过ISceneNode接口管理变换：GetLocalTransform、SetLocalTransform、GetWorldTransform、GetWorldMatrix；与Scene节点共用 |
-| 4 | Entity管理器 | EntityManager::CreateEntity、EntityManager::DestroyEntity、EntityManager::GetEntity、EntityManager::FindEntityByName、EntityManager::GetEntitiesInWorld；EntityManager::QueryEntitiesWithComponent、EntityManager::QueryEntitiesWithComponents |
-| 5 | 组件查询 | ComponentQuery::Query（单组件和多组件AND查询）、ComponentQuery::ForEach（迭代查询） |
-| 6 | 组件注册 | IComponentRegistry::RegisterComponentType、IComponentRegistry::GetComponentTypeInfo、IComponentRegistry::IsComponentTypeRegistered；GetComponentRegistry获取注册表单例 |
+| 4 | Entity管理器 | EntityManager::CreateEntity、EntityManager::DestroyEntity、EntityManager::GetEntity、EntityManager::FindEntityByName、EntityManager::GetEntitiesInWorld；EntityManager::QueryEntitiesWithComponents（变参，单/多组件统一）；DestroyEntity(Entity*) 使用 entity->GetWorldRef() 从名册移除 |
+| 5 | 组件查询 | ComponentQuery::Query\<Components...\>（变参 AND，单组件与多组件统一）、ComponentQuery::ForEach（单组件与多组件迭代） |
+| 6 | 组件注册 | IComponentRegistry::RegisterComponentType\<T\>（头文件实现，调 RegisterComponentTypeByNameAndSize）、RegisterComponentTypeByNameAndSize(name, size)；GetComponentTypeInfo、IsComponentTypeRegistered；GetComponentRegistry 获取注册表单例；029 等可在自身 TU 实例化 RegisterComponentType\<ModelComponent\> |
 | 7 | 可选ECS | System基类、SystemManager::RegisterSystem、SystemManager::UnregisterSystem、SystemManager::SetExecutionOrder、SystemManager::Update；SystemExecutionOrder枚举（PreUpdate、Update、PostUpdate、Render、PostRender） |
 
 ## 架构说明
@@ -81,8 +81,8 @@
 - [x] **ComponentQuery**：组件查询系统
 - [x] **ComponentRegistry**：组件类型注册系统
 - [x] **ECS系统**：System和SystemManager
-- [ ] **数据**：Component属性按002可序列化约定；跨资源引用仅存ResourceId
-- [ ] **接口**：CreateEntityFromPrefab(prefabDesc)，prefabDesc由调用方加载得到
+- [x] **数据约定**：Component 属性按 002 可序列化、跨资源引用仅存 ResourceId 由各组件实现方（如 029）遵守；005 提供扩展点，不在此实现具体序列化
+- [x] **Prefab 入口**：CreateEntityFromPrefab 由 029-World 提供（本模块仅提供 Entity/Component 创建与挂载能力，供 029 节点工厂使用）
 
 ## 变更记录
 
@@ -92,3 +92,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格；去除冗余衔接说明 |
 | 2026-02-06 | 实现ModelComponent的ResourceId支持；实现Entity-Node资源自动同步；增加资源查询接口 |
 | 2026-02-06 | 架构重构：Entity直接实现ISceneNode接口；移除ModelComponent和TransformComponent实现；Entity模块不提供具体Component实现；添加Component使用指南文档 |
+| 2026-02-10 | 组件查询统一为 ComponentQuery::Query\<Components...\>；组件注册增加 RegisterComponentTypeByNameAndSize，便于 029 等模块在自身 TU 注册组件类型；EntityManager::DestroyEntity(Entity*) 使用 GetWorldRef 从名册移除 |

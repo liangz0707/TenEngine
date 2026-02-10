@@ -21,7 +21,7 @@
 | DrawCall 接口 | 批次、材质/网格/变换、实例化与合批；与 Material/Mesh/Shader 对接 | 单次 Pass 或帧 |
 | VisibleSet / BatchList | 可见实体/组件、批次列表；CollectVisible、FrustumCull、SelectLOD、BuildBatches | 单帧 |
 
-收集：从 004-Scene/005-Entity 收集可见节点或实体（ResourceId/句柄）；经 013 解析为 IModelResource*；EnsureDeviceResources 触发 011/012/028 创建 DResource；与 019 PrepareRenderMaterial/PrepareRenderMesh 对接。命令缓冲与 RHI 提交见 `pipeline-to-rci.md`。
+收集：待渲染项由 **029-World WorldManager::CollectRenderables**（LevelHandle 或 SceneRef）统一提供；回调得到 RenderableItem（worldMatrix、modelResource、submeshIndex）；020 不依赖 004 节点 modelGuid 或 005 GetModelGuid，由 029 遍历带 ModelComponent 的 Entity 并填充 RenderableItem。经 013 解析/缓存 IModelResource；EnsureDeviceResources 触发 011/012/028 创建 DResource；与 019 PrepareRenderMaterial/PrepareRenderMesh 对接。命令缓冲与 RHI 提交见 `pipeline-to-rci.md`。
 
 ### 能力（提供方保证）
 
@@ -46,7 +46,7 @@
 
 - [ ] **资源解析**：从 Scene/Entity 收集可见节点或实体（ResourceId/句柄）；经 013 LoadSync/GetCached 解析为 IModelResource* 等；不长期持有 IResource*。
 - [ ] **EnsureDeviceResources**：提交绘制前对资源句柄/ResourceId 调用 EnsureDeviceResources（或 Async），触发 011/012/028 创建 DResource；LOD 流式经 013 RequestStreaming/SetPriority 对接。
-- [ ] **数据与流程**：FrameContext 含 scene、camera、viewport、frameSlotId；待渲染项来源 004 节点 modelGuid、005 ModelComponent.modelGuid；IRenderPipeline::RenderFrame(ctx)/TriggerRender(ctx)、SubmitLogicalCommandBuffer(logical_cb) 在线程 D；取待渲染项 004.GetNodeModelGuid、005.GetModelGuid，013 LoadSync/RequestLoadAsync，019 CollectRenderItemsParallel、PrepareRenderMaterial/Mesh，013 IsDeviceReady，009 Bind/008 SetUniformBuffer，013 RequestStreaming/SetStreamingPriority。
+- [ ] **数据与流程**：FrameContext 含 scene、camera、viewport、frameSlotId；待渲染项来源 **029 WorldManager::CollectRenderables**（遍历节点，对带 ModelComponent 的 Entity 得到 RenderableItem）；IRenderPipeline::RenderFrame(ctx)/TriggerRender(ctx)、SubmitLogicalCommandBuffer(logical_cb) 在线程 D；经 029 CollectRenderables 取待渲染项，013 LoadSync/RequestLoadAsync 解析 modelResource，019 CollectRenderItemsParallel、PrepareRenderMaterial/Mesh，013 IsDeviceReady，009 Bind/008 SetUniformBuffer，013 RequestStreaming/SetStreamingPriority。
 
 ## 变更记录
 
@@ -54,3 +54,4 @@
 |------|----------|
 | T0 新增 | 020-Pipeline 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
+| 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用 |

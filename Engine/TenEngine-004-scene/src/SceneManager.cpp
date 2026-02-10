@@ -250,12 +250,11 @@ SceneWorld* SceneManager::GetWorld(WorldRef world) const {
 namespace {
 
 void CreateSceneFromDescRecurse(SceneManager& mgr,
-                                SceneWorld* worldPtr,
                                 WorldRef worldRef,
                                 SceneNodeDesc const& nodeDesc,
                                 ISceneNode* parentNode,
                                 NodeFactoryFn const& factory) {
-    ISceneNode* node = factory(nodeDesc);
+    ISceneNode* node = factory(nodeDesc, worldRef);
     if (!node) {
         return;
     }
@@ -270,7 +269,7 @@ void CreateSceneFromDescRecurse(SceneManager& mgr,
     }
 
     for (SceneNodeDesc const& childDesc : nodeDesc.children) {
-        CreateSceneFromDescRecurse(mgr, worldPtr, worldRef, childDesc, node, factory);
+        CreateSceneFromDescRecurse(mgr, worldRef, childDesc, node, factory);
     }
 }
 
@@ -291,7 +290,7 @@ WorldRef SceneManager::CreateSceneFromDesc(SpatialIndexType indexType,
     }
 
     for (SceneNodeDesc const& rootDesc : desc.roots) {
-        CreateSceneFromDescRecurse(*this, worldPtr, worldRef, rootDesc, nullptr, factory);
+        CreateSceneFromDescRecurse(*this, worldRef, rootDesc, nullptr, factory);
     }
 
     return worldRef;

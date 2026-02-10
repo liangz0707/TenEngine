@@ -15,7 +15,7 @@
 | 013-Resource | te::resource | — | 概念/类型 | 硬盘形态资源 | te/resource/FResource.h | FResource | 硬盘上的资源表示；引用其他资源仅通过**全局唯一 GUID**；**硬盘加载使用 FResource**；部分资源可能仅存在 F 形态 |
 | 013-Resource | te::resource | — | 概念/类型 | 运行时形态资源 | te/resource/RResource.h | RResource | 内存中的资源表示；根据 FResource 的引用通过**指针**引用其他 RResource；**DResource 直接保存在 RResource 内部**；**内存引用使用 RResource**；部分资源可能仅存在 R 形态 |
 | 013-Resource | te::resource | — | 概念/类型 | GPU 形态资源 | te/resource/DResource.h | DResource | **GPU 类型资源**；不单独作为跨对象引用，**保存在 RResource 内部**，由 RResource 管理生命周期与绑定 |
-| 013-Resource | te::resource | — | 枚举 | 资源类型 | te/resource/ResourceTypes.h | ResourceType | `enum class ResourceType { Texture, Mesh, Material, Model, Effect, Terrain, Shader, Audio, Custom, _Count };` 所有类型均经统一 RequestLoadAsync 加载 |
+| 013-Resource | te::resource | — | 枚举 | 资源类型 | te/resource/ResourceTypes.h | ResourceType | `enum class ResourceType { Texture, Mesh, Material, Model, Effect, Terrain, Shader, Audio, Level, Custom, _Count };` 所有类型均经统一 RequestLoadAsync 加载；Level 供 029-World 关卡加载使用 |
 | 013-Resource | te::resource | — | 枚举 | 加载状态 | te/resource/ResourceTypes.h | LoadStatus | `enum class LoadStatus { Pending, Loading, Completed, Failed, Cancelled };` 定义在 ResourceTypes.h 中 |
 | 013-Resource | te::resource | — | 枚举 | 加载结果 | te/resource/ResourceTypes.h | LoadResult | `enum class LoadResult { Ok, NotFound, Error, Cancelled };` 定义在 ResourceTypes.h 中 |
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | **统一**资源异步加载接口（线程安全） | te/resource/ResourceManager.h | IResourceManager::RequestLoadAsync | `LoadRequestId RequestLoadAsync(char const* path, ResourceType type, LoadCompleteCallback on_done, void* user_data);` 异步加载入口；创建资源实例并调用 IResource::LoadAsync；线程安全 |
@@ -72,3 +72,9 @@
 | 013-Resource | te::resource | IResourceManager | 抽象接口 | 寻址解析 | te/resource/ResourceManager.h | IResourceManager::ResolvePath | `char const* ResolvePath(ResourceId id) const;` GUID→路径；未解析返回 nullptr；线程安全 |
 
 *来源：用户故事 US-resource-001/002/003。契约能力：Import、Load、Unload、Streaming、Addressing（ResourceId/GUID）。*
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用 |

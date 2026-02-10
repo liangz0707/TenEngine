@@ -54,8 +54,7 @@
 | 005-Entity | te::entity | EntityManager | 类/单例 | 销毁Entity | te/entity/EntityManager.h | EntityManager::DestroyEntity | `void DestroyEntity(EntityId entityId);` `void DestroyEntity(Entity* entity);` |
 | 005-Entity | te::entity | EntityManager | 类/单例 | 获取Entity | te/entity/EntityManager.h | EntityManager::GetEntity | `Entity* GetEntity(EntityId entityId);` |
 | 005-Entity | te::entity | EntityManager | 类/单例 | 按名称查找Entity | te/entity/EntityManager.h | EntityManager::FindEntityByName | `Entity* FindEntityByName(te::scene::WorldRef world, char const* name);` |
-| 005-Entity | te::entity | EntityManager | 类/单例 | 查询有组件的Entity | te/entity/EntityManager.h | EntityManager::QueryEntitiesWithComponent | `template<typename T> void QueryEntitiesWithComponent(std::vector<Entity*>& out);` |
-| 005-Entity | te::entity | EntityManager | 类/单例 | 查询有多组件的Entity | te/entity/EntityManager.h | EntityManager::QueryEntitiesWithComponents | `template<typename... Components> void QueryEntitiesWithComponents(std::vector<Entity*>& out);` |
+| 005-Entity | te::entity | EntityManager | 类/单例 | 查询有指定组件的Entity（变参 AND） | te/entity/EntityManager.h | EntityManager::QueryEntitiesWithComponents | `template<typename... Components> void QueryEntitiesWithComponents(std::vector<Entity*>& out);` 单组件与多组件均用此变参接口 |
 | 005-Entity | te::entity | EntityManager | 类/单例 | 获取World中的Entity | te/entity/EntityManager.h | EntityManager::GetEntitiesInWorld | `void GetEntitiesInWorld(te::scene::WorldRef world, std::vector<Entity*>& out);` |
 | 005-Entity | te::entity | EntityManager | 自由函数 | 获取EntityManager | te/entity/EntityManager.h | GetEntityManager | `EntityManager* GetEntityManager();` 获取EntityManager指针 |
 
@@ -63,8 +62,7 @@
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
-| 005-Entity | te::entity | ComponentQuery | 静态类 | 单组件查询 | te/entity/ComponentQuery.h | ComponentQuery::Query | `template<typename T> static void Query(std::vector<Entity*>& out);` 查询有指定组件的Entity |
-| 005-Entity | te::entity | ComponentQuery | 静态类 | 多组件查询 | te/entity/ComponentQuery.h | ComponentQuery::Query | `template<typename... Components> static void Query(std::vector<Entity*>& out);` 查询有多个组件的Entity（AND查询） |
+| 005-Entity | te::entity | ComponentQuery | 静态类 | 组件查询（变参 AND） | te/entity/ComponentQuery.h | ComponentQuery::Query | `template<typename... Components> static void Query(std::vector<Entity*>& out);` 单组件与多组件均用此变参，内部调 EntityManager::QueryEntitiesWithComponents |
 | 005-Entity | te::entity | ComponentQuery | 静态类 | 单组件迭代 | te/entity/ComponentQuery.h | ComponentQuery::ForEach | `template<typename T> static void ForEach(std::function<void(Entity*, T*)> const& callback);` 迭代有指定组件的Entity |
 | 005-Entity | te::entity | ComponentQuery | 静态类 | 多组件迭代 | te/entity/ComponentQuery.h | ComponentQuery::ForEach | `template<typename... Components> static void ForEach(std::function<void(Entity*, Components*...)> const& callback);` 迭代有多个组件的Entity |
 
@@ -72,7 +70,8 @@
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
-| 005-Entity | te::entity | IComponentRegistry | 抽象接口/单例 | 注册组件类型 | te/entity/ComponentRegistry.h | IComponentRegistry::RegisterComponentType | `template<typename T> void RegisterComponentType(char const* name);` 注册组件类型到Entity和Object模块 |
+| 005-Entity | te::entity | IComponentRegistry | 抽象接口/单例 | 注册组件类型（模板） | te/entity/ComponentRegistry.h | IComponentRegistry::RegisterComponentType | `template<typename T> void RegisterComponentType(char const* name);` 头文件内实现，内部调 RegisterComponentTypeByNameAndSize；注册到 Entity 与 002-Object |
+| 005-Entity | te::entity | IComponentRegistry | 抽象接口/单例 | 按名称与大小注册（类型擦除） | te/entity/ComponentRegistry.h | IComponentRegistry::RegisterComponentTypeByNameAndSize | `virtual void RegisterComponentTypeByNameAndSize(char const* name, std::size_t size) = 0;` 供模板或 029 等模块在自身 TU 实例化 RegisterComponentType<T> |
 | 005-Entity | te::entity | IComponentRegistry | 抽象接口/单例 | 获取类型信息 | te/entity/ComponentRegistry.h | IComponentRegistry::GetComponentTypeInfo | `IComponentTypeInfo const* GetComponentTypeInfo(te::object::TypeId id) const;` `IComponentTypeInfo const* GetComponentTypeInfo(char const* name) const;` |
 | 005-Entity | te::entity | IComponentRegistry | 抽象接口/单例 | 检查类型注册 | te/entity/ComponentRegistry.h | IComponentRegistry::IsComponentTypeRegistered | `bool IsComponentTypeRegistered(te::object::TypeId id) const;` |
 | 005-Entity | te::entity | IComponentTypeInfo | struct | 组件类型信息 | te/entity/ComponentRegistry.h | IComponentTypeInfo | `struct IComponentTypeInfo { TypeId typeId; char const* name; size_t size; };` |
@@ -119,3 +118,4 @@
 |------|----------|
 | T0 新增 | 005-Entity ABI |
 | 2026-02-06 | 架构重构：Entity直接实现ISceneNode接口；移除ModelComponent和TransformComponent；更新ABI以反映实际实现 |
+| 2026-02-10 | ComponentQuery 统一为变参 Query\<Components...\>；EntityManager 仅保留 QueryEntitiesWithComponents；IComponentRegistry 增加 RegisterComponentTypeByNameAndSize，RegisterComponentType\<T\> 在头文件内实现 |
