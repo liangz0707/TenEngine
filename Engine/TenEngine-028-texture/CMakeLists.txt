@@ -129,5 +129,8 @@ if(DEFINED TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR)
   target_include_directories(te_texture PRIVATE "${TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR}/include")
 endif()
 
-enable_testing()
-add_subdirectory(tests)
+# 作为上游被引用时不加入测试
+if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()

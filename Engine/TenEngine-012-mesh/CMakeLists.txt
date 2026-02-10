@@ -199,8 +199,8 @@ source_group("Source Files\\Import" FILES
 source_group("Header Files" FILES ${MESH_HEADERS})
 source_group("Header Files\\Detail" FILES include/te/mesh/detail/mesh_data.hpp)
 
-# Enable testing for this module
-enable_testing()
-
-# 012-mesh 本模块测试始终加入
-add_subdirectory(tests)
+# 作为上游被引用时不加入测试（与 009/013 等一致）
+if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()

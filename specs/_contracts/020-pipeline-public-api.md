@@ -38,15 +38,15 @@
 
 ## 约束
 
-- 须在所有上游模块初始化之后使用。与 RHI 的提交格式与时机见 `pipeline-to-rci.md`；与 Editor/XR 的视口与交换链对接须明确。渲染模式（Debug/Hybrid/Resource）可通过编译或运行时配置；校验使用 001-Core 的 CheckWarning/CheckError。
+- 须在所有上游模块初始化之后使用。与 RHI 的提交格式与时机见 `pipeline-to-rci.md`；与 Editor/XR 的视口与交换链对接须明确。渲染模式（Debug/Hybrid/Resource）可通过 RenderingConfig.validationLevel 配置；校验使用 **CheckWarning(config, msg)**、**CheckError(config, msg)**（te/pipeline/RenderingConfig.h）。
 
 ## TODO 列表
 
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
 
-- [ ] **资源解析**：从 Scene/Entity 收集可见节点或实体（ResourceId/句柄）；经 013 LoadSync/GetCached 解析为 IModelResource* 等；不长期持有 IResource*。
-- [ ] **EnsureDeviceResources**：提交绘制前对资源句柄/ResourceId 调用 EnsureDeviceResources（或 Async），触发 011/012/028 创建 DResource；LOD 流式经 013 RequestStreaming/SetPriority 对接。
-- [ ] **数据与流程**：FrameContext 含 scene、camera、viewport、frameSlotId；待渲染项来源 **029 WorldManager::CollectRenderables**（遍历节点，对带 ModelComponent 的 Entity 得到 RenderableItem）；IRenderPipeline::RenderFrame(ctx)/TriggerRender(ctx)、SubmitLogicalCommandBuffer(logical_cb) 在线程 D；经 029 CollectRenderables 取待渲染项，013 LoadSync/RequestLoadAsync 解析 modelResource，019 CollectRenderItemsParallel、PrepareRenderMaterial/Mesh，013 IsDeviceReady，009 Bind/008 SetUniformBuffer，013 RequestStreaming/SetStreamingPriority。
+- [x] **资源解析**：待渲染项由 029 CollectRenderables 提供；经 013 解析/缓存 IModelResource*。
+- [x] **EnsureDeviceResources**：Device 任务内 PrepareRenderResources 触发 011/012 Ensure；019 PrepareRenderMaterial/PrepareRenderMesh 调用 SetDevice+EnsureDeviceResources；LOD 流式在收集后对 mesh 调用 013 RequestStreaming(GetResourceId(), 0)。
+- [x] **数据与流程**：TriggerRender 投递阶段 A 到 Render 线程（BuildLogicalPipeline、CollectRenderablesToRenderItemList、RequestStreaming），阶段 B 到 Device 线程（Prepare、IsDeviceReady 过滤、Convert、按 Pass ExecutePass、录制 Draw、Submit）；CollectRenderablesToRenderItemList 支持可选 cameraPositionWorld 用于 012 SelectLOD；每条 Draw 前 009 Bind、008 SetGraphicsPSO；RenderingConfig 含 ValidationLevel，CheckWarning/CheckError 按配置报告。
 
 ## 变更记录
 
@@ -54,4 +54,4 @@
 |------|----------|
 | T0 新增 | 020-Pipeline 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
-| 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用 |
+| 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用；约束与 TODO 更新：RenderingConfig.validationLevel、CheckWarning/CheckError；TriggerRender 投递、IsDeviceReady 过滤、RequestStreaming、SelectLOD、合批、按 Pass ExecutePass 已实现 |

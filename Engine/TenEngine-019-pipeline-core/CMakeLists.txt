@@ -43,7 +43,8 @@ target_include_directories(te_pipelinecore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/in
 target_link_libraries(te_pipelinecore PUBLIC ${MY_DEPS})
 
 option(BUILD_TESTS "Build unit tests" ON)
-if(BUILD_TESTS)
+# 作为上游被引用时不加入测试
+if(BUILD_TESTS AND NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
