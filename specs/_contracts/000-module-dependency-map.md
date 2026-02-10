@@ -37,8 +37,9 @@
 | 025-Tools | 按需 | 025-tools-public-api.md（按需） |
 | 026-Networking | Core, Entity | 001-core-public-api.md, 005-entity-public-api.md |
 | 027-XR | Core, Subsystems, Input, Pipeline | 001-core-public-api.md, 007-subsystems-public-api.md, 006-input-public-api.md, 020-pipeline-public-api.md |
-| 028-Texture | Core, RHI, RenderCore, Resource | 001-core-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md |
+| 028-Texture | Core, Object, RHI, RenderCore, Resource, 030-DeviceResourceManager | 001-core-public-api.md, 002-object-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md, 030-device-resource-manager-public-api.md |
 | 029-World | Scene, Resource | 004-scene-public-api.md, 013-resource-public-api.md |
+| 030-DeviceResourceManager | Core, RHI, Resource | 001-core-public-api.md, 008-rhi-public-api.md, 013-resource-public-api.md |
 
 ---
 
@@ -77,6 +78,7 @@
 | 027-XR | — |
 | 028-Texture | 011, 013（CreateTexture）, 020, 021, 022, 023, 024 |
 | 029-World | 020, 024（可选；需 Level 句柄时） |
+| 030-DeviceResourceManager | 028（EnsureDeviceResources 创建 GPU 纹理） |
 
 **流程**：修改某模块的公开 API → 更新对应 `NNN-modulename-public-api.md` 与 ABI → 在上表中查「依赖它的下游」，确认下游 spec 或实现是否需要同步修改。
 

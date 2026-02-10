@@ -55,12 +55,12 @@
 | **spdlog** | spdlog | 日志 | [spdlog.md](./spdlog.md) | 001-Core、通用 |
 | **fmt** | fmt | 格式化（spdlog 可选依赖） | [fmt.md](./fmt.md) | 与 spdlog 配套 |
 | **glm** | OpenGL Mathematics | 数学库（向量/矩阵/四元数） | [glm.md](./glm.md) | Core、RHI、RenderCore、Scene、Physics 等 |
-| **stb** | stb 单头文件库 | 图像加载/写入、其他工具 | [stb.md](./stb.md) | Resource、Editor、工具 |
+| **stb** | stb 单头文件库 | 图像加载/写入、其他工具 | [stb.md](./stb.md) | 013-Resource、028-Texture、Editor、工具 |
 | **cgltf** | cgltf | glTF 2.0 模型解析（单头文件，轻量） | [cgltf.md](./cgltf.md) | 012-Mesh、013-Resource、glTF 资源 |
 | **tinygltf** | tinygltf | glTF 2.0 加载（含 JSON/二进制、贴图引用） | [tinygltf.md](./tinygltf.md) | 012-Mesh、013-Resource（可选与 cgltf 二选一） |
-| **libpng** | libpng | PNG 图像编解码 | [libpng.md](./libpng.md) | 013-Resource、贴图管线、截图/导出 |
-| **libjpeg-turbo** | libjpeg-turbo | JPEG 图像编解码（高性能） | [libjpeg-turbo.md](./libjpeg-turbo.md) | 013-Resource、贴图管线 |
-| **libwebp** | libwebp | WebP 图像编解码 | [libwebp.md](./libwebp.md) | 013-Resource、贴图管线、Web 资源 |
+| **libpng** | libpng | PNG 图像编解码 | [libpng.md](./libpng.md) | 013-Resource、028-Texture、贴图管线、截图/导出 |
+| **libjpeg-turbo** | libjpeg-turbo | JPEG 图像编解码（高性能） | [libjpeg-turbo.md](./libjpeg-turbo.md) | 013-Resource、028-Texture、贴图管线 |
+| **libwebp** | libwebp | WebP 图像编解码 | [libwebp.md](./libwebp.md) | 013-Resource、028-Texture、贴图管线、Web 资源 |
 | **basis-universal** | Basis Universal | 纹理压缩（KTX2/Basis、GPU 友好） | [basis-universal.md](./basis-universal.md) | 013-Resource、008-RHI、贴图上传 |
 | **volk** | Volk | Vulkan 加载器 | [volk.md](./volk.md) | 008-RHI（Vulkan 后端） |
 | **vulkan-headers** | Vulkan Headers | Vulkan 头文件与注册表 | [vulkan-headers.md](./vulkan-headers.md) | 008-RHI、volk/glslang 依赖 |

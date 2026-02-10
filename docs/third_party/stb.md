@@ -46,4 +46,4 @@ target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
 ## 使用模块
 
-013-Resource（图像加载）、024-Editor、025-Tools、纹理/贴图工具。
+013-Resource（图像加载）；028-Texture（StbImageImporter 兜底）；024-Editor、025-Tools、纹理/贴图工具。

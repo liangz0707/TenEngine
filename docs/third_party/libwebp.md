@@ -32,8 +32,9 @@ FetchContent_MakeAvailable(libwebp)
 
 ## 引用方式（自动集成）
 
-- **变量**：`TENENGINE_USE_WEBP=ON`。  
-- **清单**：`libwebp`。
+- **变量**：`TENENGINE_USE_LIBWEBP=ON`（028-Texture 等模块使用此变量名，与 libpng/libjpeg-turbo 命名一致）；或通用 `TENENGINE_USE_WEBP=ON`。  
+- **清单**：`libwebp`。  
+- **028-Texture**：FetchContent 后链接目标为 `webp`，头文件路径 `${libwebp_SOURCE_DIR}/src`。
 
 ## 可选配置
 
@@ -41,4 +42,4 @@ FetchContent_MakeAvailable(libwebp)
 
 ## 使用模块
 
-013-Resource（贴图管线、WebP 导入/导出）；Web 或带宽敏感资源。
+013-Resource（贴图管线、WebP 导入/导出）；028-Texture（可选 LibWebPImporter）；Web 或带宽敏感资源。

@@ -44,4 +44,4 @@ FetchContent_MakeAvailable(libpng)
 
 ## 使用模块
 
-013-Resource（贴图管线、PNG 导入/导出）；024-Editor、截图与资源工具。
+013-Resource（贴图管线、PNG 导入/导出）；028-Texture（可选 LibPngImporter）；024-Editor、截图与资源工具。

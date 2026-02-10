@@ -51,8 +51,9 @@
 | 010 | **Shader** | Shader 编译、变体、预编译、可选 Shader Graph 式编辑 | Core, RHI, RenderCore, Resource |
 | 011 | **Material** | 材质定义、参数、与 Shader 绑定、材质实例 | RenderCore, Shader, Texture, Resource |
 | 012 | **Mesh** | 网格数据、LOD、蒙皮、顶点/索引（EnsureDeviceResources 时依赖 RHI 创建缓冲） | Core, RHI, RenderCore, Resource |
-| 028 | **Texture** | 贴图数据、格式、Mipmap、与 RHI 纹理资源对接 | Core, RHI, RenderCore, Resource |
+| 028 | **Texture** | 贴图数据、格式、Mipmap、与 RHI 纹理资源对接；图像导入（可选 libpng/libjpeg-turbo/libwebp） | Core, Object, RHI, RenderCore, Resource, 030-DeviceResourceManager |
 | 013 | **Resource** | 资源导入、同步/异步加载、卸载、流式、可寻址 | Core, Object, Texture |
+| 030 | **DeviceResourceManager** | 设备层资源管理（GPU 缓冲/纹理创建、上传、命令列表池）；028 经此创建 GPU 纹理 | Core, RHI, Resource |
 | 029 | **World** | 场景资源管理、Level 实际资源引用；底层依赖 004-Scene 做场景管理；013 Load(level) 后由 World 调 004 CreateSceneFromDesc 并持有关卡句柄 | Scene, Resource |
 | 014 | **Physics** | 碰撞、刚体、查询、2D/3D | Core, Scene, Entity |
 | 015 | **Animation** | 动画剪辑、骨骼动画、Timeline、状态机 | Core, Object, Entity |
@@ -99,9 +100,10 @@
 | 010-Shader | Core, RHI, RenderCore, Resource |
 | 011-Material | RenderCore, Shader, Texture, Resource |
 | 012-Mesh | Core, RHI, RenderCore, Resource |
-| 028-Texture | Core, RHI, RenderCore, Resource |
+| 028-Texture | Core, Object, RHI, RenderCore, Resource, 030-DeviceResourceManager |
 | 013-Resource | Core, Object, Texture |
 | 029-World | Scene, Resource |
+| 030-DeviceResourceManager | Core, RHI, Resource |
 | 014-Physics | Core, Scene, Entity |
 | 015-Animation | Core, Object, Entity |
 | 016-Audio | Core, Resource |
@@ -148,9 +150,10 @@
 010-Shader       001-Core 008-RHI 009-RenderCore 013-Resource
 011-Material     009-RenderCore 010-Shader 028-Texture 013-Resource
 012-Mesh         001-Core 008-RHI 009-RenderCore 013-Resource
-028-Texture      001-Core 008-RHI 009-RenderCore 013-Resource
+028-Texture      001-Core 002-Object 008-RHI 009-RenderCore 013-Resource 030-DeviceResourceManager
 013-Resource     001-Core 002-Object 028-Texture
 029-World        004-Scene 013-Resource
+030-DeviceResourceManager  001-Core 008-RHI 013-Resource
 014-Physics      001-Core 004-Scene 005-Entity
 015-Animation    001-Core 002-Object 005-Entity
 016-Audio        001-Core 013-Resource

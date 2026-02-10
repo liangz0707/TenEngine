@@ -1,0 +1,3 @@
+add_executable(test_texture_load_save_import test_texture_load_save_import.cpp)
+target_link_libraries(test_texture_load_save_import PRIVATE te_texture)
+add_test(NAME test_texture_load_save_import COMMAND test_texture_load_save_import)

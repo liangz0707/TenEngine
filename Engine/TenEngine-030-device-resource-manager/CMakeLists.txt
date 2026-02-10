@@ -117,9 +117,8 @@ source_group("Source Files\\Internal" FILES
 )
 source_group("Header Files" FILES ${DEVICE_RESOURCE_MANAGER_HEADERS})
 
-# Enable testing for this module
-enable_testing()
-
-# 030-device-resource-manager 本模块测试始终加入
-# 注意：TENENGINE_SKIP_DEPENDENCY_TESTS 只影响上游依赖模块的测试，不影响本模块测试
-add_subdirectory(tests)
+# When built as dependency (e.g. by 028-texture), skip own tests if TENENGINE_030_SKIP_OWN_TESTS is set
+if(NOT TENENGINE_030_SKIP_OWN_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()

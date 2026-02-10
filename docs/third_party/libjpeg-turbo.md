@@ -42,4 +42,4 @@ FetchContent_MakeAvailable(libjpeg-turbo)
 
 ## 使用模块
 
-013-Resource（贴图管线、JPEG 导入/导出）；024-Editor、照片与缩略图。
+013-Resource（贴图管线、JPEG 导入/导出）；028-Texture（可选 LibJpegTurboImporter）；024-Editor、照片与缩略图。
