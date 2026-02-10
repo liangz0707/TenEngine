@@ -132,6 +132,13 @@ class FrameGraphImpl : public IFrameGraph {
     out->output = passes_[idx].output;
   }
 
+  void ExecutePass(size_t executionOrder, PassContext& ctx, te::rhi::ICommandList* cmd) override {
+    if (executionOrder >= sortedIndices_.size() || !cmd) return;
+    size_t idx = sortedIndices_[executionOrder];
+    PassExecuteCallback cb = passes_[idx].executeCallback;
+    if (cb) cb(ctx, cmd);
+  }
+
  private:
   std::vector<PassData> passes_;
   std::vector<std::unique_ptr<PassBuilderImpl>> builders_;

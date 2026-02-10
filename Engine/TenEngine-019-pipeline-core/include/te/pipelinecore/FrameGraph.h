@@ -89,6 +89,8 @@ struct IFrameGraph {
   /// 编译后可用；executionOrder 0 为第一个执行的 Pass
   virtual size_t GetPassCount() const = 0;
   virtual void GetPassCollectConfig(size_t executionOrder, PassCollectConfig* out) const = 0;
+  /// 按执行顺序调用指定 Pass 的 ExecuteCallback；020 在 Device 任务内按 GetPassCount 循环调用
+  virtual void ExecutePass(size_t executionOrder, PassContext& ctx, te::rhi::ICommandList* cmd) = 0;
 };
 
 IFrameGraph* CreateFrameGraph();

@@ -45,8 +45,9 @@
 
 （以下任务来自原 ABI 数据相关 TODO。）
 
-- [ ] **数据**：RenderItem 含 Model/Mesh/Material 句柄引用、排序 key；IRenderItemList。
-- [ ] **接口**：CollectRenderItemsParallel(pipeline, ctx, out)；PrepareRenderMaterial(handle, device)、PrepareRenderMesh(handle, device) 在线程 D、触发句柄 EnsureDeviceResources；ConvertToLogicalCommandBuffer(items, pipeline, out)；调用 008 SetUniformBuffer、009 IUniformBuffer::Bind。
+- [x] **数据**：RenderItem 含 mesh、material、sortKey；扩展 transform、bounds（RenderItemBounds）；IRenderItemList。
+- [x] **接口**：PrepareRenderMaterial/PrepareRenderMesh 在线程 D 触发 011/012 EnsureDeviceResources；ConvertToLogicalCommandBuffer 按 (material, mesh, submeshIndex) 排序并合并 instanced draw；IFrameGraph::GetPassCount、ExecutePass；PassContext::SetCollectedObjects 由 020 按 Pass 填充。
+- [ ] **接口**：CollectRenderItemsParallel 按 Pass 从 ISceneWorld 取数并填充 out（当前仅清空）；009 Bind/008 SetUniformBuffer 由 020 在每条 Draw 前按材质绑定。
 
 ## 变更记录
 
@@ -54,3 +55,4 @@
 |------|----------|
 | T0 新增 | 019-PipelineCore 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
+| 2026-02-10 | TODO 更新：PrepareRenderMaterial/Mesh、Convert 合批、ExecutePass、PassContext 已实现；CollectRenderItemsParallel 与 009 Bind 分工说明 |
