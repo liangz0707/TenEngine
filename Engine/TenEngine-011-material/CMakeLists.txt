@@ -19,33 +19,34 @@ if(NOT MY_DEPS)
   message(FATAL_ERROR "te_material: Upstream (009-rendercore, 010-shader) required. TenEngineHelpers not found or deps unresolved.")
 endif()
 
+# Use absolute paths so VS solution shows files regardless of build root
+set(_MAT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(TE_MATERIAL_SOURCES
-  src/material_json.cpp
-  src/MaterialResource.cpp
-  src/MaterialModuleInit.cpp
-  src/storage_format.cpp
-  src/factory.cpp
-  src/material_def.cpp
-  src/parameters.cpp
-  src/instancing.cpp
-  src/binding.cpp
+  ${_MAT}/src/material_json.cpp
+  ${_MAT}/src/MaterialResource.cpp
+  ${_MAT}/src/MaterialModuleInit.cpp
+  ${_MAT}/src/storage_format.cpp
+  ${_MAT}/src/factory.cpp
+  ${_MAT}/src/material_def.cpp
+  ${_MAT}/src/parameters.cpp
+  ${_MAT}/src/instancing.cpp
+  ${_MAT}/src/binding.cpp
 )
-
-# Header files (for Visual Studio project view)
 set(TE_MATERIAL_HEADERS
-  include/te/material/api.hpp
-  include/te/material/binding.hpp
-  include/te/material/factory.hpp
-  include/te/material/instancing.hpp
-  include/te/material/material_def.hpp
-  include/te/material/material_json.hpp
-  include/te/material/MaterialModuleInit.h
-  include/te/material/MaterialResource.h
-  include/te/material/parameters.hpp
-  include/te/material/storage_format.hpp
-  include/te/material/types.hpp
+  ${_MAT}/include/te/material/api.hpp
+  ${_MAT}/include/te/material/binding.hpp
+  ${_MAT}/include/te/material/factory.hpp
+  ${_MAT}/include/te/material/instancing.hpp
+  ${_MAT}/include/te/material/material_def.hpp
+  ${_MAT}/include/te/material/material_json.hpp
+  ${_MAT}/include/te/material/MaterialModuleInit.h
+  ${_MAT}/include/te/material/MaterialResource.h
+  ${_MAT}/include/te/material/parameters.hpp
+  ${_MAT}/include/te/material/storage_format.hpp
+  ${_MAT}/include/te/material/types.hpp
 )
 
+# 与 010-shader、009-rendercore 一致：只把本模块源/头加入工程，上游仅通过 target_link_libraries 引入
 add_library(te_material STATIC ${TE_MATERIAL_SOURCES} ${TE_MATERIAL_HEADERS})
 source_group("Source Files" FILES ${TE_MATERIAL_SOURCES})
 source_group("Header Files" FILES ${TE_MATERIAL_HEADERS})
