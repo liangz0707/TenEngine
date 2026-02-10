@@ -18,7 +18,7 @@
 | 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | Traverse | void Traverse(LevelHandle, function<void(ISceneNode*)>) const |
 | 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectRenderables | void CollectRenderables(LevelHandle, callback) const；仅对带 ModelComponent 的 Entity 回调 |
 | 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectRenderables | void CollectRenderables(LevelHandle, IResourceManager*, callback) const；重载 CollectRenderables(SceneRef, callback)、CollectRenderables(SceneRef, IResourceManager*, callback) |
-| 029-World | te::world | LevelAssetDesc | 结构体 | te/world/LevelAssetDesc.h | LevelAssetDesc | .level 描述；roots（SceneNodeDesc 树）；029 拥有并向 002 注册 |
+| 029-World | te::world | LevelAssetDesc | 结构体 | te/world/LevelAssetDesc.h | LevelAssetDesc | .level 描述；roots（SceneNodeDesc 树）；029 拥有并向 002 注册；支持二进制 .level 与 JSON .level.json，格式由路径扩展名决定 |
 | 029-World | te::world | SceneNodeDesc | 结构体 | te/world/LevelAssetDesc.h | SceneNodeDesc | name、localTransform、modelGuid、children；029 拥有并向 002 注册 |
 | 029-World | te::world | ILevelResource | 接口 | te/world/LevelResource.h | ILevelResource | GetLevelAssetDesc；013 LoadSync(Level) 返回 IResource* 可转型为此类型 |
 | 029-World | te::world | IModelResource | 抽象接口 | te/world/ModelResource.h | IModelResource | GetMesh、GetMaterialCount、GetMaterial、GetSubmeshMaterialIndex；013 LoadSync(..., Model) 返回 IResource* 可转型为此类型 |
@@ -38,3 +38,4 @@
 | 2026-02-10 | 完整 ABI 表：LevelHandle、RenderableItem、WorldManager 及 CreateLevelFromDesc/UnloadLevel/GetSceneRef/GetCurrentLevelScene/GetRootNodes/Traverse/CollectRenderables；IModelResource、ModelAssetDesc 标为待实现 |
 | 2026-02-10 | 实现 IModelResource、ModelAssetDesc、ModelComponent；CollectRenderables 仅对带 ModelComponent 的 Entity 回调；增加 CollectRenderables(handle, IResourceManager*, callback) 重载以解析 modelResource；RegisterWorldModule、WorldModuleInit |
 | 2026-02-10 | 新增 LevelAssetDesc、SceneNodeDesc、ILevelResource；CreateLevelFromDesc(LevelAssetDesc) 与 CreateLevelFromDesc(ResourceId)；CollectRenderables(SceneRef,…) 重载；向 002 注册 LevelAssetDesc/SceneNodeDesc/ModelAssetDesc；013 Level 工厂注册；UnloadLevel 顺序：先 Entity 再 UnloadScene |
+| 2026-02-10 | Level 双格式：.level 二进制与 .level.json JSON，格式由 002 GetFormatFromPath 按路径扩展名选择 |

@@ -9,9 +9,39 @@
 #include "te/core/alloc.h"
 #include <cstring>
 #include <vector>
+#include <cctype>
 
 namespace te {
 namespace object {
+
+namespace {
+char const* FindLastDot(char const* path) {
+    char const* last = nullptr;
+    for (; *path; ++path) {
+        if (*path == '.') last = path;
+    }
+    return last;
+}
+bool EndsWithIgnoreCase(char const* str, char const* suffix) {
+    size_t n = std::strlen(str);
+    size_t m = std::strlen(suffix);
+    if (m > n) return false;
+    for (size_t i = 0; i < m; ++i) {
+        if (std::tolower(static_cast<unsigned char>(str[n - m + i])) != std::tolower(static_cast<unsigned char>(suffix[i])))
+            return false;
+    }
+    return true;
+}
+}  // namespace
+
+SerializationFormat GetFormatFromPath(char const* path) {
+    if (!path || !*path) return SerializationFormat::Binary;
+    char const* lastDot = FindLastDot(path);
+    if (!lastDot || !*(lastDot + 1)) return SerializationFormat::Binary;
+    if (EndsWithIgnoreCase(path, ".json")) return SerializationFormat::JSON;
+    if (EndsWithIgnoreCase(path, ".xml")) return SerializationFormat::XML;
+    return SerializationFormat::Binary;
+}
 
 bool SerializeToFile(char const* path, void const* obj, TypeId typeId, SerializationFormat format) {
     if (!path || !obj || typeId == kInvalidTypeId) {
@@ -168,12 +198,16 @@ bool DeserializeFromFile(char const* path, void* obj, char const* typeName, Seri
     
     // Deserialize
     bool success = serializer->Deserialize(buf, obj, typeName);
-    
+
     // Cleanup
     te::core::Free(buf.data);
     delete serializer;
-    
+
     return success;
+}
+
+bool DeserializeFromFile(char const* path, void* obj, char const* typeName) {
+    return DeserializeFromFile(path, obj, typeName, GetFormatFromPath(path));
 }
 
 } // namespace object

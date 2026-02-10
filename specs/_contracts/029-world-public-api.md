@@ -39,6 +39,13 @@
 
 - 须在 004-Scene、013-Resource 初始化之后使用。Level 加载流程：上层调 029 → 029 用 013 Load 取得 LevelAssetDesc、nodeModelRefs → 029 转换为 004 的 SceneDesc 与不透明句柄 → 029 调用 004 CreateSceneFromDesc → 029 持有关卡句柄与 SceneRef。
 
+## Level 文件格式约定
+
+- Level 资源支持**两种文件形式**，格式由 013 加载时经 002 的 **GetFormatFromPath(path)** 根据路径扩展名自动选择：
+  - **二进制**：路径为 `*.level` 或非 .json/.xml 扩展名时，使用 Binary 格式（002 SerializationFormat::Binary）。
+  - **JSON**：路径以 `.json` 结尾（大小写不敏感，如 `levels/main.level.json` 或 `levels/main.json`）时，使用 JSON 格式（002 SerializationFormat::JSON）。
+- 同一逻辑关卡可存为 `xxx.level`（二进制）或 `xxx.level.json`（JSON，便于版本管理与手工编辑）；ResolvePath 返回的 path 决定实际格式。
+
 ## TODO 列表
 
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
@@ -56,3 +63,4 @@
 | 2026-02-05 | IModelResource、ModelAssetDesc 归属转入 029-World（原 013-Resource） |
 | 2026-02-10 | 依赖增加 005-Entity；能力增加 CollectRenderables（渲染物收集）；类型增加 RenderableItem；020 待渲染项来源改为本模块 CollectRenderables |
 | 2026-02-10 | 实现 LevelAssetDesc/SceneNodeDesc、CreateLevelFromDesc(LevelAssetDesc|ResourceId)、UnloadLevel 顺序约定、CollectRenderables(SceneRef)、002 类型注册、013 Level 工厂；待渲染项由本模块 CollectRenderables 统一提供 |
+| 2026-02-10 | Level 双格式：支持二进制 .level 与 JSON .level.json；格式由 002 GetFormatFromPath(path) 按路径扩展名自动选择 |

@@ -49,9 +49,8 @@ std::unique_ptr<T> IResource::LoadAssetDesc(char const* path) {
         return nullptr;
     }
 
-    // Use DeserializeFromFile helper (reads file and deserializes)
-    if (!te::object::DeserializeFromFile(path, desc.get(), typeName,
-                                         te::object::SerializationFormat::Binary)) {
+    // Use DeserializeFromFile; format is inferred from path extension (.json -> JSON, .xml -> XML, else Binary)
+    if (!te::object::DeserializeFromFile(path, desc.get(), typeName)) {
         return nullptr;
     }
 
@@ -76,8 +75,24 @@ bool IResource::SaveAssetDesc(char const* path, T const* desc) {
         return false;
     }
 
-    // Create serializer (internal creation)
-    std::unique_ptr<te::object::ISerializer> serializer(te::object::CreateBinarySerializer());
+    // Create serializer from path extension (.json -> JSON, .xml -> XML, else Binary)
+    te::object::SerializationFormat format = te::object::GetFormatFromPath(path);
+    te::object::ISerializer* serializer = nullptr;
+    switch (format) {
+        case te::object::SerializationFormat::Binary:
+            serializer = te::object::CreateBinarySerializer();
+            break;
+        case te::object::SerializationFormat::JSON:
+            serializer = te::object::CreateJSONSerializer();
+            break;
+        case te::object::SerializationFormat::XML:
+            serializer = te::object::CreateXMLSerializer();
+            break;
+        default:
+            serializer = te::object::CreateBinarySerializer();
+            break;
+    }
+    std::unique_ptr<te::object::ISerializer> serializerGuard(serializer);
     if (!serializer) {
         return false;
     }

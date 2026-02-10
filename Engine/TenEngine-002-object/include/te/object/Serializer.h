@@ -116,6 +116,12 @@ ISerializer* CreateJSONSerializer();
 ISerializer* CreateXMLSerializer();
 
 /**
+ * Infer serialization format from file path extension.
+ * .json (case-insensitive) -> JSON, .xml -> XML, otherwise Binary.
+ */
+SerializationFormat GetFormatFromPath(char const* path);
+
+/**
  * Serialize object to file (uses Core file I/O).
  */
 bool SerializeToFile(char const* path, void const* obj, TypeId typeId, SerializationFormat format = SerializationFormat::Binary);
@@ -127,8 +133,14 @@ bool DeserializeFromFile(char const* path, void* obj, TypeId typeId, Serializati
 
 /**
  * Deserialize object from file by type name (uses Core file I/O).
+ * For format inferred from path, use the 3-argument overload instead.
  */
-bool DeserializeFromFile(char const* path, void* obj, char const* typeName, SerializationFormat format = SerializationFormat::Binary);
+bool DeserializeFromFile(char const* path, void* obj, char const* typeName, SerializationFormat format);
+
+/**
+ * Deserialize object from file by type name; format is inferred from path via GetFormatFromPath.
+ */
+bool DeserializeFromFile(char const* path, void* obj, char const* typeName);
 
 } // namespace object
 } // namespace te

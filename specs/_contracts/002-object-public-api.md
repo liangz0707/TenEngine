@@ -30,7 +30,7 @@
 | 序号 | 能力 | 说明 |
 |------|------|------|
 | 1 | 反射 | 类型注册、类型信息查询、属性枚举、基类链；TypeRegistry::RegisterType、GetTypeByName、GetTypeById、IsTypeRegistered、EnumerateTypes；线程安全 |
-| 2 | 序列化 | 序列化器抽象、二进制/JSON/XML 格式、版本迁移、对象引用与 GUID 解析；ISerializer::Serialize、Deserialize；CreateBinarySerializer、CreateJSONSerializer、CreateXMLSerializer；SerializeToFile、DeserializeFromFile；往返等价可验证 |
+| 2 | 序列化 | 序列化器抽象、二进制/JSON/XML 格式、版本迁移、对象引用与 GUID 解析；ISerializer::Serialize、Deserialize；CreateBinarySerializer、CreateJSONSerializer、CreateXMLSerializer；SerializeToFile、DeserializeFromFile（支持显式 format 或按路径推断）；**GetFormatFromPath(path)**：根据路径扩展名推断格式（.json 大小写不敏感→JSON、.xml→XML、其余→Binary）；**DeserializeFromFile(path, obj, typeName)**（无 format 参数）内部调用 GetFormatFromPath(path) 选择格式；往返等价可验证 |
 | 3 | 属性系统 | 属性描述、元数据、默认值、范围/枚举约束；IPropertyBag、PropertyBag；GetProperty、SetProperty（支持类型检查）、FindProperty、GetPropertyCount、按索引访问；与反射和序列化联动 |
 | 4 | GUID 系统 | GUID 生成（Generate）、字符串转换（FromString、ToString）、比较操作（==、!=、<）、空值检查（IsNull）；ObjectRef 用于跨资源引用 |
 | 5 | 类型注册 | 注册表、按模块注册、类型工厂（CreateInstance）、生命周期；与 Core 模块加载协调 |
@@ -61,3 +61,4 @@
 | 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除代码示例与 ABI 引用 |
 | 2026-02-06 | 完全重新设计：新增 JSON 和 XML 序列化器（CreateJSONSerializer、CreateXMLSerializer）；增强 TypeRegistry（IsTypeRegistered、EnumerateTypes、CreateInstance 支持类型名）；增强 GUID（Generate、FromString、ToString、比较操作、IsNull）；新增文件序列化便捷函数（SerializeToFile、DeserializeFromFile，使用 Core 文件 I/O）；PropertyBag 增强（类型检查、按索引访问、GetPropertyCount）；SerializationFormat 枚举（Binary、JSON、XML）；头文件扩展名统一为 .h |
+| 2026-02-10 | 新增 GetFormatFromPath(path)（按扩展名 .json/.xml 推断格式）；新增 DeserializeFromFile(path, obj, typeName) 重载（无 format，自动选格式）；Level/World 等资源支持双格式（.level 二进制、.level.json JSON） |
