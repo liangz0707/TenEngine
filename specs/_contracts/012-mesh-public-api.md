@@ -29,7 +29,7 @@
 |------|------|------|
 | 1 | VertexIndex | VertexFormat、IndexFormat、BufferLayout；与 RenderCore 格式映射；支持同步/异步 GPU 缓冲创建 |
 | 2 | Submesh | SubmeshCount、GetSubmesh、MaterialSlot、DrawCall 批次 |
-| 3 | LOD | LODCount、SelectLOD、RequestStreaming；与 Resource 对接 |
+| 3 | LOD | LODCount、SelectLOD、GetLODLevel（取 LOD 级别 submesh 范围）、RequestStreaming；与 Resource 对接；020 收集阶段按相机距离 SelectLOD 后仅对选中 LOD 的 submesh 生成 RenderItem |
 | 4 | Skinning | BoneIndices、Weights、BindPose；与 Animation 骨骼矩阵对接 |
 | 5 | Resource | MeshResource 实现 IResource/IMeshResource；支持 Load、LoadAsync、Save、Import、EnsureDeviceResources、EnsureDeviceResourcesAsync |
 | 6 | Import | 支持从外部格式导入：OBJ（fast_obj）、glTF/glB（cgltf）、通用格式（Assimp）；通过 MeshResource::Import 调用 |
@@ -56,3 +56,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格 |
 | 2026-02-05 | ABI 写回（plan 012-mesh-full-module-001）：MeshHandle、MeshAssetDesc、SubmeshDesc、LODLevel、SkinningData、CreateMesh、ReleaseMesh、EnsureDeviceResources、GetSubmeshCount、GetSubmesh、GetLODCount、SelectLOD、GetSkinningData、GetVertexBufferHandle/GetIndexBufferHandle、MeshResourceLoader::CreateFromPayload、MeshDeserializer::Deserialize、SerializeMeshToBuffer、与 002 注册；全量 ABI 表写入 012-mesh-ABI.md |
 | 2026-02-05 | 清除 TODO 列表：plan 012-mesh-full-module-001 已完成，描述归属、CreateMesh、MeshAssetDesc/.mesh 相关任务已从 public-api 移除 |
+| 2026-02-10 | 能力 3 LOD：补充 GetLODLevel；020 收集阶段按相机距离 SelectLOD 后仅对选中 LOD 的 submesh 生成 RenderItem |

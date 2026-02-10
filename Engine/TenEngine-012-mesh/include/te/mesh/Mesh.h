@@ -6,6 +6,7 @@
 #define TE_MESH_MESH_H
 
 #include <te/rendercore/resource_desc.hpp>
+#include <te/core/math.h>
 #include <cstdint>
 #include <cstddef>
 
@@ -101,6 +102,15 @@ uint32_t GetLODCount(MeshHandle h);
 uint32_t SelectLOD(MeshHandle h, float distanceOrScreenSize);
 
 /**
+ * Get LOD level description (submesh range for the given LOD).
+ * @param h Mesh handle
+ * @param lodIndex LOD level index (0..GetLODCount-1)
+ * @param out Output LOD level; unchanged if invalid
+ * @return true if lodIndex is valid
+ */
+bool GetLODLevel(MeshHandle h, uint32_t lodIndex, LODLevel* out);
+
+/**
  * Get skinning data.
  * @param h Mesh handle
  * @return Pointer to SkinningData, or nullptr if mesh has no skinning data
@@ -114,6 +124,21 @@ SkinningData const* GetSkinningData(MeshHandle h);
  * @param lodLevel LOD level to request streaming for
  */
 void RequestStreaming(MeshHandle h, uint32_t lodLevel);
+
+/**
+ * Get mesh local-space AABB (for frustum culling when node has no AABB).
+ * @param h Mesh handle
+ * @return Local AABB; min==max==0 if not set
+ */
+te::core::AABB GetMeshAABB(MeshHandle h);
+
+/**
+ * Get submesh local-space AABB if available; otherwise returns mesh AABB.
+ * @param h Mesh handle
+ * @param submeshIndex Submesh index
+ * @return Local AABB for submesh or full mesh
+ */
+te::core::AABB GetSubmeshAABB(MeshHandle h, uint32_t submeshIndex);
 
 }  // namespace mesh
 }  // namespace te

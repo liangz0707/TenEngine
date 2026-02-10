@@ -9,6 +9,7 @@
 #include <te/resource/Resource.h>
 #include <te/material/material_json.hpp>
 #include <te/material/types.hpp>
+#include <te/rhi/device.hpp>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -24,6 +25,8 @@ class IShaderCompiler;
 }
 namespace rendercore {
 struct ShaderReflectionDesc;
+struct IUniformLayout;
+struct IUniformBuffer;
 }
 namespace material {
 
@@ -45,6 +48,13 @@ class MaterialResource : public resource::IMaterialResource {
                               std::uint32_t maxCount) const override;
 
   te::shader::IShaderHandle* GetShaderHandle() const { return shaderHandle_; }
+  /** Uniform buffer for material parameters; created in EnsureDeviceResources when shader has uniform block. May be null. */
+  te::rendercore::IUniformBuffer* GetUniformBuffer() const { return uniformBuffer_; }
+
+  /** Set RHI device for EnsureDeviceResources; call before EnsureDeviceResources. */
+  void SetDevice(te::rhi::IDevice* device) { device_ = device; }
+  void EnsureDeviceResources() override;
+  bool IsDeviceReady() const override;
 
  protected:
   void OnLoadComplete() override;
@@ -65,6 +75,10 @@ class MaterialResource : public resource::IMaterialResource {
   std::vector<TextureEntry> textureRefs_;
   std::vector<std::uint8_t> paramBuffer_;
   MaterialJSONData jsonData_;  /* for Save: shader guid, texture names->guid, param names->values */
+  te::rhi::IDevice* device_ = nullptr;
+  bool deviceResourcesReady_ = false;
+  te::rendercore::IUniformLayout* uniformLayout_ = nullptr;
+  te::rendercore::IUniformBuffer* uniformBuffer_ = nullptr;
 };
 
 }  // namespace material

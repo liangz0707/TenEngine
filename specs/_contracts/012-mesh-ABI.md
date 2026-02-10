@@ -21,8 +21,11 @@
 | 012-Mesh | te::mesh | — | 取子网格 | te/mesh/Mesh.h | GetSubmesh | `SubmeshDesc const* GetSubmesh(MeshHandle h, uint32_t index);` 返回 nullptr 如果索引无效 |
 | 012-Mesh | te::mesh | — | LOD 数量 | te/mesh/Mesh.h | GetLODCount | `uint32_t GetLODCount(MeshHandle h);` |
 | 012-Mesh | te::mesh | — | 选择 LOD | te/mesh/Mesh.h | SelectLOD | `uint32_t SelectLOD(MeshHandle h, float distanceOrScreenSize);` 根据距离或屏幕尺寸选择 LOD 级别 |
+| 012-Mesh | te::mesh | — | 取 LOD 级别描述 | te/mesh/Mesh.h | GetLODLevel | `bool GetLODLevel(MeshHandle h, uint32_t lodIndex, LODLevel* out);` 返回指定 LOD 的 submeshStartIndex/submeshCount 等；020 收集阶段仅对选中 LOD 的 submesh 生成 RenderItem |
 | 012-Mesh | te::mesh | — | 流式请求 | te/mesh/Mesh.h | RequestStreaming | `void RequestStreaming(MeshHandle h, uint32_t lodLevel);` 与 013 RequestStreaming/StreamingHandle 对接（可选） |
 | 012-Mesh | te::mesh | — | 蒙皮数据 | te/mesh/Mesh.h | GetSkinningData | `SkinningData const* GetSkinningData(MeshHandle h);` 无蒙皮返回 nullptr |
+| 012-Mesh | te::mesh | — | Mesh 局部 AABB | te/mesh/Mesh.h | GetMeshAABB | `te::core::AABB GetMeshAABB(MeshHandle h);` 局部空间 AABB；020/029 在节点无 AABB 时可用 worldMatrix 变换后做视锥剔除 |
+| 012-Mesh | te::mesh | — | Submesh 局部 AABB | te/mesh/Mesh.h | GetSubmeshAABB | `te::core::AABB GetSubmeshAABB(MeshHandle h, uint32_t submeshIndex);` 当前可返回 mesh AABB |
 | 012-Mesh | te::mesh | — | 确保设备缓冲（同步） | te/mesh/MeshDevice.h | EnsureDeviceResources | `bool EnsureDeviceResources(MeshHandle h, rhi::IDevice* device);` 同步创建 GPU 顶点/索引缓冲；通过 030-DeviceResourceManager::CreateDeviceBuffer 创建 |
 | 012-Mesh | te::mesh | — | 确保设备缓冲（异步） | te/mesh/MeshDevice.h | EnsureDeviceResourcesAsync | `void EnsureDeviceResourcesAsync(MeshHandle h, rhi::IDevice* device, void (*on_done)(void*), void* user_data);` 异步创建 GPU 顶点/索引缓冲；通过 030-DeviceResourceManager::CreateDeviceBufferAsync 创建；回调链：顶点缓冲完成→索引缓冲完成→用户回调 |
 | 012-Mesh | te::mesh | — | 顶点缓冲句柄 | te/mesh/MeshDevice.h | GetVertexBufferHandle | `rhi::IBuffer* GetVertexBufferHandle(MeshHandle h);` EnsureDeviceResources 后可用；返回 nullptr 如果未创建 |
@@ -55,3 +58,9 @@
 | 012-Mesh | te::mesh | — | 模块初始化 | te/mesh/MeshModuleInit.h | InitializeMeshModule | `void InitializeMeshModule(IResourceManager* manager);` 注册资源工厂和 MeshAssetDesc 类型到 002-Object TypeRegistry；TypeId: 0x01200001 |
 
 *VertexFormat、IndexFormat、BufferLayout 使用 009-RenderCore 契约类型；CreateBuffer/DestroyBuffer 通过 030-DeviceResourceManager 调用 008-RHI 契约。*
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | ABI 同步：增加 GetLODLevel(MeshHandle, lodIndex, LODLevel*)、GetMeshAABB、GetSubmeshAABB |

@@ -57,6 +57,14 @@ uint32_t SelectLOD(MeshHandle h, float distanceOrScreenSize) {
   return static_cast<uint32_t>(data->lodLevels.size() - 1);
 }
 
+bool GetLODLevel(MeshHandle h, uint32_t lodIndex, LODLevel* out) {
+  if (!h || !out) return false;
+  detail::MeshData* data = static_cast<detail::MeshData*>(h);
+  if (lodIndex >= data->lodLevels.size()) return false;
+  *out = data->lodLevels[lodIndex];
+  return true;
+}
+
 SkinningData const* GetSkinningData(MeshHandle h) {
   if (!h) {
     return nullptr;
@@ -73,6 +81,19 @@ void RequestStreaming(MeshHandle h, uint32_t lodLevel) {
   // For now, this is a placeholder
   (void)h;
   (void)lodLevel;
+}
+
+te::core::AABB GetMeshAABB(MeshHandle h) {
+  if (!h) return te::core::AABB{};
+  detail::MeshData* data = static_cast<detail::MeshData*>(h);
+  return data->localAABB;
+}
+
+te::core::AABB GetSubmeshAABB(MeshHandle h, uint32_t submeshIndex) {
+  te::core::AABB meshAabb = GetMeshAABB(h);
+  (void)submeshIndex;
+  /* Per-submesh AABB could be stored in MeshData later; for now return mesh AABB */
+  return meshAabb;
 }
 
 }  // namespace mesh

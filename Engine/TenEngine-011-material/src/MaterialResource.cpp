@@ -10,11 +10,13 @@
 #include <te/resource/ShaderResource.h>
 #include <te/resource/TextureResource.h>
 #include <te/resource/ResourceId.h>
+#include <te/texture/TextureResource.h>
 #include <te/object/Guid.h>
 #include <te/shader/factory.hpp>
 #include <te/shader/ShaderAssetDesc.h>
 #include <te/rendercore/shader_reflection.hpp>
 #include <te/rendercore/uniform_layout.hpp>
+#include <te/rendercore/uniform_buffer.hpp>
 #include <te/core/alloc.h>
 #include <cstring>
 #include <algorithm>
@@ -26,6 +28,14 @@ MaterialResource::MaterialResource()
     : resourceId_(), refCount_(1), shaderHandle_(nullptr), shaderResource_(nullptr), textureRefs_(), paramBuffer_(), jsonData_() {}
 
 MaterialResource::~MaterialResource() {
+  if (uniformBuffer_) {
+    te::rendercore::ReleaseUniformBuffer(uniformBuffer_);
+    uniformBuffer_ = nullptr;
+  }
+  if (uniformLayout_) {
+    te::rendercore::ReleaseUniformLayout(uniformLayout_);
+    uniformLayout_ = nullptr;
+  }
   if (shaderResource_) {
     shaderResource_->Release();
     shaderResource_ = nullptr;
@@ -192,6 +202,45 @@ bool MaterialResource::OnConvertSourceFile(char const* sourcePath, void** outDat
 
 void* MaterialResource::OnCreateAssetDesc() {
   return nullptr;  /* Material uses JSON only, no 002 AssetDesc */
+}
+
+void MaterialResource::EnsureDeviceResources() {
+  if (!device_) return;
+  for (TextureEntry& e : textureRefs_) {
+    if (!e.textureResource) continue;
+    te::texture::TextureResource* texRes = dynamic_cast<te::texture::TextureResource*>(e.textureResource);
+    if (texRes) {
+      texRes->SetDevice(device_);
+      texRes->EnsureDeviceResources();
+    }
+  }
+  if (!uniformBuffer_ && shaderHandle_ && !paramBuffer_.empty()) {
+    te::shader::IShaderCompiler* compiler = te::shader::CreateShaderCompiler();
+    if (compiler) {
+      te::rendercore::ShaderReflectionDesc refl = {};
+      if (compiler->GetShaderReflection(shaderHandle_, &refl) &&
+          refl.uniformBlock.members && refl.uniformBlock.memberCount > 0 &&
+          refl.uniformBlock.totalSize > 0 &&
+          paramBuffer_.size() >= refl.uniformBlock.totalSize) {
+        uniformLayout_ = te::rendercore::CreateUniformLayout(refl.uniformBlock);
+        if (uniformLayout_)
+          uniformBuffer_ = te::rendercore::CreateUniformBuffer(uniformLayout_, device_);
+        if (uniformBuffer_)
+          uniformBuffer_->Update(paramBuffer_.data(), refl.uniformBlock.totalSize);
+      }
+      te::shader::DestroyShaderCompiler(compiler);
+    }
+  }
+  deviceResourcesReady_ = true;
+}
+
+bool MaterialResource::IsDeviceReady() const {
+  if (!device_ || !deviceResourcesReady_) return false;
+  for (TextureEntry const& e : textureRefs_) {
+    if (e.textureResource && !e.textureResource->IsDeviceReady())
+      return false;
+  }
+  return true;
 }
 
 }  // namespace material

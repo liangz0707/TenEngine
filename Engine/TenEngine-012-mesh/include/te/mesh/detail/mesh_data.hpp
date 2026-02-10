@@ -9,6 +9,7 @@
 #include <te/mesh/MeshAssetDesc.h>
 #include <te/rhi/resources.hpp>
 #include <te/core/alloc.h>
+#include <te/core/math.h>
 #include <vector>
 #include <cstdint>
 #include <cstddef>
@@ -57,7 +58,10 @@ struct MeshData {
   
   // Reference count (for resource management)
   uint32_t refCount = 1;
-  
+
+  /** Local-space AABB; used for frustum culling when node has no HasAABB. */
+  te::core::AABB localAABB{};
+
   MeshData() = default;
   ~MeshData();
   

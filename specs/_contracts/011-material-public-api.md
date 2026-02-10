@@ -29,7 +29,7 @@
 | 2 | Parameters | SetScalar、SetTexture、SetBuffer、GetSlotMapping；与 RenderCore Uniform/纹理槽对接 |
 | 3 | Instancing | CreateInstance、SetOverride、Release、Pool |
 | 4 | Binding | BindToPSO、GetVariantKey、SubmitToPipeline；与 Shader 变体、RHI PSO、Pipeline 对接 |
-| 5 | **Material 资源（013 统一加载）** | MaterialResource 实现 resource::IMaterialResource；.material 为**明文 JSON**（UTF-8），顶层仅三键：shader（GUID 字符串）、textures（binding 名称→贴图 GUID 字符串）、parameters（uniform 名称→标量或数组）；Load 解析 JSON、按 shader GUID 从 013 GetCached 取 IShaderResource、按反射 name→(set,binding) 解析贴图并 GetCached、按反射写参数缓冲；Save 写回 JSON；**GetTextureRefs** 的 outPaths 输出贴图 **GUID 字符串**；Import 可空实现 |
+| 5 | **Material 资源（013 统一加载）** | MaterialResource 实现 resource::IMaterialResource；.material 为**明文 JSON**（UTF-8），顶层仅三键：shader（GUID 字符串）、textures（binding 名称→贴图 GUID 字符串）、parameters（uniform 名称→标量或数组）；Load 解析 JSON、按 shader GUID 从 013 GetCached 取 IShaderResource、按反射 name→(set,binding) 解析贴图并 GetCached、按反射写参数缓冲；Save 写回 JSON；**GetTextureRefs** 的 outPaths 输出贴图 **GUID 字符串**；Import 可空实现；**SetDevice(te::rhi::IDevice*)** 在 EnsureDeviceResources 前调用；**EnsureDeviceResources** 对贴图链 SetDevice+Ensure 后，根据 shader 反射创建 IUniformLayout/IUniformBuffer 并 Update；**GetUniformBuffer()** 返回 IUniformBuffer*（020 按材质 Bind(cmd, slot)）；**IsDeviceReady** 重写为 device 已设置、已执行 Ensure 且所有贴图 IsDeviceReady |
 | 6 | **模块初始化** | InitializeMaterialModule(manager) 向 013 注册 Material 工厂；InitializeResourceModulesForEngine(manager, shaderManifestPath) 依次调用 InitializeShaderModule、LoadAllShaders、InitializeMaterialModule，供引擎在 ResourceManager 就绪后调用一次 |
 
 ## 版本 / ABI
@@ -54,4 +54,4 @@
 |------|----------|
 | T0 新增 | 011-Material 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
-| 2026-02-10 | 增加能力 5–6：.material JSON、MaterialResource、GetTextureRefs(GUID)、InitializeMaterialModule、InitializeResourceModulesForEngine；依赖明确 013-Resource；TODO .material 格式与 MaterialResource 标为已实现 |
+| 2026-02-10 | 增加能力 5–6：.material JSON、MaterialResource、GetTextureRefs(GUID)、InitializeMaterialModule、InitializeResourceModulesForEngine；依赖明确 013-Resource；TODO .material 格式与 MaterialResource 标为已实现；能力 5 补充 SetDevice、GetUniformBuffer、EnsureDeviceResources 创建 UB、IsDeviceReady |
