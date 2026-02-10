@@ -124,8 +124,40 @@ struct CommandListD3D11 final : ICommandList {
     deferredCtx->PSSetConstantBuffers(slot, 1, &cb);
     deferredCtx->CSSetConstantBuffers(slot, 1, &cb);
   }
+  void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) override {
+    if (!deferredCtx || !recording) return;
+    if (!buffer) {
+      ID3D11Buffer* nullBuf = nullptr;
+      UINT zero = 0;
+      deferredCtx->IASetVertexBuffers(slot, 1, &nullBuf, &zero, &zero);
+      return;
+    }
+    BufferD3D11* b = static_cast<BufferD3D11*>(buffer);
+    if (!b->buffer) return;
+    UINT off = static_cast<UINT>(offset);
+    deferredCtx->IASetVertexBuffers(slot, 1, &b->buffer, &stride, &off);
+  }
+  void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) override {
+    if (!deferredCtx || !recording) return;
+    if (!buffer) {
+      deferredCtx->IASetIndexBuffer(nullptr, DXGI_FORMAT_R16_UINT, 0);
+      return;
+    }
+    BufferD3D11* b = static_cast<BufferD3D11*>(buffer);
+    if (!b->buffer) return;
+    DXGI_FORMAT fmt = (indexFormat == 1) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+    deferredCtx->IASetIndexBuffer(b->buffer, fmt, static_cast<UINT>(offset));
+  }
+  void SetGraphicsPSO(IPSO* pso) override {
+    if (!deferredCtx || !recording) return;
+    PSOD3D11* d = pso ? static_cast<PSOD3D11*>(pso) : nullptr;
+    deferredCtx->VSSetShader(d ? d->vs : nullptr, nullptr, 0);
+    deferredCtx->PSSetShader(d ? d->ps : nullptr, nullptr, 0);
+  }
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
+  void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
+  void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
     (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
   }

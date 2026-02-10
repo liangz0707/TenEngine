@@ -108,8 +108,13 @@
 | 008-RHI | te::rhi | ICommandList::SetViewport | 成员函数 | 设置视口 | te/rhi/command_list.hpp | `void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) = 0;` |
 | 008-RHI | te::rhi | ICommandList::SetScissor | 成员函数 | 设置裁剪 | te/rhi/command_list.hpp | `void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) = 0;` |
 | 008-RHI | te::rhi | ICommandList::SetUniformBuffer | 成员函数 | 将 IBuffer 绑定到 slot | te/rhi/command_list.hpp | `void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) = 0;` 满足 009 IUniformBuffer::Bind；slot 越界或 buffer==nullptr 行为由实现约定 |
+| 008-RHI | te::rhi | ICommandList::SetVertexBuffer | 成员函数 | 绑定顶点缓冲 | te/rhi/command_list.hpp | `void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) = 0;` 020 在每条 Draw 前按 mesh 绑定 |
+| 008-RHI | te::rhi | ICommandList::SetIndexBuffer | 成员函数 | 绑定索引缓冲 | te/rhi/command_list.hpp | `void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) = 0;` indexFormat: 0=16bit, 1=32bit |
+| 008-RHI | te::rhi | ICommandList::SetGraphicsPSO | 成员函数 | 绑定图形 PSO | te/rhi/command_list.hpp | `void SetGraphicsPSO(IPSO* pso) = 0;` 每条 Draw 前按材质绑定；pso 可为 nullptr 表示解绑 |
 | 008-RHI | te::rhi | ICommandList::BeginRenderPass | 成员函数 | 开始渲染通道（P2） | te/rhi/command_list.hpp | `void BeginRenderPass(RenderPassDesc const& desc) = 0;` |
 | 008-RHI | te::rhi | ICommandList::EndRenderPass | 成员函数 | 结束渲染通道（P2） | te/rhi/command_list.hpp | `void EndRenderPass() = 0;` |
+| 008-RHI | te::rhi | ICommandList::BeginOcclusionQuery | 成员函数 | 开始遮挡查询 | te/rhi/command_list.hpp | `void BeginOcclusionQuery(uint32_t queryIndex) = 0;` 与 EndOcclusionQuery 成对；当前后端可为 no-op |
+| 008-RHI | te::rhi | ICommandList::EndOcclusionQuery | 成员函数 | 结束遮挡查询 | te/rhi/command_list.hpp | `void EndOcclusionQuery(uint32_t queryIndex) = 0;` |
 | 008-RHI | te::rhi | ICommandList::CopyBuffer | 成员函数 | 缓冲间拷贝（P2） | te/rhi/command_list.hpp | `void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) = 0;` |
 | 008-RHI | te::rhi | ICommandList::CopyBufferToTexture | 成员函数 | 缓冲到纹理（P2） | te/rhi/command_list.hpp | `void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) = 0;` |
 | 008-RHI | te::rhi | ICommandList::CopyTextureToBuffer | 成员函数 | 纹理到缓冲（P2） | te/rhi/command_list.hpp | `void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) = 0;` |
@@ -187,3 +192,9 @@
 ---
 
 数据与接口 TODO 已迁移至本模块契约 [008-rhi-public-api.md](./008-rhi-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与已实现说明。
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | ABI 同步：ICommandList 增加 SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BeginOcclusionQuery、EndOcclusionQuery |

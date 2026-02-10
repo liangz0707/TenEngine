@@ -76,8 +76,13 @@ struct ICommandList {
   virtual void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) = 0;
   virtual void SetScissor(uint32_t first, uint32_t count, ScissorRect const* scissors) = 0;
   virtual void SetUniformBuffer(uint32_t slot, IBuffer* buffer, size_t offset) = 0;
+  virtual void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) = 0;
+  virtual void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) = 0;  // 0 = 16bit, 1 = 32bit
+  virtual void SetGraphicsPSO(IPSO* pso) = 0;
   virtual void BeginRenderPass(RenderPassDesc const& desc) = 0;
   virtual void EndRenderPass() = 0;
+  virtual void BeginOcclusionQuery(uint32_t queryIndex) = 0;
+  virtual void EndOcclusionQuery(uint32_t queryIndex) = 0;
   virtual void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst,
                           size_t dstOffset, size_t size) = 0;
   virtual void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst,

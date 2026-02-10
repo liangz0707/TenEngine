@@ -38,7 +38,7 @@
 | 序号 | 能力 | 说明 |
 |------|------|------|
 | 1 | 设备与队列 | CreateDevice(Backend)、DestroyDevice、GetQueue；SelectBackend、GetSelectedBackend；GetFeatures、GetLimits；多后端统一接口 |
-| 2 | 命令列表 | CreateCommandList、DestroyCommandList；Begin、End；Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier；SetViewport、SetScissor；BeginRenderPass、EndRenderPass；Submit(cmd, queue) 及 Fence/Semaphore 重载 |
+| 2 | 命令列表 | CreateCommandList、DestroyCommandList；Begin、End；Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier；SetViewport、SetScissor；SetUniformBuffer、SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO；BeginRenderPass、EndRenderPass；BeginOcclusionQuery、EndOcclusionQuery；Submit(cmd, queue) 及 Fence/Semaphore 重载 |
 | 3 | 资源管理 | CreateBuffer、CreateTexture、CreateSampler、CreateView；Destroy；内存与生命周期明确；失败有明确报告 |
 | 4 | PSO | CreateGraphicsPSO、CreateComputePSO、SetShader、Cache、DestroyPSO；与 RenderCore/Shader 对接 |
 | 5 | 同步 | CreateFence、CreateSemaphore、Wait、Signal、Destroy；资源屏障在 ICommandList::ResourceBarrier |
@@ -67,3 +67,4 @@
 | （初始） | 从 002-rendering-rci-interface spec 提炼 |
 | T0 更新 | 对齐 T0 架构；消费者按依赖图 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 反向引用 |
+| 2026-02-10 | 能力 2 命令列表：补充 SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BeginOcclusionQuery、EndOcclusionQuery |

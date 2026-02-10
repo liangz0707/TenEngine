@@ -125,6 +125,27 @@ struct CommandListVulkan final : ICommandList {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
   }
+  void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) override {
+    (void)stride;  /* Vulkan stride from pipeline vertex input */
+    if (cmd == VK_NULL_HANDLE || !recording) return;
+    if (!buffer) return;
+    BufferVulkan* b = static_cast<BufferVulkan*>(buffer);
+    if (b->buffer == VK_NULL_HANDLE) return;
+    VkDeviceSize off = static_cast<VkDeviceSize>(offset);
+    vkCmdBindVertexBuffers(cmd, slot, 1, &b->buffer, &off);
+  }
+  void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) override {
+    if (cmd == VK_NULL_HANDLE || !recording) return;
+    if (!buffer) return;
+    BufferVulkan* b = static_cast<BufferVulkan*>(buffer);
+    if (b->buffer == VK_NULL_HANDLE) return;
+    VkIndexType idxType = (indexFormat == 1) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+    vkCmdBindIndexBuffer(cmd, b->buffer, static_cast<VkDeviceSize>(offset), idxType);
+  }
+  void SetGraphicsPSO(IPSO* pso) override {
+    (void)pso;
+    /* Vulkan: PSOVulkan currently only has shader modules; vkCmdBindPipeline would need VkPipeline from CreateGraphicsPSO. */
+  }
   void BeginRenderPass(RenderPassDesc const& desc) override {
     (void)desc;
     if (cmd == VK_NULL_HANDLE || !recording) return;
@@ -135,6 +156,8 @@ struct CommandListVulkan final : ICommandList {
     if (cmd == VK_NULL_HANDLE || !recording) return;
     /* Paired with BeginRenderPass; no vkCmdEndRenderPass if Begin was skipped. */
   }
+  void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
+  void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
     (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
     if (cmd == VK_NULL_HANDLE || !recording) return;

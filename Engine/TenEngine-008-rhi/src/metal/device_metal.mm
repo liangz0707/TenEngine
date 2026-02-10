@@ -61,6 +61,14 @@ struct CommandListMetal final : ICommandList {
   MTLScissorRect lastScissor = {0, 0, 0, 0};
   bool viewportSet = false;
   bool scissorSet = false;
+  static constexpr uint32_t kMaxVertexBufferSlots = 8u;
+  id<MTLBuffer> boundVertexBuffers[kMaxVertexBufferSlots] = {nil};
+  NSUInteger boundVertexOffsets[kMaxVertexBufferSlots] = {0};
+  uint32_t boundVertexStrides[kMaxVertexBufferSlots] = {0};
+  id<MTLBuffer> boundIndexBuffer = nil;
+  NSUInteger boundIndexOffset = 0;
+  MTLIndexType boundIndexType = MTLIndexTypeUInt16;
+  id<MTLRenderPipelineState> boundGraphicsPSO = nil;
 
   void ensureRenderEncoder() {
     if (renderEncoder || !buffer || !device || !queue) return;
@@ -76,8 +84,13 @@ struct CommandListMetal final : ICommandList {
     rpd.colorAttachments[0].storeAction = MTLStoreActionDontCare;
     renderEncoder = [buffer renderCommandEncoderWithDescriptor:rpd];
     if (renderEncoder) {
+      if (boundGraphicsPSO) [renderEncoder setRenderPipelineState:boundGraphicsPSO];
       if (viewportSet) [renderEncoder setViewport:lastViewport];
       if (scissorSet) [renderEncoder setScissorRect:lastScissor];
+      for (uint32_t i = 0; i < kMaxVertexBufferSlots; ++i) {
+        if (boundVertexBuffers[i])
+          [renderEncoder setVertexBuffer:boundVertexBuffers[i] offset:boundVertexOffsets[i] atIndex:i];
+      }
     }
   }
 
@@ -111,6 +124,15 @@ struct CommandListMetal final : ICommandList {
     recording = true;
     viewportSet = false;
     scissorSet = false;
+    for (uint32_t i = 0; i < kMaxVertexBufferSlots; ++i) {
+      boundVertexBuffers[i] = nil;
+      boundVertexOffsets[i] = 0;
+      boundVertexStrides[i] = 0;
+    }
+    boundIndexBuffer = nil;
+    boundIndexOffset = 0;
+    boundIndexType = MTLIndexTypeUInt16;
+    boundGraphicsPSO = nil;
   }
 
   void End() override {
@@ -132,13 +154,22 @@ struct CommandListMetal final : ICommandList {
     if (!recording || !buffer || !device) return;
     ensureRenderEncoder();
     if (!renderEncoder) return;
-    if (!dummyIndexBuffer) {
-      NSUInteger len = 6;
-      dummyIndexBuffer = [device newBufferWithLength:len options:MTLResourceStorageModeShared];
-      if (!dummyIndexBuffer) return;
+    id<MTLBuffer> idxBuf = boundIndexBuffer;
+    NSUInteger idxOff = boundIndexOffset + (first_index * (boundIndexType == MTLIndexTypeUInt32 ? 4 : 2));
+    if (!idxBuf) {
+      if (!dummyIndexBuffer) {
+        NSUInteger len = 6;
+        dummyIndexBuffer = [device newBufferWithLength:len options:MTLResourceStorageModeShared];
+        if (!dummyIndexBuffer) return;
+      }
+      idxBuf = dummyIndexBuffer;
+      idxOff = 0;
     }
-    [renderEncoder setVertexBuffer:nil offset:0 atIndex:0];
-    [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:index_count indexType:MTLIndexTypeUInt16 indexBuffer:dummyIndexBuffer indexBufferOffset:0 instanceCount:instance_count baseVertex:vertex_offset baseInstance:first_instance];
+    for (uint32_t i = 0; i < kMaxVertexBufferSlots; ++i) {
+      if (boundVertexBuffers[i])
+        [renderEncoder setVertexBuffer:boundVertexBuffers[i] offset:boundVertexOffsets[i] atIndex:i];
+    }
+    [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle indexCount:index_count indexType:(idxBuf == dummyIndexBuffer ? MTLIndexTypeUInt16 : boundIndexType) indexBuffer:idxBuf indexBufferOffset:idxOff instanceCount:instance_count baseVertex:vertex_offset baseInstance:first_instance];
   }
 
   void SetViewport(uint32_t first, uint32_t count, Viewport const* viewports) override {
@@ -178,8 +209,46 @@ struct CommandListMetal final : ICommandList {
       [computeEncoder setBuffer:mb offset:off atIndex:slot];
   }
 
+  void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) override {
+    if (slot >= kMaxVertexBufferSlots) return;
+    if (!buffer) {
+      boundVertexBuffers[slot] = nil;
+      boundVertexOffsets[slot] = 0;
+      boundVertexStrides[slot] = 0;
+      if (renderEncoder)
+        [renderEncoder setVertexBuffer:nil offset:0 atIndex:slot];
+      return;
+    }
+    BufferMetal* b = static_cast<BufferMetal*>(buffer);
+    boundVertexBuffers[slot] = b ? b->buffer : nil;
+    boundVertexOffsets[slot] = (NSUInteger)offset;
+    boundVertexStrides[slot] = stride;
+    if (renderEncoder && boundVertexBuffers[slot])
+      [renderEncoder setVertexBuffer:boundVertexBuffers[slot] offset:boundVertexOffsets[slot] atIndex:slot];
+  }
+  void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) override {
+    if (!buffer) {
+      boundIndexBuffer = nil;
+      boundIndexOffset = 0;
+      boundIndexType = MTLIndexTypeUInt16;
+      return;
+    }
+    BufferMetal* b = static_cast<BufferMetal*>(buffer);
+    boundIndexBuffer = b ? b->buffer : nil;
+    boundIndexOffset = (NSUInteger)offset;
+    boundIndexType = (indexFormat == 1) ? MTLIndexTypeUInt32 : MTLIndexTypeUInt16;
+  }
+
+  void SetGraphicsPSO(IPSO* pso) override {
+    boundGraphicsPSO = (pso && static_cast<PSOMetal*>(pso)->renderPipeline) ? static_cast<PSOMetal*>(pso)->renderPipeline : nil;
+    if (renderEncoder && boundGraphicsPSO)
+      [renderEncoder setRenderPipelineState:boundGraphicsPSO];
+  }
+
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
+  void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
+  void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
     (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
   }

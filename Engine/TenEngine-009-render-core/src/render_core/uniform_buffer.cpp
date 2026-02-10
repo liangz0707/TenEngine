@@ -30,7 +30,7 @@ class UniformBufferImpl final : public IUniformBuffer {
     if (device_) {
       te::rhi::BufferDesc desc{};
       desc.size = storage_.size();
-      desc.usage = 0;  // Uniform usage (008-RHI keeps usage opaque).
+      desc.usage = static_cast<uint32_t>(te::rhi::BufferUsage::Uniform);
       buffer_ = device_->CreateBuffer(desc);
     }
   }
@@ -46,13 +46,17 @@ class UniformBufferImpl final : public IUniformBuffer {
       return;
 
     size_t copySize = size > totalSize_ ? totalSize_ : size;
-    uint8_t* dst = storage_.data() + static_cast<size_t>(currentSlot_) * totalSize_;
+    size_t offset = static_cast<size_t>(currentSlot_) * totalSize_;
+    uint8_t* dst = storage_.data() + offset;
     std::memcpy(dst, data, copySize);
+    if (device_ && buffer_)
+      device_->UpdateBuffer(buffer_, offset, dst, copySize);
   }
 
-  void Bind(te::rhi::ICommandList* /*cmd*/, uint32_t slot) override {
-    lastBindSlot_ = slot;
-    // Full RHI binding will be implemented once 008-RHI exposes SetUniformBuffer.
+  void Bind(te::rhi::ICommandList* cmd, uint32_t slot) override {
+    if (!cmd || !buffer_) return;
+    size_t offset = GetRingBufferOffset(currentSlot_);
+    cmd->SetUniformBuffer(slot, buffer_, offset);
   }
 
   size_t GetRingBufferOffset(FrameSlotId slot) const override {
@@ -72,7 +76,6 @@ class UniformBufferImpl final : public IUniformBuffer {
   std::vector<uint8_t> storage_;
   size_t totalSize_ = 0;
   FrameSlotId currentSlot_ = 0;
-  uint32_t lastBindSlot_ = 0;
 };
 
 IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, te::rhi::IDevice* device) {

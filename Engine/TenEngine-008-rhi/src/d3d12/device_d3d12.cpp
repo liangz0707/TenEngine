@@ -58,6 +58,14 @@ struct BufferD3D12 final : IBuffer {
   ~BufferD3D12() override = default;
 };
 
+
+struct PSOD3D12 final : IPSO {
+    ComPtr<ID3D12PipelineState> pipeline;
+    ComPtr<ID3D12RootSignature> rootSignature;
+    ~PSOD3D12() override = default;
+};
+
+
 struct CommandListD3D12 final : ICommandList {
   ComPtr<ID3D12GraphicsCommandList> list;
   ComPtr<ID3D12CommandAllocator> allocator;
@@ -121,8 +129,50 @@ struct CommandListD3D12 final : ICommandList {
     list->SetGraphicsRootConstantBufferView(slot, gpuVa);
     list->SetComputeRootConstantBufferView(slot, gpuVa);
   }
+  void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) override {
+    if (!list || !recording) return;
+    if (!buffer) {
+      list->IASetVertexBuffers(slot, 1, nullptr);
+      return;
+    }
+    BufferD3D12* b = static_cast<BufferD3D12*>(buffer);
+    if (!b->resource) return;
+    D3D12_RESOURCE_DESC rd = b->resource->GetDesc();
+    UINT64 bufSize = rd.Width;
+    D3D12_VERTEX_BUFFER_VIEW vbv = {};
+    vbv.BufferLocation = b->resource->GetGPUVirtualAddress() + (UINT64)offset;
+    vbv.SizeInBytes = (UINT)(offset < bufSize ? bufSize - (UINT64)offset : 0);
+    vbv.StrideInBytes = stride;
+    list->IASetVertexBuffers(slot, 1, &vbv);
+  }
+  void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) override {
+    if (!list || !recording) return;
+    if (!buffer) {
+      list->IASetIndexBuffer(nullptr);
+      return;
+    }
+    BufferD3D12* b = static_cast<BufferD3D12*>(buffer);
+    if (!b->resource) return;
+    DXGI_FORMAT fmt = (indexFormat == 1) ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT;
+    D3D12_RESOURCE_DESC rd = b->resource->GetDesc();
+    UINT64 bufSize = rd.Width;
+    D3D12_INDEX_BUFFER_VIEW ibv = {};
+    ibv.BufferLocation = b->resource->GetGPUVirtualAddress() + (UINT64)offset;
+    ibv.SizeInBytes = (UINT)(offset < bufSize ? bufSize - (UINT64)offset : 0);
+    ibv.Format = fmt;
+    list->IASetIndexBuffer(&ibv);
+  }
+  void SetGraphicsPSO(IPSO* pso) override {
+    if (!list || !recording) return;
+    if (!pso) return;
+    PSOD3D12* d = static_cast<PSOD3D12*>(pso);
+    if (d->pipeline) list->SetPipelineState(d->pipeline.Get());
+    if (d->rootSignature) list->SetGraphicsRootSignature(d->rootSignature.Get());
+  }
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
+  void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
+  void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
     (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
   }
@@ -197,12 +247,6 @@ struct SwapChainD3D12 final : ISwapChain {
   ~SwapChainD3D12() override {
     if (device && backBuffer) device->DestroyTexture(backBuffer);
   }
-};
-
-struct PSOD3D12 final : IPSO {
-  ComPtr<ID3D12PipelineState> pipeline;
-  ComPtr<ID3D12RootSignature> rootSignature;
-  ~PSOD3D12() override = default;
 };
 
 struct QueueD3D12 final : IQueue {
