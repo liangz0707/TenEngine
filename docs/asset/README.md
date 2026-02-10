@@ -11,6 +11,7 @@
 | [01-asset-data-structure.md](./01-asset-data-structure.md) | **数据结构与数据表述**：GUID 管理、IResource 体系、FResource/RResource/DResource、磁盘一目录一资源（描述 / 实际数据 / 导入前源数据）、内存结构、数据格式与 *Desc 归属、与依赖图对应关系。 |
 | [02-asset-loading-flow.md](./02-asset-loading-flow.md) | **加载流程与引用关系**：**GUID 与文件路径的对应**（§2.2）、013 为唯一加载入口、同步/异步加载、依赖解析与层级引用、状态检查与回调、EnsureDeviceResources、卸载与流式、调用顺序与约束。所有“如何加载”的约定以本文档为准。 |
 | [03-asset-misc.md](./03-asset-misc.md) | **其他说明**：统一 IResource 接口（加载、卸载、导入）、状态检查与回调、层级引用、内部统一接口创建 GPU 资源（DResource）、与 000-module-dependency-map 对应关系、契约与规格索引、其他约定。 |
+| [04-texture-load-import-save-flow.md](./04-texture-load-import-save-flow.md) | **028-Texture 流程**：贴图加载（Load）、导入（Import）、保存（Save）与 GPU 资源创建（EnsureDeviceResources）的调用链与上下游关系；013/028/030/008 分工与关键文件索引。 |
 
 ---
 

@@ -4,7 +4,7 @@
 
 - **实现方**：010-Shader（L2；Shader 编译、变体、预编译、可选 Shader Graph；作为资产由 013 加载，010 不发起加载）
 - **对应规格**：`docs/module-specs/010-shader.md`
-- **依赖**：001-Core、008-RHI、009-RenderCore、013-Resource
+- **依赖**：001-Core、008-RHI、009-RenderCore、013-Resource、002-Object
 
 ## 消费者
 
@@ -46,12 +46,21 @@
 
 - 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 Load(shaderGuid) 后将 ShaderAssetDesc 或源码交 010 CreateShader/Compile；010 不读文件、不调用 013 Load。
 
+### Shader 资源（013 统一加载）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| **ShaderAssetDesc** | Shader 资产描述；guid (ResourceId)、sourceFileName[256]、sourceFormat、compileOptions；与 002 注册；一目录一 Shader（.shader + 同目录源码文件） | 010 拥有，002 序列化 |
+| **ShaderResource** | 实现 resource::IShaderResource；Load（LoadAssetDesc + 同目录读源码 + LoadSourceFromMemory + Compile）、Save（SaveAssetDesc + 写同目录源码）、Import（读源码、编译、生成 GUID、写 .shader 与源码）；GetShaderHandle() 返回 IShaderHandle* | 013 缓存持有 |
+| **InitializeShaderModule(manager)** | 注册 Shader 资源工厂与 ShaderAssetDesc/CompileOptions（002）；ResourceManager 就绪后调用 | 引擎初始化时调用一次 |
+| **LoadAllShaders(manager, manifestPath)** | 按清单文件逐行 LoadSync(.shader)；任一行失败即中止返回 false | 引擎初始化时调用（可选） |
+
 ## TODO 列表
 
 （以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
 
-- [ ] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 可选 .hlsl/.glsl）。
-- [ ] **CreateShader**：013 加载后交 010 CreateShader/Compile；产出 Bytecode 供 008 创建 ShaderModule/PSO；010 不发起加载。
+- [x] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 同目录 .hlsl/.glsl）。
+- [x] **Shader 资源**：010 实现 ShaderResource（IShaderResource）；013 初始化时调用 InitializeShaderModule、LoadAllShaders；Material 经 GUID 从 013 缓存取 Shader。
 - [x] **接口与数据**（已实现）：LoadSource(path, format)、LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetReflection(handle, outDesc→UniformLayoutDesc)、GetShaderReflection(handle, outDesc→ShaderReflectionDesc)、GetVertexInputReflection(handle, outDesc→VertexFormatDesc)；与 009 UniformLayoutDesc/ShaderReflectionDesc/VertexFormatDesc 对接；LoadCache/SaveCache 使用 001 FileRead/FileWrite（TE_SHADER_USE_CORE 时）。
 
 ## 变更记录
@@ -60,4 +69,5 @@
 |------|----------|
 | T0 新增 | 010-Shader 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
-| 2026-02-10 | 能力 1–4、6–7 与实现对齐：CompileOptions(stage/entryPoint/optimizationLevel/generateDebugInfo)、四后端、GetReflection/GetShaderReflection/GetVertexInputReflection；TODO 接口与数据标为已实现 |
+| 2026-02-10 | 能力 1–4、6–7 与实现对齐；TODO 接口与数据标为已实现 |
+| 2026-02-10 | 增加 Shader 资源：ShaderAssetDesc、ShaderResource、InitializeShaderModule、LoadAllShaders；依赖 002-Object；TODO 描述归属与 Shader 资源标为已实现 |

@@ -20,6 +20,9 @@ if(NOT MY_DEPS)
 endif()
 
 set(TE_MATERIAL_SOURCES
+  src/material_json.cpp
+  src/MaterialResource.cpp
+  src/MaterialModuleInit.cpp
   src/storage_format.cpp
   src/factory.cpp
   src/material_def.cpp
@@ -32,6 +35,9 @@ add_library(te_material STATIC ${TE_MATERIAL_SOURCES})
 target_include_directories(te_material
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-013-resource/include
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/include
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-002-object/include
 )
 target_link_libraries(te_material PRIVATE ${MY_DEPS})
 

@@ -73,25 +73,22 @@ void EntityManager::DestroyEntity(Entity* entity) {
     if (!entity) {
         return;
     }
-    
+
     EntityId entityId = entity->GetEntityId();
-    
+    te::scene::WorldRef world = entity->GetWorldRef();
+    char const* name = entity->GetName();
+
     // Remove from entities map
     m_entities.erase(entityId);
-    
-    // Remove from name map
-    te::scene::WorldRef world;
-    // Get world from entity's scene node
-    // Since Entity implements ISceneNode, we need to find its world
-    // For now, iterate through all worlds to find the entity
-    char const* name = entity->GetName();
-    if (name && strlen(name) > 0) {
+
+    // Remove from name map (use entity's world so we find the correct bucket)
+    if (world.IsValid() && name && strlen(name) > 0) {
         auto worldIt = m_nameToEntity.find(world);
         if (worldIt != m_nameToEntity.end()) {
             worldIt->second.erase(std::string(name));
         }
     }
-    
+
     // Delete Entity (this will unregister from SceneManager)
     delete entity;
 }

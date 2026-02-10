@@ -77,18 +77,32 @@ void SceneManager::RegisterNode(ISceneNode* node) {
     if (!node) {
         return;
     }
-    
+
     // Find which world this node belongs to
     WorldRef worldRef = FindNodeWorld(node);
     if (!worldRef.IsValid()) {
         return;  // Node doesn't belong to any world
     }
-    
+
     SceneWorld* world = GetWorld(worldRef);
     if (world) {
         world->RegisterNode(node);
         m_nodeToWorld[node] = worldRef;
     }
+}
+
+void SceneManager::RegisterNode(ISceneNode* node, WorldRef world) {
+    if (!node || !world.IsValid()) {
+        return;
+    }
+
+    SceneWorld* worldPtr = GetWorld(world);
+    if (!worldPtr) {
+        return;
+    }
+
+    worldPtr->RegisterNode(node);
+    m_nodeToWorld[node] = world;
 }
 
 void SceneManager::UnregisterNode(ISceneNode* node) {
@@ -224,13 +238,67 @@ SceneWorld* SceneManager::GetWorld(WorldRef world) const {
     if (!world.IsValid()) {
         return nullptr;
     }
-    
+
     auto it = m_worlds.find(world.value);
     if (it != m_worlds.end()) {
         return it->second.get();
     }
-    
+
     return nullptr;
+}
+
+namespace {
+
+void CreateSceneFromDescRecurse(SceneManager& mgr,
+                                SceneWorld* worldPtr,
+                                WorldRef worldRef,
+                                SceneNodeDesc const& nodeDesc,
+                                ISceneNode* parentNode,
+                                NodeFactoryFn const& factory) {
+    ISceneNode* node = factory(nodeDesc);
+    if (!node) {
+        return;
+    }
+
+    node->SetLocalTransform(nodeDesc.localTransform);
+
+    if (parentNode) {
+        node->SetParent(parentNode);
+        mgr.RegisterNode(node);
+    } else {
+        mgr.RegisterNode(node, worldRef);
+    }
+
+    for (SceneNodeDesc const& childDesc : nodeDesc.children) {
+        CreateSceneFromDescRecurse(mgr, worldPtr, worldRef, childDesc, node, factory);
+    }
+}
+
+}  // namespace
+
+WorldRef SceneManager::CreateSceneFromDesc(SpatialIndexType indexType,
+                                           te::core::AABB const& bounds,
+                                           SceneDesc const& desc,
+                                           NodeFactoryFn const& factory) {
+    if (!factory) {
+        return WorldRef();
+    }
+
+    WorldRef worldRef = CreateWorld(indexType, bounds);
+    SceneWorld* worldPtr = GetWorld(worldRef);
+    if (!worldPtr) {
+        return WorldRef();
+    }
+
+    for (SceneNodeDesc const& rootDesc : desc.roots) {
+        CreateSceneFromDescRecurse(*this, worldPtr, worldRef, rootDesc, nullptr, factory);
+    }
+
+    return worldRef;
+}
+
+void SceneManager::UnloadScene(WorldRef world) {
+    DestroyWorld(world);
 }
 
 WorldRef SceneManager::FindNodeWorld(ISceneNode* node) const {

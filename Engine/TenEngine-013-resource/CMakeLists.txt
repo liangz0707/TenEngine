@@ -9,44 +9,35 @@ project(TenEngine-013-resource LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# --- 001-Core (in-tree for this worktree) ---
-# Reference 001-core source files from the 001-core module directory
-set(CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core")
-
-# Core source files
-set(CORE_SOURCES
-  ${CORE_SOURCE_DIR}/src/alloc.cpp
-  ${CORE_SOURCE_DIR}/src/engine.cpp
-  ${CORE_SOURCE_DIR}/src/thread.cpp
-  ${CORE_SOURCE_DIR}/src/platform.cpp
-  ${CORE_SOURCE_DIR}/src/log.cpp
-  ${CORE_SOURCE_DIR}/src/math.cpp
-  ${CORE_SOURCE_DIR}/src/containers.cpp
-  ${CORE_SOURCE_DIR}/src/module_load.cpp
-)
-
-# Core header files (for Visual Studio project view)
-set(CORE_HEADERS
-  ${CORE_SOURCE_DIR}/include/te/core/alloc.h
-  ${CORE_SOURCE_DIR}/include/te/core/check.h
-  ${CORE_SOURCE_DIR}/include/te/core/containers.h
-  ${CORE_SOURCE_DIR}/include/te/core/engine.h
-  ${CORE_SOURCE_DIR}/include/te/core/log.h
-  ${CORE_SOURCE_DIR}/include/te/core/math.h
-  ${CORE_SOURCE_DIR}/include/te/core/module_load.h
-  ${CORE_SOURCE_DIR}/include/te/core/platform.h
-  ${CORE_SOURCE_DIR}/include/te/core/thread.h
-)
-
-add_library(te_core STATIC
-  ${CORE_SOURCES}
-  ${CORE_HEADERS}
-)
-target_include_directories(te_core PUBLIC ${CORE_SOURCE_DIR}/include)
-
-# Organize files in Visual Studio project view
-source_group("Source Files" FILES ${CORE_SOURCES})
-source_group("Header Files" FILES ${CORE_HEADERS})
+# --- 001-Core: in-tree when built standalone; reuse te_core if already added (e.g. by 010) ---
+if(NOT TARGET te_core)
+  set(CORE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core")
+  set(CORE_SOURCES
+    ${CORE_SOURCE_DIR}/src/alloc.cpp
+    ${CORE_SOURCE_DIR}/src/engine.cpp
+    ${CORE_SOURCE_DIR}/src/thread.cpp
+    ${CORE_SOURCE_DIR}/src/platform.cpp
+    ${CORE_SOURCE_DIR}/src/log.cpp
+    ${CORE_SOURCE_DIR}/src/math.cpp
+    ${CORE_SOURCE_DIR}/src/containers.cpp
+    ${CORE_SOURCE_DIR}/src/module_load.cpp
+  )
+  set(CORE_HEADERS
+    ${CORE_SOURCE_DIR}/include/te/core/alloc.h
+    ${CORE_SOURCE_DIR}/include/te/core/check.h
+    ${CORE_SOURCE_DIR}/include/te/core/containers.h
+    ${CORE_SOURCE_DIR}/include/te/core/engine.h
+    ${CORE_SOURCE_DIR}/include/te/core/log.h
+    ${CORE_SOURCE_DIR}/include/te/core/math.h
+    ${CORE_SOURCE_DIR}/include/te/core/module_load.h
+    ${CORE_SOURCE_DIR}/include/te/core/platform.h
+    ${CORE_SOURCE_DIR}/include/te/core/thread.h
+  )
+  add_library(te_core STATIC ${CORE_SOURCES} ${CORE_HEADERS})
+  target_include_directories(te_core PUBLIC ${CORE_SOURCE_DIR}/include)
+  source_group("Source Files" FILES ${CORE_SOURCES})
+  source_group("Header Files" FILES ${CORE_HEADERS})
+endif()
 
 # --- 013-Resource (depends on te_core; 002-object via TenEngineHelpers when TENENGINE_*_DIR set) ---
 # Resource source files
@@ -65,6 +56,7 @@ set(RESOURCE_HEADERS
   include/te/resource/ResourceId.h
   include/te/resource/ResourceManager.h
   include/te/resource/ResourceTypes.h
+  include/te/resource/ShaderResource.h
   include/te/resource/TerrainResource.h
   include/te/resource/TextureResource.h
 )

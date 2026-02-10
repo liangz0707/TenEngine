@@ -2,9 +2,9 @@
 
 - **契约**：[010-shader-public-api.md](./010-shader-public-api.md)（能力与类型描述）
 - **本文件**：010-Shader 对外 ABI 显式表。
-- **CMake Target 名称**：**`te_shader`**（与 `te_rhi`、`te_rendercore` 命名风格一致）。下游在 `target_link_libraries` 中应使用 **`te_shader`**。依赖上游 target: **`te_rhi`** (008-RHI)、**`te_rendercore`** (009-RenderCore)、**`te_core`** (001-Core)。
-- **命名空间**：**`te::shader`**（与 `te::rhi`、`te::rendercore` 风格一致）。实现文件统一使用此命名空间。
-- **头文件路径**：**`te/shader/`**（与 `te/rhi/`、`te/rendercore/` 风格一致）。
+- **CMake Target 名称**：**`te_shader`**。依赖上游 target: **`te_rhi`** (008-RHI)、**`te_rendercore`** (009-RenderCore)、**`te_core`** (001-Core)、**`te_resource`** (013-Resource)、**`te_object`** (002-Object)。
+- **命名空间**：**`te::shader`**。实现文件统一使用此命名空间。
+- **头文件路径**：**`te/shader/`**。
 
 ## ABI 表
 
@@ -81,11 +81,26 @@
 | 010-Shader | te::shader | IShaderHotReload::OnSourceChanged | 成员函数 | 源码变更回调 | te/shader/hot_reload.hpp | `void OnSourceChanged(char const* path, SourceChangedCallback callback, void* userData = nullptr) = 0;` |
 | 010-Shader | te::shader | IShaderHotReload::NotifyShaderUpdated | 成员函数 | 通知 Shader 已更新 | te/shader/hot_reload.hpp | `void NotifyShaderUpdated(IShaderHandle* handle) = 0;` 运行中实时生效 |
 
+### Shader 资源与模块初始化（te/shader/ShaderAssetDesc.h, ShaderResource.h, ShaderModuleInit.h）
+
+| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
+|--------|----------|------|----------|----------|--------|------|
+| 010-Shader | te::shader | ShaderAssetDesc | 结构体 | Shader 资产描述 | te/shader/ShaderAssetDesc.h | guid (ResourceId)、sourceFileName[256]、sourceFormat、compileOptions；IsValid()；一目录一 Shader：.shader + 同目录源码文件；与 002 注册序列化 |
+| 010-Shader | te::shader | kShaderSourceFileNameMaxLen | 常量 | 源码文件名最大长度 | te/shader/ShaderAssetDesc.h | `constexpr size_t kShaderSourceFileNameMaxLen = 256;` |
+| 010-Shader | te::shader | ShaderResource | 类 | Shader 资源实现 | te/shader/ShaderResource.h | 实现 resource::IShaderResource；Load/Save/Import 完整；GetShaderHandle() 返回 void*（即 IShaderHandle*）；持 IShaderHandle*、ShaderAssetDesc、源码缓冲 |
+| 010-Shader | te::shader | InitializeShaderModule | 自由函数 | 初始化 Shader 模块 | te/shader/ShaderModuleInit.h | `void InitializeShaderModule(resource::IResourceManager* manager);` 注册 Shader 工厂与 ShaderAssetDesc/CompileOptions（002）；ResourceManager 就绪后调用 |
+| 010-Shader | te::shader | LoadAllShaders | 自由函数 | 按清单加载全部 Shader | te/shader/ShaderModuleInit.h | `bool LoadAllShaders(resource::IResourceManager* manager, char const* manifestPath);` 清单每行一个 .shader 路径；任一行失败即中止返回 false |
+| 010-Shader | te::shader | ShutdownShaderModule | 自由函数 | 关闭 Shader 模块 | te/shader/ShaderModuleInit.h | `void ShutdownShaderModule();` 清理（002 无 UnregisterType 则类型保持注册） |
+| 010-Shader | te::resource | AssetDescTypeName\<shader::ShaderAssetDesc\> | 特化 | AssetDesc 类型名 | 010 ShaderResource.cpp | `static const char* Get() { return "ShaderAssetDesc"; }` 供 IResource::LoadAssetDesc/SaveAssetDesc 使用 |
+
 ### 头文件与包含关系
 
 | 头文件 | 依赖 | 说明 |
 |--------|------|------|
 | te/shader/types.hpp | \<cstddef\>, \<cstdint\> | ShaderSourceFormat, BackendType, ShaderStage, MacroSet, VariantKey, CompileOptions, IVariantEnumerator, SourceChangedCallback |
+| te/shader/ShaderAssetDesc.h | te/resource/ResourceId.h, te/shader/types.hpp | ShaderAssetDesc, kShaderSourceFileNameMaxLen |
+| te/shader/ShaderResource.h | te/resource/ShaderResource.h, te/resource/Resource.h, te/shader/api.hpp, te/shader/ShaderAssetDesc.h | ShaderResource（实现 IShaderResource） |
+| te/shader/ShaderModuleInit.h | 前向声明 resource::IResourceManager | InitializeShaderModule, LoadAllShaders, ShutdownShaderModule |
 | te/shader/compiler.hpp | te/shader/types.hpp, te/shader/handle.hpp, te/shader/cache.hpp（前向声明） | IShaderCompiler |
 | te/shader/factory.hpp | te/shader/compiler.hpp, te/shader/cache.hpp, te/shader/hot_reload.hpp | Create/Destroy 工厂 |
 | te/shader/handle.hpp | te/shader/types.hpp | IShaderHandle |
@@ -95,8 +110,7 @@
 
 ---
 
-*来源：契约能力 Source & Compilation、Macros & Variants、Cache、Hot Reload；与 008-RHI、009-RenderCore、011-Material、020-Pipeline 对接。*
-*命名空间与头文件路径与 008-RHI (te::rhi, te/rhi/) 及 009-RenderCore (te::rendercore, te/rendercore/) 保持一致。*
+*来源：契约能力 Source & Compilation、Macros & Variants、Cache、Hot Reload、Shader 资源与 013 集成；与 008-RHI、009-RenderCore、013-Resource、002-Object、011-Material、020-Pipeline 对接。*
 
 ## 001-Core 接口使用
 

@@ -13,13 +13,13 @@
 | 001-Core | — | 无（根模块） |
 | 002-Object | Core | 001-core-public-api.md |
 | 003-Application | Core | 001-core-public-api.md |
-| 004-Scene | Core, Object | 001-core-public-api.md, 002-object-public-api.md |
+| 004-Scene | Core | 001-core-public-api.md |
 | 005-Entity | Core, Object, Scene | 001-core-public-api.md, 002-object-public-api.md, 004-scene-public-api.md |
 | 006-Input | Core, Application | 001-core-public-api.md, 003-application-public-api.md |
 | 007-Subsystems | Core, Object | 001-core-public-api.md, 002-object-public-api.md |
 | 008-RHI | Core | 001-core-public-api.md |
 | 009-RenderCore | Core, RHI | 001-core-public-api.md, 008-rhi-public-api.md |
-| 010-Shader | Core, RHI, RenderCore, Resource | 001-core-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md |
+| 010-Shader | Core, RHI, RenderCore, Resource, Object | 001-core-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md, 002-object-public-api.md |
 | 011-Material | RenderCore, Shader, Texture, Resource | 009-rendercore-public-api.md, 010-shader-public-api.md, 028-texture-public-api.md, 013-resource-public-api.md |
 | 012-Mesh | Core, RHI, RenderCore, Resource | 001-core-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md |
 | 013-Resource | Core, Object, Texture | 001-core-public-api.md, 002-object-public-api.md, 028-texture-public-api.md |
@@ -38,7 +38,7 @@
 | 026-Networking | Core, Entity | 001-core-public-api.md, 005-entity-public-api.md |
 | 027-XR | Core, Subsystems, Input, Pipeline | 001-core-public-api.md, 007-subsystems-public-api.md, 006-input-public-api.md, 020-pipeline-public-api.md |
 | 028-Texture | Core, Object, RHI, RenderCore, Resource, 030-DeviceResourceManager | 001-core-public-api.md, 002-object-public-api.md, 008-rhi-public-api.md, 009-rendercore-public-api.md, 013-resource-public-api.md, 030-device-resource-manager-public-api.md |
-| 029-World | Scene, Resource | 004-scene-public-api.md, 013-resource-public-api.md |
+| 029-World | Scene, Resource, Entity | 004-scene-public-api.md, 013-resource-public-api.md, 005-entity-public-api.md |
 | 030-DeviceResourceManager | Core, RHI, Resource | 001-core-public-api.md, 008-rhi-public-api.md, 013-resource-public-api.md |
 
 ---
@@ -50,7 +50,7 @@
 | 提供方模块 | 依赖它的下游 |
 |------------|--------------|
 | 001-Core | 002, 003, 004, 005, 006, 007, 008, 009, 010, 012, 013, 014, 015, 016, 017, 020, 022, 023, 024, 026, 027, 028 |
-| 002-Object | 004, 005, 007, 013, 015 |
+| 002-Object | 004, 005, 007, 010（ShaderAssetDesc 注册）, 013, 015 |
 | 003-Application | 006, 017, 024 |
 | 004-Scene | 005, 014, 020, 024, 029 |
 | 005-Entity | 014, 015, 020, 024, 026 |

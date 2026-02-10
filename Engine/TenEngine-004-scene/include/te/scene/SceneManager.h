@@ -9,6 +9,7 @@
 
 #include <te/scene/SceneTypes.h>
 #include <te/scene/ISceneNode.h>
+#include <te/scene/SceneDesc.h>
 #include <te/core/math.h>
 #include <memory>
 #include <vector>
@@ -20,6 +21,9 @@ namespace scene {
 
 // Forward declaration
 class SceneWorld;
+
+/** Node factory: create ISceneNode* from node description; used by CreateSceneFromDesc. */
+using NodeFactoryFn = std::function<ISceneNode*(SceneNodeDesc const&)>;
 
 /**
  * @brief Scene manager singleton
@@ -64,12 +68,21 @@ public:
     /**
      * @brief Register a node (does not take ownership)
      * @param node Node to register
-     * 
+     *
      * Node must belong to a world. The node's world is determined
      * by finding which world contains it (via parent chain).
      */
     void RegisterNode(ISceneNode* node);
-    
+
+    /**
+     * @brief Register a root node to a specific world (does not take ownership)
+     * @param node Node to register (e.g. root node with no parent)
+     * @param world World to register the node to
+     *
+     * Use this when the node is not yet in any world (e.g. first node, or from CreateSceneFromDesc).
+     */
+    void RegisterNode(ISceneNode* node, WorldRef world);
+
     /**
      * @brief Unregister a node
      * @param node Node to unregister
@@ -133,7 +146,26 @@ public:
      * @return SceneWorld pointer, or nullptr if invalid
      */
     SceneWorld* GetWorld(WorldRef world) const;
-    
+
+    /**
+     * @brief Create a scene world from description (called by 029-World).
+     * @param indexType Spatial index type for the new world
+     * @param bounds World bounds (AABB) for spatial index
+     * @param desc Scene description (root nodes and tree)
+     * @param factory Called for each node desc to create ISceneNode*; 004 does not own nodes
+     * @return World reference of the new world
+     */
+    WorldRef CreateSceneFromDesc(SpatialIndexType indexType,
+                                  te::core::AABB const& bounds,
+                                  SceneDesc const& desc,
+                                  NodeFactoryFn const& factory);
+
+    /**
+     * @brief Unload a scene world (same as DestroyWorld).
+     * Caller (029) must destroy node objects (e.g. Entity) before or after; 004 only drops references.
+     */
+    void UnloadScene(WorldRef world);
+
 private:
     SceneManager() = default;
     ~SceneManager() = default;

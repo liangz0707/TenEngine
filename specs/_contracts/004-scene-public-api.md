@@ -33,6 +33,9 @@
 | ISpatialIndex | 空间索引接口（内部实现）：Octree和Quadtree的基类 | StaticNodeManager内部使用 |
 | Octree | 八叉树空间索引（内部实现）：3D空间索引实现 | StaticNodeManager内部使用 |
 | Quadtree | 四叉树空间索引（内部实现）：2D空间索引实现 | StaticNodeManager内部使用 |
+| SceneDesc | 场景描述：roots（根节点描述列表）；仅 Core 类型，004 定义 | CreateSceneFromDesc 入参 |
+| SceneNodeDesc | 节点描述：name、localTransform、children、opaqueUserData；004 不解析 opaqueUserData | CreateSceneFromDesc 树形结构 |
+| NodeFactoryFn | 节点工厂回调：ISceneNode*(SceneNodeDesc const&)；由 029 提供 | CreateSceneFromDesc 时创建节点 |
 
 ### 能力（提供方保证）
 
@@ -41,7 +44,7 @@
 | 1 | 场景图 | 节点树、父子关系、局部/世界变换、脏标记与变换更新；SceneWorld::UpdateTransforms、SceneManager::UpdateTransforms |
 | 2 | 层级遍历 | SceneWorld::Traverse、SceneManager::Traverse：层级遍历；FindByName、FindById：按名称/ID查找节点；GetRootNodes：获取根节点；GetSpatialIndexType：获取空间索引类型 |
 | 3 | World/Scene 容器 | SceneManager::CreateWorld、DestroyWorld：创建/销毁场景世界；GetActiveWorld、SetActiveWorld：获取/设置活动世界 |
-| 4 | 节点注册 | SceneManager::RegisterNode、UnregisterNode：注册/注销节点；Scene模块不拥有节点所有权，World/Entity负责节点生命周期 |
+| 4 | 节点注册 | SceneManager::RegisterNode(node)、RegisterNode(node, world)：注册/注销节点；根节点使用 RegisterNode(node, world)；Scene模块不拥有节点所有权，World/Entity负责节点生命周期 |
 | 5 | 激活/禁用 | ISceneNode::SetActive、IsActive：节点与子树参与更新/渲染的开关；考虑父链激活状态 |
 | 6 | 节点类型管理 | NodeType枚举（Static/Dynamic）；ISceneNode::GetNodeType：获取节点类型；ConvertToStatic/ConvertToDynamic：节点类型转换 |
 | 7 | 节点操作 | SceneManager::MoveNode：移动节点位置；节点变换通过ISceneNode接口管理 |
@@ -49,8 +52,9 @@
 | 9 | 空间索引 | SpatialIndexType枚举（None/Octree/Quadtree）：创建World时指定空间索引类型；静态节点使用空间索引优化查询 |
 | 10 | 节点管理器 | SceneWorld内部使用DynamicNodeManager（线性列表）和StaticNodeManager（空间索引）管理节点；动态节点O(1)添加/删除，静态节点使用空间索引O(log n)查询；StaticNodeManager提供RebuildIndex批量更新 |
 | 11 | 空间索引实现 | Octree（3D八叉树）和Quadtree（2D四叉树）实现ISpatialIndex接口；支持插入、删除、更新、查询操作；自动分割和合并节点优化性能 |
+| 12 | 从描述创建/卸载场景 | SceneManager::CreateSceneFromDesc(indexType, bounds, SceneDesc, NodeFactoryFn)：创建 World 并按描述树注册节点，节点由 factory 创建、004 不持有；UnloadScene(WorldRef)：卸载场景（等价 DestroyWorld），节点对象由 029 销毁 |
 
-Scene模块是纯算法模块，不依赖Resource和Object模块。命名空间 `te::scene`；头文件 SceneTypes.h、ISceneNode.h、SceneWorld.h、SceneManager.h、SpatialQuery.h。
+Scene模块是纯算法模块，不依赖Resource和Object模块。命名空间 `te::scene`；头文件 SceneTypes.h、SceneDesc.h、ISceneNode.h、SceneWorld.h、SceneManager.h、SpatialQuery.h。
 
 ## 节点管理架构
 
@@ -83,7 +87,7 @@ Scene模块通过ISceneNode接口管理节点，不持有节点对象的所有�
 
 - [x] **轻量资源引用**：004 节点支持持有ResourceId（不持有IResource*），仍不依赖013-Resource模块；SceneDesc包含ResourceId字段。
 - [x] **ResourceId查询接口**：GetNodeModelResourceId、GetNodeEntityPrefabResourceId、HasNodeModelResourceId、HasNodeEntityPrefabResourceId已实现。
-- [ ] **接口**：CreateSceneFromDesc(SceneDesc, …) 由 029 调用；SceneDesc包含ResourceId字段；UnloadScene(scene) 与 029/013 协同。
+- [x] **接口**：CreateSceneFromDesc(SceneDesc, NodeFactoryFn) 由 029 调用；SceneDesc 仅 Core 类型、opaqueUserData 供 029 绑定；UnloadScene(world) 等价 DestroyWorld，与 029 协同（029 先销毁 Entity 再调 UnloadScene）。
 - [x] **节点管理器实现**：实现DynamicNodeManager和StaticNodeManager，完成动态静态节点分离管理
 - [x] **空间索引实现**：实现Octree和Quadtree空间索引，完成空间查询优化
 - [x] **SceneWorld集成**：SceneWorld集成节点管理器，根据节点类型自动分配到对应管理器

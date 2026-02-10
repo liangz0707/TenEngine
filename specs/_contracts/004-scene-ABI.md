@@ -20,6 +20,9 @@
 | 004-Scene | te::scene | SpatialIndexType | 枚举 | 空间索引类型 | te/scene/SceneTypes.h | SpatialIndexType::None, Octree, Quadtree | `enum class SpatialIndexType { None, Octree, Quadtree };` 创建World时指定 |
 | 004-Scene | te::scene | Transform | struct | 变换（位置、旋转、缩放） | te/scene/SceneTypes.h | Transform | position(Vector3), rotation(Quaternion), scale(Vector3) |
 | 004-Scene | te::scene | Frustum | struct | 视锥体 | te/scene/SceneTypes.h | Frustum | planes[6][4]，用于视锥剔除 |
+| 004-Scene | te::scene | SceneDesc | struct | 场景描述（根节点列表） | te/scene/SceneDesc.h | SceneDesc | roots(std::vector\<SceneNodeDesc\>)；用于 CreateSceneFromDesc |
+| 004-Scene | te::scene | SceneNodeDesc | struct | 节点描述（name、localTransform、children、opaqueUserData） | te/scene/SceneDesc.h | SceneNodeDesc | 004 不解析 opaqueUserData；由 029 填充并传给 NodeFactoryFn |
+| 004-Scene | te::scene | NodeFactoryFn | 类型别名 | 节点工厂：ISceneNode*(SceneNodeDesc const&) | te/scene/SceneManager.h | NodeFactoryFn | std::function\<ISceneNode*(SceneNodeDesc const&)\>；CreateSceneFromDesc 时由 029 提供 |
 
 ### 场景管理器（SceneManager 单例）
 
@@ -31,6 +34,7 @@
 | 004-Scene | te::scene | SceneManager | 类/单例 | 获取活动世界 | te/scene/SceneManager.h | SceneManager::GetActiveWorld | `WorldRef GetActiveWorld() const;` 返回当前活动世界引用 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 设置活动世界 | te/scene/SceneManager.h | SceneManager::SetActiveWorld | `void SetActiveWorld(WorldRef world);` 设置当前活动世界 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 注册节点 | te/scene/SceneManager.h | SceneManager::RegisterNode | `void RegisterNode(ISceneNode* node);` 注册节点到Scene管理（不持有所有权） |
+| 004-Scene | te::scene | SceneManager | 类/单例 | 注册根节点到指定世界 | te/scene/SceneManager.h | SceneManager::RegisterNode | `void RegisterNode(ISceneNode* node, WorldRef world);` 将节点注册到指定 World（用于根节点或 CreateSceneFromDesc） |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 注销节点 | te/scene/SceneManager.h | SceneManager::UnregisterNode | `void UnregisterNode(ISceneNode* node);` 从Scene管理注销节点 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 更新变换 | te/scene/SceneManager.h | SceneManager::UpdateTransforms | `void UpdateTransforms(WorldRef world);` 更新指定世界的所有脏节点变换 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 移动节点 | te/scene/SceneManager.h | SceneManager::MoveNode | `void MoveNode(ISceneNode* node, te::core::Vector3 const& position);` 移动节点位置 |
@@ -39,6 +43,8 @@
 | 004-Scene | te::scene | SceneManager | 类/单例 | 按名称查找 | te/scene/SceneManager.h | SceneManager::FindNodeByName | `ISceneNode* FindNodeByName(WorldRef world, char const* name);` 按名称查找节点 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 按ID查找 | te/scene/SceneManager.h | SceneManager::FindNodeById | `ISceneNode* FindNodeById(WorldRef world, NodeId id);` 按ID查找节点 |
 | 004-Scene | te::scene | SceneManager | 类/单例 | 获取世界 | te/scene/SceneManager.h | SceneManager::GetWorld | `SceneWorld* GetWorld(WorldRef world) const;` 根据WorldRef获取SceneWorld指针，返回nullptr如果无效 |
+| 004-Scene | te::scene | SceneManager | 类/单例 | 从描述创建场景世界 | te/scene/SceneManager.h | SceneManager::CreateSceneFromDesc | `WorldRef CreateSceneFromDesc(SpatialIndexType, te::core::AABB const&, SceneDesc const&, NodeFactoryFn const&);` 由 029 调用；004 不持有节点 |
+| 004-Scene | te::scene | SceneManager | 类/单例 | 卸载场景世界 | te/scene/SceneManager.h | SceneManager::UnloadScene | `void UnloadScene(WorldRef world);` 等价 DestroyWorld；节点对象由 029 负责销毁 |
 
 ### 场景世界（SceneWorld）
 

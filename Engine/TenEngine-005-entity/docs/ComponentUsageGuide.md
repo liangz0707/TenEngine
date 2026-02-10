@@ -63,23 +63,14 @@ struct MyComponent : public Component {
 
 ### 2. 注册Component类型
 
-在模块初始化时注册Component类型到Object模块：
+在模块初始化时通过 ComponentRegistry 注册类型；**一次调用即同时注册到 Entity 与 002-Object**（反射/序列化可用）。其他模块（如 029-World 的 ModelComponent）在各自模块初始化时调用即可，无需修改 005 源码。
 
 ```cpp
 #include <te/entity/ComponentRegistry.h>
-#include <te/object/TypeRegistry.h>
 
 void MyModule::Initialize() {
-    // 注册Component类型
     IComponentRegistry* registry = GetComponentRegistry();
     registry->RegisterComponentType<MyComponent>("MyComponent");
-    
-    // 同时注册到Object模块（用于序列化和反射）
-    te::object::TypeDescriptor desc;
-    desc.name = "MyComponent";
-    desc.size = sizeof(MyComponent);
-    desc.id = GenerateTypeId();  // 生成唯一TypeId
-    te::object::TypeRegistry::RegisterType(desc);
 }
 ```
 

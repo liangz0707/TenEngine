@@ -23,6 +23,7 @@ set(SCENE_SOURCES
 # Header files (for Visual Studio project view)
 set(SCENE_HEADERS
   include/te/scene/SceneTypes.h
+  include/te/scene/SceneDesc.h
   include/te/scene/ISceneNode.h
   include/te/scene/SceneManager.h
   include/te/scene/SceneWorld.h

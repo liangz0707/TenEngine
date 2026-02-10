@@ -57,6 +57,8 @@ endif()
 option(TE_RHI_D3D12 "Enable D3D12 backend (HLSL->DXIL via DXC)" OFF)
 
 set(TE_SHADER_SOURCES
+  src/ShaderModuleInit.cpp
+  src/ShaderResource.cpp
   src/shader/compiler_impl.cpp
   src/shader/factory.cpp
   src/shader/handle_impl.cpp
@@ -72,6 +74,12 @@ endif()
 add_library(te_shader STATIC ${TE_SHADER_SOURCES})
 target_include_directories(te_shader PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+# 013, 001, 002 includes (001 before 002 so te::core is 001-core, not 002's stub)
+target_include_directories(te_shader PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-013-resource/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-002-object/include
 )
 target_link_libraries(te_shader PRIVATE
   ${MY_DEPS}

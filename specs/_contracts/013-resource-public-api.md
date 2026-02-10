@@ -6,6 +6,14 @@
 - **对应规格**：`docs/module-specs/013-resource.md`
 - **依赖**：001-Core、002-Object
 
+### IShaderResource 与 IMaterialResource（视图接口）
+
+| 名称 | 语义 | 生命周期 |
+|------|------|----------|
+| **IShaderResource** | Shader 资源视图；继承 IResource；`void* GetShaderHandle() const = 0;` 返回 te::shader::IShaderHandle*（调用方转型）；由 010-Shader 实现；经 LoadSync(..., ResourceType::Shader) 或 GetCached(shaderGuid) 返回 | 与 IResource 一致 |
+| **IMaterialResource** | 材质资源视图；继承 IResource；持 Shader 引用、贴图 (set,binding)→引用、参数缓冲；`GetTextureRefs(outSlots, outPaths, maxCount)` 返回槽位与贴图 GUID 字符串；由 011-Material 实现 | 与 IResource 一致 |
+| **MaterialTextureSlot** | 贴图槽位；`struct { std::uint32_t set; std::uint32_t binding; };` 与 GetTextureRefs 配合使用 | 调用方栈或数组 |
+
 ## 消费者
 
 - 010-Shader、011-Material、012-Mesh、028-Texture、029-World（资源类型继承 IResource，实现 Load/Save/Import 方法，向 013 注册资源工厂）、016-Audio、020-Pipeline、022-2D、023-Terrain、024-Editor（调用 ResourceManager Load/缓存 等获取资源）

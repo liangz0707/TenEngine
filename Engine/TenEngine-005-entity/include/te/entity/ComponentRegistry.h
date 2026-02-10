@@ -59,6 +59,13 @@ public:
      * @return true if registered
      */
     virtual bool IsComponentTypeRegistered(te::object::TypeId id) const = 0;
+
+    /**
+     * @brief Register a component type by name and size (type-erased; used by template).
+     * @param name Component type name (must match the name used for GetComponentTypeInfo lookup)
+     * @param size Sizeof(T) of the component type
+     */
+    virtual void RegisterComponentTypeByNameAndSize(char const* name, std::size_t size) = 0;
 };
 
 /**
@@ -79,15 +86,13 @@ struct IComponentTypeInfo {
  */
 IComponentRegistry* GetComponentRegistry();
 
-// Forward declaration of helper function (implemented in ComponentRegistry.cpp)
-template<typename T>
-void RegisterComponentTypeHelper(char const* name);
-
-// Template implementation (must be in header)
+// Template implementation: type-erased registration so 029 etc. can instantiate in their TU
 template<typename T>
 void IComponentRegistry::RegisterComponentType(char const* name) {
-    // Call helper function which accesses the implementation
-    RegisterComponentTypeHelper<T>(name);
+    IComponentRegistry* r = GetComponentRegistry();
+    if (r) {
+        r->RegisterComponentTypeByNameAndSize(name, sizeof(T));
+    }
 }
 
 }  // namespace entity
