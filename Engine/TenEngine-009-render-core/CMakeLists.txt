@@ -32,7 +32,8 @@ target_include_directories(te_rendercore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(te_rendercore PUBLIC ${MY_DEPS})
 
 option(BUILD_TESTS "Build unit and contract tests" ON)
-if(BUILD_TESTS)
+# Skip tests if TENENGINE_SKIP_DEPENDENCY_TESTS is set (when used as a dependency)
+if(BUILD_TESTS AND NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
