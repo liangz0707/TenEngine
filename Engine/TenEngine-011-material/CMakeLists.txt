@@ -11,6 +11,15 @@ set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency modu
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
 
+# 009 目录名为 TenEngine-009-render-core，与模块 id 009-rendercore 不一致，需显式指定
+if(NOT DEFINED TENENGINE_009_RENDERCORE_DIR)
+  if(DEFINED TENENGINE_ROOT)
+    set(TENENGINE_009_RENDERCORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-009-render-core")
+  else()
+    set(TENENGINE_009_RENDERCORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-009-render-core")
+  endif()
+endif()
+
 tenengine_resolve_my_dependencies("011-material" OUT_DEPS _material_deps)
 if(NOT _material_deps)
   message(FATAL_ERROR "te_material: Dependencies (009-rendercore, 010-shader, 013-resource) could not be resolved.")

@@ -37,7 +37,7 @@ endif()
 set(ENABLE_OPT OFF CACHE BOOL "Disable SPIR-V optimizer (avoids SPIRV-Tools)")
 FetchContent_Declare(glslang
   GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
-  GIT_TAG        14.0.0
+  GIT_TAG        15.4.0
 )
 set(SKIP_GLSLANG_INSTALL OFF CACHE BOOL "")
 FetchContent_MakeAvailable(glslang)
