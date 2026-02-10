@@ -1,18 +1,35 @@
-/** 012-Mesh: CreateMesh, ReleaseMesh. */
+/**
+ * @file MeshFactory.h
+ * @brief Mesh creation and release (contract: specs/_contracts/012-mesh-ABI.md).
+ */
 #ifndef TE_MESH_MESH_FACTORY_H
 #define TE_MESH_MESH_FACTORY_H
 
-#include "te/mesh/Mesh.h"
-#include "te/mesh/MeshAssetDesc.h"
+#include <te/mesh/Mesh.h>
+#include <te/mesh/MeshAssetDesc.h>
 
 namespace te {
 namespace mesh {
 
-/** 仅接受内存数据，入参由 013 传入；返回 MeshHandle。 */
+/**
+ * Create mesh from asset description (memory only).
+ * Allocates memory for vertex/index data and creates internal MeshData structure.
+ * 
+ * @param desc Mesh asset description (must be valid)
+ * @return Mesh handle, or nullptr on failure
+ */
 MeshHandle CreateMesh(MeshAssetDesc const* desc);
+
+/**
+ * Release mesh handle.
+ * Frees all memory associated with the mesh, including vertex/index data.
+ * Does NOT release GPU resources (those are managed by MeshResource).
+ * 
+ * @param h Mesh handle to release
+ */
 void ReleaseMesh(MeshHandle h);
 
 }  // namespace mesh
 }  // namespace te
 
-#endif
+#endif  // TE_MESH_MESH_FACTORY_H

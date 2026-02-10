@@ -1,18 +1,35 @@
-/** 012-Mesh: MeshResourceLoader (IResourceLoader); CreateFromPayload. */
+/**
+ * @file MeshLoader.h
+ * @brief Mesh resource loader (contract: specs/_contracts/012-mesh-ABI.md).
+ */
 #ifndef TE_MESH_MESH_LOADER_H
 #define TE_MESH_MESH_LOADER_H
+
+#include <te/resource/ResourceManager.h>
 
 namespace te {
 namespace mesh {
 
-/** 013 按 ResourceType::Mesh 调用；payload 为 MeshAssetDesc*，返回 IResource*。 */
+/**
+ * MeshResourceLoader: creates MeshResource from payload.
+ * Implements IResourceLoader interface for ResourceType::Mesh.
+ */
 class MeshResourceLoader {
  public:
-  /** type==Mesh 时 payload 为 MeshAssetDesc*；返回 IResource*（实现 IMeshResource）。 */
-  void* CreateFromPayload(unsigned type, void* payload, void* manager);
+  /**
+   * Create resource from payload.
+   * Called by ResourceManager when loading Mesh resource type.
+   * 
+   * @param type Resource type (must be ResourceType::Mesh)
+   * @param payload MeshAssetDesc* (cast from void*)
+   * @param manager Resource manager
+   * @return IResource* (MeshResource instance), or nullptr on failure
+   */
+  static resource::IResource* CreateFromPayload(resource::ResourceType type, void* payload,
+                                                 resource::IResourceManager* manager);
 };
 
 }  // namespace mesh
 }  // namespace te
 
-#endif
+#endif  // TE_MESH_MESH_LOADER_H

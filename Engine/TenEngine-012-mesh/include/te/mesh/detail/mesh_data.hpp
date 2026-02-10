@@ -1,26 +1,77 @@
-/** 012-mesh 内部表示；仅 src/mesh 使用。 */
+/**
+ * @file mesh_data.hpp
+ * @brief Internal mesh data structure implementation details.
+ */
 #ifndef TE_MESH_DETAIL_MESH_DATA_HPP
 #define TE_MESH_DETAIL_MESH_DATA_HPP
 
-#include "te/mesh/Mesh.h"
+#include <te/mesh/Mesh.h>
+#include <te/mesh/MeshAssetDesc.h>
+#include <te/rhi/resources.hpp>
+#include <te/core/alloc.h>
+#include <vector>
+#include <cstdint>
+#include <cstddef>
+#include <memory>
 
 namespace te {
 namespace mesh {
 namespace detail {
 
+/**
+ * Internal mesh data structure.
+ * Stores all mesh data including vertices, indices, submeshes, LOD, and GPU resources.
+ */
 struct MeshData {
-  uint32_t submeshCount = 0;
-  SubmeshDesc* submeshes = nullptr;  // owned
-  uint32_t lodCount = 0;
-  SkinningData const* skinningData = nullptr;  // non-owned
+  // Custom deleter for te::core::Alloc memory
+  struct CoreAllocDeleter {
+    void operator()(uint8_t* ptr) const {
+      if (ptr) {
+        te::core::Free(ptr);
+      }
+    }
+  };
+  
+  // Vertex and index data
+  std::unique_ptr<uint8_t[], CoreAllocDeleter> vertexData;  // Owned vertex data
+  size_t vertexDataSize = 0;
+  std::unique_ptr<uint8_t[], CoreAllocDeleter> indexData;    // Owned index data
+  size_t indexDataSize = 0;
+  
+  // Vertex and index formats
+  rendercore::VertexFormat vertexLayout;
+  rendercore::IndexFormat indexFormat;
+  
+  // Submeshes
+  std::vector<SubmeshDesc> submeshes;
+  
+  // LOD levels
+  std::vector<LODLevel> lodLevels;
+  
+  // Skinning data (optional)
+  std::unique_ptr<SkinningData> skinningData;
+  
+  // GPU resources (created by EnsureDeviceResources)
+  rhi::IBuffer* deviceVertexBuffer = nullptr;
+  rhi::IBuffer* deviceIndexBuffer = nullptr;
+  
+  // Reference count (for resource management)
+  uint32_t refCount = 1;
+  
+  MeshData() = default;
+  ~MeshData();
+  
+  // Non-copyable
+  MeshData(MeshData const&) = delete;
+  MeshData& operator=(MeshData const&) = delete;
+  
+  // Movable
+  MeshData(MeshData&&) = default;
+  MeshData& operator=(MeshData&&) = default;
 };
-
-inline MeshData* get(MeshHandle h) {
-  return static_cast<MeshData*>(h.opaque);
-}
 
 }  // namespace detail
 }  // namespace mesh
 }  // namespace te
 
-#endif
+#endif  // TE_MESH_DETAIL_MESH_DATA_HPP

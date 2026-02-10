@@ -1,46 +1,121 @@
-/** 012-Mesh: MeshHandle, SubmeshDesc, LODLevel, SkinningData; query APIs. */
+/**
+ * @file Mesh.h
+ * @brief Mesh handle and related types (contract: specs/_contracts/012-mesh-ABI.md).
+ */
 #ifndef TE_MESH_MESH_H
 #define TE_MESH_MESH_H
 
+#include <te/rendercore/resource_desc.hpp>
 #include <cstdint>
+#include <cstddef>
 
 namespace te {
 namespace mesh {
 
-/** 不透明网格句柄；CreateMesh 返回，ReleaseMesh 释放。 */
-struct MeshHandle {
-  void* opaque = nullptr;
-  bool valid() const { return opaque != nullptr; }
-};
+// Forward declaration
+namespace detail {
+struct MeshData;
+}
 
-/** 子网格描述：offset, count, materialSlotIndex；DrawCall 批次。 */
+/**
+ * Mesh handle (opaque handle).
+ * Returned by CreateMesh, released by ReleaseMesh.
+ */
+using MeshHandle = detail::MeshData*;
+
+/**
+ * Submesh description.
+ * Defines a draw call batch with material slot index.
+ */
 struct SubmeshDesc {
-  uint32_t offset = 0;
-  uint32_t count = 0;
-  uint32_t materialSlotIndex = 0;
+  uint32_t offset = 0;           // Index offset
+  uint32_t count = 0;            // Index count
+  uint32_t materialSlotIndex = 0; // Material slot index for this submesh
 };
 
-/** LOD 级别/句柄；与 Resource 流式对接。 */
+/**
+ * LOD level description.
+ * Defines a LOD level with distance/screen size thresholds.
+ */
 struct LODLevel {
-  uint32_t index = 0;
-  float distanceOrScreenSize = 0.f;
+  float distanceThreshold = 0.0f;    // Distance threshold for LOD selection
+  float screenSizeThreshold = 0.0f;  // Screen size threshold (optional)
+  uint32_t submeshStartIndex = 0;     // Starting submesh index for this LOD
+  uint32_t submeshCount = 0;          // Number of submeshes in this LOD
 };
 
-/** 蒙皮数据：BoneIndices, Weights, BindPose；与 015-Animation 对接。 */
+/**
+ * LOD handle (same as LODLevel index).
+ */
+using LODHandle = uint32_t;
+
+/**
+ * Skinning data.
+ * Contains bone indices, weights, and bind pose matrices.
+ */
 struct SkinningData {
-  void const* boneIndices = nullptr;
-  void const* weights = nullptr;
-  void const* bindPose = nullptr;
-  uint32_t boneCount = 0;
+  // Bone indices per vertex (4 bones per vertex, -1 for unused slots)
+  int32_t* boneIndices = nullptr;
+  size_t boneIndicesCount = 0;  // Number of bone index entries (vertexCount * 4)
+  
+  // Bone weights per vertex (4 weights per vertex, normalized)
+  float* boneWeights = nullptr;
+  size_t boneWeightsCount = 0;  // Number of weight entries (vertexCount * 4)
+  
+  // Bind pose matrices (inverse bind pose)
+  float* bindPoseMatrices = nullptr;
+  size_t bindPoseMatrixCount = 0;  // Number of matrices (boneCount * 16)
+  
+  uint32_t boneCount = 0;  // Number of bones
+  uint32_t vertexCount = 0; // Number of vertices with skinning data
 };
 
+/**
+ * Get submesh count.
+ * @param h Mesh handle
+ * @return Number of submeshes
+ */
 uint32_t GetSubmeshCount(MeshHandle h);
+
+/**
+ * Get submesh description.
+ * @param h Mesh handle
+ * @param index Submesh index
+ * @return Pointer to SubmeshDesc, or nullptr if index is invalid
+ */
 SubmeshDesc const* GetSubmesh(MeshHandle h, uint32_t index);
+
+/**
+ * Get LOD count.
+ * @param h Mesh handle
+ * @return Number of LOD levels
+ */
 uint32_t GetLODCount(MeshHandle h);
+
+/**
+ * Select LOD level based on distance or screen size.
+ * @param h Mesh handle
+ * @param distanceOrScreenSize Distance or screen size value
+ * @return Selected LOD level index
+ */
 uint32_t SelectLOD(MeshHandle h, float distanceOrScreenSize);
+
+/**
+ * Get skinning data.
+ * @param h Mesh handle
+ * @return Pointer to SkinningData, or nullptr if mesh has no skinning data
+ */
 SkinningData const* GetSkinningData(MeshHandle h);
+
+/**
+ * Request streaming for LOD levels.
+ * Optional: interface with 013-Resource streaming system.
+ * @param h Mesh handle
+ * @param lodLevel LOD level to request streaming for
+ */
+void RequestStreaming(MeshHandle h, uint32_t lodLevel);
 
 }  // namespace mesh
 }  // namespace te
 
-#endif
+#endif  // TE_MESH_MESH_H
