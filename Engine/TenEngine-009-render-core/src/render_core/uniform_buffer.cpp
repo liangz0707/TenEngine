@@ -69,6 +69,8 @@ class UniformBufferImpl final : public IUniformBuffer {
     currentSlot_ = slot % kRingBufferSlots;
   }
 
+  te::rhi::IBuffer* GetBuffer() override { return buffer_; }
+
  private:
   IUniformLayout const* layout_;
   te::rhi::IDevice* device_;

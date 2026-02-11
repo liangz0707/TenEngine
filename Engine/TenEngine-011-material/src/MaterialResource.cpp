@@ -17,6 +17,9 @@
 #include <te/rendercore/shader_reflection.hpp>
 #include <te/rendercore/uniform_layout.hpp>
 #include <te/rendercore/uniform_buffer.hpp>
+#include <te/rhi/descriptor_set.hpp>
+#include <te/rhi/resources.hpp>
+#include <te/texture/TextureDevice.h>
 #include <te/core/alloc.h>
 #include <cstring>
 #include <algorithm>
@@ -28,6 +31,22 @@ MaterialResource::MaterialResource()
     : resourceId_(), refCount_(1), shaderHandle_(nullptr), shaderResource_(nullptr), textureRefs_(), paramBuffer_(), jsonData_() {}
 
 MaterialResource::~MaterialResource() {
+  if (device_ && graphicsPSO_) {
+    device_->DestroyPSO(graphicsPSO_);
+    graphicsPSO_ = nullptr;
+  }
+  if (device_ && descriptorSet_) {
+    device_->DestroyDescriptorSet(descriptorSet_);
+    descriptorSet_ = nullptr;
+  }
+  if (device_ && descriptorSetLayout_) {
+    device_->DestroyDescriptorSetLayout(descriptorSetLayout_);
+    descriptorSetLayout_ = nullptr;
+  }
+  if (device_ && defaultSampler_) {
+    device_->DestroySampler(defaultSampler_);
+    defaultSampler_ = nullptr;
+  }
   if (uniformBuffer_) {
     te::rendercore::ReleaseUniformBuffer(uniformBuffer_);
     uniformBuffer_ = nullptr;
@@ -214,23 +233,79 @@ void MaterialResource::EnsureDeviceResources() {
       texRes->EnsureDeviceResources();
     }
   }
-  if (!uniformBuffer_ && shaderHandle_ && !paramBuffer_.empty()) {
-    te::shader::IShaderCompiler* compiler = te::shader::CreateShaderCompiler();
-    if (compiler) {
-      te::rendercore::ShaderReflectionDesc refl = {};
-      if (compiler->GetShaderReflection(shaderHandle_, &refl) &&
-          refl.uniformBlock.members && refl.uniformBlock.memberCount > 0 &&
-          refl.uniformBlock.totalSize > 0 &&
-          paramBuffer_.size() >= refl.uniformBlock.totalSize) {
-        uniformLayout_ = te::rendercore::CreateUniformLayout(refl.uniformBlock);
-        if (uniformLayout_)
-          uniformBuffer_ = te::rendercore::CreateUniformBuffer(uniformLayout_, device_);
-        if (uniformBuffer_)
-          uniformBuffer_->Update(paramBuffer_.data(), refl.uniformBlock.totalSize);
+  te::shader::IShaderCompiler* compiler = te::shader::CreateShaderCompiler();
+  if (!compiler) { deviceResourcesReady_ = true; return; }
+  te::rendercore::ShaderReflectionDesc refl = {};
+  bool hasRefl = shaderHandle_ && compiler->GetShaderReflection(shaderHandle_, &refl);
+  if (!uniformBuffer_ && shaderHandle_ && !paramBuffer_.empty() && hasRefl &&
+      refl.uniformBlock.members && refl.uniformBlock.memberCount > 0 &&
+      refl.uniformBlock.totalSize > 0 &&
+      paramBuffer_.size() >= refl.uniformBlock.totalSize) {
+    uniformLayout_ = te::rendercore::CreateUniformLayout(refl.uniformBlock);
+    if (uniformLayout_)
+      uniformBuffer_ = te::rendercore::CreateUniformBuffer(uniformLayout_, device_);
+    if (uniformBuffer_)
+      uniformBuffer_->Update(paramBuffer_.data(), refl.uniformBlock.totalSize);
+  }
+  /* Build descriptor set layout from reflection: binding 0 = UB, then texture/sampler bindings */
+  if (!descriptorSetLayout_ && !descriptorSet_ && hasRefl && device_) {
+    te::rhi::DescriptorSetLayoutDesc layoutDesc = {};
+    layoutDesc.bindingCount = 0;
+    if (uniformBuffer_) {
+      layoutDesc.bindings[layoutDesc.bindingCount].binding = 0;
+      layoutDesc.bindings[layoutDesc.bindingCount].descriptorType = static_cast<std::uint32_t>(te::rhi::DescriptorType::UniformBuffer);
+      layoutDesc.bindings[layoutDesc.bindingCount].descriptorCount = 1;
+      layoutDesc.bindingCount++;
+    }
+    if (refl.resourceBindings) {
+      for (std::uint32_t i = 0; i < refl.resourceBindingCount && layoutDesc.bindingCount < te::rhi::DescriptorSetLayoutDesc::kMaxBindings; ++i) {
+        te::rendercore::ShaderResourceKind k = refl.resourceBindings[i].kind;
+        if (k == te::rendercore::ShaderResourceKind::SampledImage || k == te::rendercore::ShaderResourceKind::Sampler) {
+          layoutDesc.bindings[layoutDesc.bindingCount].binding = refl.resourceBindings[i].binding;
+          layoutDesc.bindings[layoutDesc.bindingCount].descriptorType = static_cast<std::uint32_t>(te::rhi::DescriptorType::CombinedImageSampler);
+          layoutDesc.bindings[layoutDesc.bindingCount].descriptorCount = 1;
+          layoutDesc.bindingCount++;
+        }
       }
-      te::shader::DestroyShaderCompiler(compiler);
+    }
+    if (layoutDesc.bindingCount > 0) {
+      descriptorSetLayout_ = device_->CreateDescriptorSetLayout(layoutDesc);
+      if (descriptorSetLayout_)
+        descriptorSet_ = device_->AllocateDescriptorSet(descriptorSetLayout_);
     }
   }
+  if (!defaultSampler_ && device_) {
+    te::rhi::SamplerDesc sd = {};
+    sd.filter = 1;  /* linear */
+    defaultSampler_ = device_->CreateSampler(sd);
+  }
+  /* PSO: get bytecode for vertex and fragment, create graphics PSO with layout */
+  if (!graphicsPSO_ && shaderHandle_ && descriptorSetLayout_ && device_) {
+    te::rhi::Backend backend = device_->GetBackend();
+    te::shader::BackendType shaderBackend = te::shader::BackendType::SPIRV;
+    if (backend == te::rhi::Backend::Vulkan)
+      shaderBackend = te::shader::BackendType::SPIRV;
+    else if (backend == te::rhi::Backend::D3D11)
+      shaderBackend = te::shader::BackendType::DXBC;
+    te::shader::CompileOptions compileOpts = {};
+    compileOpts.targetBackend = shaderBackend;
+    compileOpts.stage = te::shader::ShaderStage::Vertex;
+    if (!compiler->Compile(shaderHandle_, compileOpts)) { te::shader::DestroyShaderCompiler(compiler); deviceResourcesReady_ = true; return; }
+    size_t vsSize = 0, fsSize = 0;
+    void const* vsPtr = compiler->GetBytecodeForStage(shaderHandle_, te::shader::ShaderStage::Vertex, &vsSize);
+    if (!vsPtr || vsSize == 0) { te::shader::DestroyShaderCompiler(compiler); deviceResourcesReady_ = true; return; }
+    std::vector<std::uint8_t> vsCopy(static_cast<size_t>(vsSize));
+    std::memcpy(vsCopy.data(), vsPtr, vsSize);
+    void const* fsPtr = compiler->GetBytecodeForStage(shaderHandle_, te::shader::ShaderStage::Fragment, &fsSize);
+    if (!fsPtr || fsSize == 0) { te::shader::DestroyShaderCompiler(compiler); deviceResourcesReady_ = true; return; }
+    te::rhi::GraphicsPSODesc psoDesc = {};
+    psoDesc.vertex_shader = vsCopy.data();
+    psoDesc.vertex_shader_size = vsSize;
+    psoDesc.fragment_shader = fsPtr;
+    psoDesc.fragment_shader_size = fsSize;
+    graphicsPSO_ = device_->CreateGraphicsPSO(psoDesc, descriptorSetLayout_);
+  }
+  te::shader::DestroyShaderCompiler(compiler);
   deviceResourcesReady_ = true;
 }
 
@@ -241,6 +316,41 @@ bool MaterialResource::IsDeviceReady() const {
       return false;
   }
   return true;
+}
+
+void MaterialResource::UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uint32_t frameSlot) {
+  if (!device || !descriptorSet_) return;
+  if (uniformBuffer_)
+    uniformBuffer_->SetCurrentFrameSlot(static_cast<te::rendercore::FrameSlotId>(frameSlot));
+  std::vector<te::rhi::DescriptorWrite> writes;
+  if (uniformBuffer_ && uniformBuffer_->GetBuffer()) {
+    te::rhi::DescriptorWrite w = {};
+    w.dstSet = descriptorSet_;
+    w.binding = 0;
+    w.type = static_cast<std::uint32_t>(te::rhi::DescriptorType::UniformBuffer);
+    w.buffer = uniformBuffer_->GetBuffer();
+    w.bufferOffset = uniformBuffer_->GetRingBufferOffset(static_cast<te::rendercore::FrameSlotId>(frameSlot));
+    w.texture = nullptr;
+    w.sampler = nullptr;
+    writes.push_back(w);
+  }
+  for (TextureEntry const& e : textureRefs_) {
+    te::texture::TextureResource* texRes = dynamic_cast<te::texture::TextureResource*>(e.textureResource);
+    if (!texRes) continue;
+    te::rhi::ITexture* tex = texRes->GetDeviceTexture();
+    if (!tex) continue;
+    te::rhi::DescriptorWrite w = {};
+    w.dstSet = descriptorSet_;
+    w.binding = e.slot.binding;
+    w.type = static_cast<std::uint32_t>(te::rhi::DescriptorType::CombinedImageSampler);
+    w.buffer = nullptr;
+    w.bufferOffset = 0;
+    w.texture = tex;
+    w.sampler = defaultSampler_;
+    writes.push_back(w);
+  }
+  if (!writes.empty())
+    device->UpdateDescriptorSet(descriptorSet_, writes.data(), static_cast<std::uint32_t>(writes.size()));
 }
 
 }  // namespace material

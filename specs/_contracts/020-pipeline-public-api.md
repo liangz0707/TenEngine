@@ -46,7 +46,7 @@
 
 - [x] **资源解析**：待渲染项由 029 CollectRenderables 提供；经 013 解析/缓存 IModelResource*。
 - [x] **EnsureDeviceResources**：Device 任务内 PrepareRenderResources 触发 011/012 Ensure；019 PrepareRenderMaterial/PrepareRenderMesh 调用 SetDevice+EnsureDeviceResources；LOD 流式在收集后对 mesh 调用 013 RequestStreaming(GetResourceId(), 0)。
-- [x] **数据与流程**：TriggerRender 投递阶段 A 到 Render 线程（BuildLogicalPipeline、CollectRenderablesToRenderItemList、RequestStreaming），阶段 B 到 Device 线程（Prepare、IsDeviceReady 过滤、Convert、按 Pass ExecutePass、录制 Draw、Submit）；CollectRenderablesToRenderItemList 支持可选 cameraPositionWorld 用于 012 SelectLOD；每条 Draw 前 009 Bind、008 SetGraphicsPSO（011 GetGraphicsPSO 已接入）；020 录制 Draw 使用 012 GetVertexStride/GetIndexFormat；RenderingConfig 含 ValidationLevel，CheckWarning/CheckError 按配置报告。
+- [x] **数据与流程**：TriggerRender 投递阶段 A 到 Render 线程（BuildLogicalPipeline、CollectRenderablesToRenderItemList、RequestStreaming），阶段 B 到 Device 线程（Prepare、IsDeviceReady 过滤、Convert、按 Pass ExecutePass、录制 Draw、Submit）；CollectRenderablesToRenderItemList 支持可选 cameraPositionWorld 用于 012 SelectLOD；每条 Draw 前 **matRes->UpdateDescriptorSetForFrame(device, frameSlot)**、008 **SetGraphicsPSO**、008 **BindDescriptorSet(matRes->GetDescriptorSet())**（替代 ub->Bind）；ExecuteLogicalCommandBufferOnDeviceThread 传入 frameSlot；020 录制 Draw 使用 012 GetVertexStride/GetIndexFormat；RenderingConfig 含 ValidationLevel，CheckWarning/CheckError 按配置报告。
 
 ## 变更记录
 
@@ -55,3 +55,4 @@
 | T0 新增 | 020-Pipeline 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
 | 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用；约束与 TODO 更新：RenderingConfig.validationLevel、CheckWarning/CheckError；TriggerRender 投递、IsDeviceReady 过滤、RequestStreaming、SelectLOD、合批、按 Pass ExecutePass 已实现 |
+| 2026-02-10 | 每 draw：UpdateDescriptorSetForFrame(frameSlot)、SetGraphicsPSO、BindDescriptorSet；ExecuteLogicalCommandBufferOnDeviceThread 传入 frameSlot；SubmitLogicalCommandBuffer 使用 currentSlot |

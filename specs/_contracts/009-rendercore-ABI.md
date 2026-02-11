@@ -81,7 +81,8 @@
 |--------|----------|------|----------|----------|--------|------|
 | 009-RenderCore | te::rendercore | IUniformBuffer | 抽象接口 | Uniform 缓冲 | te/rendercore/uniform_buffer.hpp | 布局、更新、与 RHI 缓冲绑定 |
 | 009-RenderCore | te::rendercore | IUniformBuffer::Update | 成员函数 | 更新内容 | te/rendercore/uniform_buffer.hpp | `void Update(void const* data, size_t size) = 0;` 提交到当前帧 slot |
-| 009-RenderCore | te::rendercore | IUniformBuffer::Bind | 成员函数 | 绑定到槽位 | te/rendercore/uniform_buffer.hpp | `void Bind(te::rhi::ICommandList* cmd, uint32_t slot) = 0;` 调用 RHI SetUniformBuffer |
+| 009-RenderCore | te::rendercore | IUniformBuffer::Bind | 成员函数 | 绑定到槽位 | te/rendercore/uniform_buffer.hpp | `void Bind(te::rhi::ICommandList* cmd, uint32_t slot) = 0;` 调用 RHI SetUniformBuffer；动态 layout 下由 011 写 descriptor set 替代 |
+| 009-RenderCore | te::rendercore | IUniformBuffer::GetBuffer | 成员函数 | 取底层 RHI 缓冲 | te/rendercore/uniform_buffer.hpp | `te::rhi::IBuffer* GetBuffer() const = 0;` 供 011 UpdateDescriptorSet 写 binding 0 |
 | 009-RenderCore | te::rendercore | IUniformBuffer::GetRingBufferOffset | 成员函数 | 取环缓冲偏移 | te/rendercore/uniform_buffer.hpp | `size_t GetRingBufferOffset(FrameSlotId slot) const = 0;` |
 | 009-RenderCore | te::rendercore | IUniformBuffer::SetCurrentFrameSlot | 成员函数 | 设置当前帧 slot | te/rendercore/uniform_buffer.hpp | `void SetCurrentFrameSlot(FrameSlotId slot) = 0;` |
 | 009-RenderCore | te::rendercore | CreateUniformBuffer | 自由函数 | 创建缓冲 | te/rendercore/uniform_buffer.hpp | `IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, te::rhi::IDevice* device);` 调用 RHI CreateBuffer(Uniform)；失败返回 nullptr |
@@ -116,3 +117,9 @@
 ---
 
 数据与接口 TODO 已迁移至本模块契约 [009-rendercore-public-api.md](./009-rendercore-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与已实现说明。
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | IUniformBuffer::GetBuffer() 取底层 RHI 缓冲，供 011 写 descriptor set |

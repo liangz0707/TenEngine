@@ -5,6 +5,7 @@
 
 #include <te/rhi/types.hpp>
 #include <te/rhi/resources.hpp>
+#include <te/rhi/descriptor_set.hpp>
 #include <te/rhi/raytracing.hpp>
 #include <cstdint>
 #include <cstddef>
@@ -79,6 +80,7 @@ struct ICommandList {
   virtual void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) = 0;
   virtual void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) = 0;  // 0 = 16bit, 1 = 32bit
   virtual void SetGraphicsPSO(IPSO* pso) = 0;
+  virtual void BindDescriptorSet(IDescriptorSet* set) = 0;
   virtual void BeginRenderPass(RenderPassDesc const& desc) = 0;
   virtual void EndRenderPass() = 0;
   virtual void BeginOcclusionQuery(uint32_t queryIndex) = 0;

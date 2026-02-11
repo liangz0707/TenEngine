@@ -22,6 +22,7 @@ public:
     CompileOptions lastOptions_{};
     std::vector<std::unique_ptr<ShaderHandleImpl>> handles_;
     ShaderCacheImpl* cache_ = nullptr;
+    std::vector<uint8_t> bytecodeForStageBuffer_;  /* result of GetBytecodeForStage, invalidated on next call */
 
     void SetCache(IShaderCache* cache) override;
 
@@ -30,6 +31,7 @@ public:
     void ReleaseHandle(IShaderHandle* handle) override;
     bool Compile(IShaderHandle* handle, CompileOptions const& options) override;
     void const* GetBytecode(IShaderHandle* handle, size_t* out_size) override;
+    void const* GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size) override;
     char const* GetLastError() const override;
     BackendType GetTargetBackend() const override;
     void DefineKeyword(char const* name, char const* value) override;

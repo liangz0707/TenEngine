@@ -27,6 +27,18 @@ wchar_t const* stageToDxcProfile(ShaderStage stage) {
     }
 }
 
+wchar_t const* stageToDxcProfileSm5(ShaderStage stage) {
+    switch (stage) {
+        case ShaderStage::Vertex: return L"vs_5_0";
+        case ShaderStage::Fragment: return L"ps_5_0";
+        case ShaderStage::Compute: return L"cs_5_0";
+        case ShaderStage::Geometry: return L"gs_5_0";
+        case ShaderStage::TessControl: return L"hs_5_0";
+        case ShaderStage::TessEvaluation: return L"ds_5_0";
+        default: return L"vs_5_0";
+    }
+}
+
 void utf8EntryPointToWide(char const* entry, std::wstring& out) {
     out.clear();
     if (!entry || entry[0] == '\0') { out = L"main"; return; }
@@ -107,6 +119,22 @@ bool compileHlslToDxilImpl(char const* source, size_t sourceLen, wchar_t const* 
 
 }  // namespace
 
+bool CompileHlslToDxbc(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError) {
+    if (!handle || handle->sourceCode_.empty()) {
+        outError = "No HLSL source to compile for DXBC";
+        return false;
+    }
+    ShaderStage stage = (options.stage != ShaderStage::Unknown) ? options.stage : ShaderStage::Vertex;
+    wchar_t const* profile = stageToDxcProfileSm5(stage);
+    std::wstring entryWide;
+    utf8EntryPointToWide(options.entryPoint[0] != '\0' ? options.entryPoint : "main", entryWide);
+    return compileHlslToDxilImpl(
+        handle->sourceCode_.c_str(), handle->sourceCode_.size(),
+        entryWide.c_str(), profile,
+        options.optimizationLevel, options.generateDebugInfo,
+        handle->bytecodeBlob_, outError);
+}
+
 bool CompileHlslToDxil(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError) {
     if (!handle || handle->sourceCode_.empty()) {
         outError = "No HLSL source to compile";
@@ -124,6 +152,11 @@ bool CompileHlslToDxil(ShaderHandleImpl* handle, CompileOptions const& options, 
 }
 
 #else
+
+bool CompileHlslToDxbc(ShaderHandleImpl* /*handle*/, CompileOptions const& /*options*/, std::string& outError) {
+    outError = "DXC not available for DXBC (enable TE_RHI_D3D12/directx-dxc or use FXC)";
+    return false;
+}
 
 bool CompileHlslToDxil(ShaderHandleImpl* /*handle*/, CompileOptions const& /*options*/, std::string& outError) {
     outError = "DXC not available (TE_RHI_D3D12 or directx-dxc not found)";

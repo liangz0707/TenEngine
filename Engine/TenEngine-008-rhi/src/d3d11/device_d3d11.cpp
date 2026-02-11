@@ -5,6 +5,7 @@
 
 #include <te/rhi/backend_d3d11.hpp>
 #include <te/rhi/command_list.hpp>
+#include <te/rhi/descriptor_set.hpp>
 #include <te/rhi/device.hpp>
 #include <te/rhi/queue.hpp>
 #include <te/rhi/pso.hpp>
@@ -57,6 +58,7 @@ struct BufferD3D11 final : IBuffer {
 };
 
 struct CommandListD3D11 final : ICommandList {
+  ID3D11Device* device = nullptr;
   ID3D11DeviceContext* deferredCtx = nullptr;
   ID3D11CommandList* recordedList = nullptr;
   bool recording = false;
@@ -154,7 +156,33 @@ struct CommandListD3D11 final : ICommandList {
     deferredCtx->VSSetShader(d ? d->vs : nullptr, nullptr, 0);
     deferredCtx->PSSetShader(d ? d->ps : nullptr, nullptr, 0);
   }
-  void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
+  void BindDescriptorSet(IDescriptorSet* set) override {
+    if (!deferredCtx || !recording) return;
+    if (!set) return;
+    DescriptorSetD3D11* ds = static_cast<DescriptorSetD3D11*>(set);
+    if (!ds->layout) return;
+    for (uint32_t i = 0; i < ds->layout->desc.bindingCount && i < DescriptorSetD3D11::kMaxBindings; ++i) {
+      uint32_t t = ds->layout->desc.bindings[i].descriptorType;
+      uint32_t b = ds->layout->desc.bindings[i].binding;
+      if (t == static_cast<uint32_t>(DescriptorType::UniformBuffer) && ds->bindingBuffer[b]) {
+        deferredCtx->VSSetConstantBuffers(b, 1, &ds->bindingBuffer[b]);
+        deferredCtx->PSSetConstantBuffers(b, 1, &ds->bindingBuffer[b]);
+      } else if ((t == static_cast<uint32_t>(DescriptorType::CombinedImageSampler) || t == static_cast<uint32_t>(DescriptorType::Sampler)) && (ds->bindingSrv[b] || ds->bindingSampler[b])) {
+        if (ds->bindingSrv[b])
+          deferredCtx->PSSetShaderResources(b, 1, &ds->bindingSrv[b]);
+        if (ds->bindingSampler[b])
+          deferredCtx->PSSetSamplers(b, 1, &ds->bindingSampler[b]);
+      }
+    }
+  }
+  void BeginRenderPass(RenderPassDesc const& desc) override {
+    if (!deferredCtx || !recording || desc.colorAttachmentCount == 0) return;
+    ITexture* tex = desc.colorAttachments[0].texture;
+    if (!tex) return;
+    TextureD3D11* t = static_cast<TextureD3D11*>(tex);
+    if (t->rtv)
+      deferredCtx->OMSetRenderTargets(1, &t->rtv, nullptr);
+  }
   void EndRenderPass() override {}
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -196,12 +224,36 @@ struct CommandListD3D11 final : ICommandList {
 
 struct TextureD3D11 final : ITexture {
   ID3D11Texture2D* texture = nullptr;
-  ~TextureD3D11() override { if (texture) texture->Release(); }
+  ID3D11RenderTargetView* rtv = nullptr;  /* optional; used when bound as color target in BeginRenderPass */
+  ~TextureD3D11() override {
+    if (rtv) { rtv->Release(); rtv = nullptr; }
+    if (texture) { texture->Release(); texture = nullptr; }
+  }
 };
 
 struct SamplerD3D11 final : ISampler {
   ID3D11SamplerState* sampler = nullptr;
   ~SamplerD3D11() override { if (sampler) sampler->Release(); }
+};
+
+struct DescriptorSetLayoutD3D11 final : IDescriptorSetLayout {
+  DescriptorSetLayoutDesc desc;
+};
+
+struct DescriptorSetD3D11 final : IDescriptorSet {
+  static constexpr uint32_t kMaxBindings = 16u;
+  ID3D11Device* device = nullptr;
+  DescriptorSetLayoutD3D11* layout = nullptr;
+  ID3D11Buffer* bindingBuffer[kMaxBindings] = {};
+  ID3D11ShaderResourceView* bindingSrv[kMaxBindings] = {};
+  ID3D11SamplerState* bindingSampler[kMaxBindings] = {};
+  ~DescriptorSetD3D11() override {
+    for (uint32_t i = 0; i < kMaxBindings; ++i) {
+      if (bindingSrv[i]) { bindingSrv[i]->Release(); bindingSrv[i] = nullptr; }
+      if (bindingBuffer[i]) { bindingBuffer[i]->Release(); bindingBuffer[i] = nullptr; }
+      if (bindingSampler[i]) { bindingSampler[i]->Release(); bindingSampler[i] = nullptr; }
+    }
+  }
 };
 
 struct SwapChainD3D11 final : ISwapChain {
@@ -275,6 +327,7 @@ struct DeviceD3D11 final : IDevice {
     if (FAILED(device->CreateDeferredContext(0, &deferredCtx)) || !deferredCtx)
       return nullptr;
     auto* cl = new CommandListD3D11();
+    cl->device = device;
     cl->deferredCtx = deferredCtx;
     return cl;
   }
@@ -363,6 +416,10 @@ struct DeviceD3D11 final : IDevice {
   void DestroyTexture(ITexture* t) override { delete static_cast<TextureD3D11*>(t); }
   void DestroySampler(ISampler* s) override { delete static_cast<SamplerD3D11*>(s); }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) override {
+    return CreateGraphicsPSO(desc, nullptr);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    (void)layout;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
       return nullptr;
@@ -400,25 +457,76 @@ struct DeviceD3D11 final : IDevice {
   void DestroySemaphore(ISemaphore* s) override { (void)s; }
   ISwapChain* CreateSwapChain(SwapChainDesc const& desc) override {
     if (!device || desc.width == 0 || desc.height == 0) return nullptr;
-    TextureDesc td = {};
-    td.width = desc.width;
-    td.height = desc.height;
-    td.depth = 1;
-    td.format = desc.format;
-    ITexture* tex = CreateTexture(td);
-    if (!tex) return nullptr;
+    DXGI_FORMAT fmt = (desc.format == 0) ? DXGI_FORMAT_R8G8B8A8_UNORM : (DXGI_FORMAT)desc.format;
+    D3D11_TEXTURE2D_DESC td = {};
+    td.Width = desc.width;
+    td.Height = desc.height;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = fmt;
+    td.SampleDesc = { 1, 0 };
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    td.CPUAccessFlags = 0;
+    td.MiscFlags = 0;
+    ID3D11Texture2D* tex = nullptr;
+    if (FAILED(device->CreateTexture2D(&td, nullptr, &tex)) || !tex) return nullptr;
+    ID3D11RenderTargetView* rtv = nullptr;
+    if (FAILED(device->CreateRenderTargetView(tex, nullptr, &rtv))) {
+      tex->Release();
+      return nullptr;
+    }
+    auto* t = new TextureD3D11();
+    t->texture = tex;
+    t->rtv = rtv;
     auto* sc = new SwapChainD3D11();
     sc->device = this;
-    sc->backBuffer = tex;
+    sc->backBuffer = t;
     sc->width = desc.width;
     sc->height = desc.height;
     return sc;
   }
-  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override { (void)desc; return nullptr; }
-  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override { (void)layout; return nullptr; }
-  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override { (void)set; (void)writes; (void)writeCount; }
-  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override { (void)layout; }
-  void DestroyDescriptorSet(IDescriptorSet* set) override { (void)set; }
+  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override {
+    if (desc.bindingCount == 0) return nullptr;
+    auto* dsl = new DescriptorSetLayoutD3D11();
+    dsl->desc = desc;
+    return dsl;
+  }
+  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override {
+    if (!layout) return nullptr;
+    auto* ds = new DescriptorSetD3D11();
+    ds->device = device;
+    ds->layout = static_cast<DescriptorSetLayoutD3D11*>(layout);
+    return ds;
+  }
+  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override {
+    if (!set || !writes || writeCount == 0) return;
+    DescriptorSetD3D11* ds = static_cast<DescriptorSetD3D11*>(set);
+    for (uint32_t i = 0; i < writeCount; ++i) {
+      uint32_t b = writes[i].binding;
+      if (b >= DescriptorSetD3D11::kMaxBindings) continue;
+      if (writes[i].buffer) {
+        ds->bindingBuffer[b] = static_cast<BufferD3D11*>(writes[i].buffer)->buffer;
+        if (ds->bindingBuffer[b]) ds->bindingBuffer[b]->AddRef();
+      }
+      if (writes[i].texture) {
+        if (ds->bindingSrv[b]) { ds->bindingSrv[b]->Release(); ds->bindingSrv[b] = nullptr; }
+        TextureD3D11* tv = static_cast<TextureD3D11*>(writes[i].texture);
+        if (tv->texture && device)
+          device->CreateShaderResourceView(tv->texture, nullptr, &ds->bindingSrv[b]);
+      }
+      if (writes[i].sampler) {
+        ds->bindingSampler[b] = static_cast<SamplerD3D11*>(writes[i].sampler)->sampler;
+        if (ds->bindingSampler[b]) ds->bindingSampler[b]->AddRef();
+      }
+    }
+  }
+  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override {
+    delete static_cast<DescriptorSetLayoutD3D11*>(layout);
+  }
+  void DestroyDescriptorSet(IDescriptorSet* set) override {
+    delete static_cast<DescriptorSetD3D11*>(set);
+  }
   ~DeviceD3D11() override {
     delete queueWrapper;
     queueWrapper = nullptr;

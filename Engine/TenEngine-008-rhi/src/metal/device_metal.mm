@@ -244,6 +244,7 @@ struct CommandListMetal final : ICommandList {
     if (renderEncoder && boundGraphicsPSO)
       [renderEncoder setRenderPipelineState:boundGraphicsPSO];
   }
+  void BindDescriptorSet(IDescriptorSet* set) override { (void)set; /* TODO: Metal descriptor set binding */ }
 
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
@@ -444,6 +445,10 @@ struct DeviceMetal final : IDevice {
   void DestroyTexture(ITexture* t) override { delete static_cast<TextureMetal*>(t); }
   void DestroySampler(ISampler* s) override { delete static_cast<SamplerMetal*>(s); }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) override {
+    return CreateGraphicsPSO(desc, nullptr);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    (void)layout;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
       return nullptr;

@@ -19,7 +19,7 @@
 | 010-Shader | te::shader | VariantKey | struct | 变体键 | te/shader/types.hpp | 关键字/宏组合；变体枚举与预编译 |
 | 010-Shader | te::shader | ShaderStage | 枚举 | 着色器阶段 | te/shader/types.hpp | `enum class ShaderStage { Vertex, Fragment, Compute, Geometry, TessControl, TessEvaluation, Unknown };` Unknown 时由路径或默认 Vertex 推断 |
 | 010-Shader | te::shader | CompileOptions | struct | 编译选项 | te/shader/types.hpp | targetBackend, optimizationLevel, generateDebugInfo, stage, entryPoint[kMaxEntryPointLen]；编译参数与后端选项 |
-| 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL, HLSL_SOURCE };` HLSL_SOURCE 为 SPIRV-Cross 产出 |
+| 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL, HLSL_SOURCE, DXBC };` DXBC 供 D3D11 顶点/像素着色器字节码 |
 | 010-Shader | te::shader | IVariantEnumerator | 抽象接口 | 变体枚举回调 | te/shader/types.hpp | 虚析构；用于 EnumerateVariants 输出 |
 | 010-Shader | te::shader | SourceChangedCallback | 类型别名 | 源码变更回调 | te/shader/types.hpp | `using SourceChangedCallback = void (*)(char const* path, void* userData);` |
 
@@ -30,7 +30,8 @@
 | 010-Shader | te::shader | IShaderCompiler | 抽象接口 | Shader 编译器 | te/shader/compiler.hpp | 见下表 IShaderCompiler 成员 |
 | 010-Shader | te::shader | IShaderCompiler::LoadSource | 成员函数 | 加载源码 | te/shader/compiler.hpp | `IShaderHandle* LoadSource(char const* path, ShaderSourceFormat format) = 0;` 失败返回 nullptr |
 | 010-Shader | te::shader | IShaderCompiler::Compile | 成员函数 | 编译 | te/shader/compiler.hpp | `bool Compile(IShaderHandle* handle, CompileOptions const& options) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::GetBytecode | 成员函数 | 取字节码 | te/shader/compiler.hpp | `void const* GetBytecode(IShaderHandle* handle, size_t* out_size) = 0;` 返回 SPIR-V/DXIL/MSL |
+| 010-Shader | te::shader | IShaderCompiler::GetBytecode | 成员函数 | 取字节码 | te/shader/compiler.hpp | `void const* GetBytecode(IShaderHandle* handle, size_t* out_size) = 0;` 返回 SPIR-V/DXIL/MSL/DXBC |
+| 010-Shader | te::shader | IShaderCompiler::GetBytecodeForStage | 成员函数 | 按阶段取字节码 | te/shader/compiler.hpp | `void const* GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size) = 0;` 按 stage 编译并返回该阶段字节码，不改变 handle 状态；011 建 PSO 时取 vertex/fragment |
 | 010-Shader | te::shader | IShaderCompiler::GetLastError | 成员函数 | 取编译错误 | te/shader/compiler.hpp | `char const* GetLastError() const = 0;` |
 | 010-Shader | te::shader | IShaderCompiler::GetTargetBackend | 成员函数 | 取目标后端 | te/shader/compiler.hpp | `BackendType GetTargetBackend() const = 0;` SPIR-V/DXIL/MSL |
 | 010-Shader | te::shader | IShaderCompiler::DefineKeyword | 成员函数 | 定义宏 | te/shader/compiler.hpp | `void DefineKeyword(char const* name, char const* value) = 0;` |
@@ -128,3 +129,9 @@ STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
 ---
 
 数据与接口 TODO 已迁移至本模块契约 [010-shader-public-api.md](./010-shader-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-10 | BackendType 增加 DXBC；IShaderCompiler::GetBytecodeForStage(handle, stage, out_size) 按阶段取字节码供 011 建 PSO |

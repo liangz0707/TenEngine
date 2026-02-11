@@ -14,8 +14,9 @@ enum class ShaderSourceFormat : uint32_t {
 enum class BackendType : uint32_t {
     SPIRV,
     DXIL,
+    DXBC,         // D3D11: HLSL -> DXBC (via DXC sm_5 or FXC)
     MSL,
-    HLSL_SOURCE,  // D3D11: SPIR-V -> HLSL source via SPIRV-Cross
+    HLSL_SOURCE,  // SPIR-V -> HLSL source via SPIRV-Cross
 };
 
 enum class ShaderStage : uint32_t {

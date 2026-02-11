@@ -34,7 +34,7 @@
 | 1 | ShaderParams | DefineLayout、GetOffset；Uniform 布局与 Shader 反射或手写布局对接 |
 | 2 | ResourceDesc | VertexFormat、IndexFormat、TextureDesc、BufferDesc；与 RHI 创建参数对接 |
 | 3 | PassProtocol | DeclareRead、DeclareWrite、ResourceLifetime；与 PipelineCore RDG 协议对接 |
-| 4 | UniformBuffer | CreateLayout、Update、RingBuffer、Bind；与 Shader 及 RHI 缓冲绑定对接 |
+| 4 | UniformBuffer | CreateLayout、Update、RingBuffer、Bind、GetBuffer（供 descriptor set 写入）；与 Shader 及 RHI 缓冲绑定对接 |
 
 命名空间 `te::rendercore`。
 
@@ -59,3 +59,4 @@
 |------|----------|
 | T0 新增 | 009-RenderCore 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格 |
+| 2026-02-10 | 能力 4：IUniformBuffer::GetBuffer() 供 011 写 descriptor set |

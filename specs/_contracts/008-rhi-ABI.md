@@ -80,11 +80,12 @@
 | 008-RHI | te::rhi | IDevice::DestroyFence | 成员函数 | 销毁 Fence | te/rhi/device.hpp | `void DestroyFence(IFence* f) = 0;` |
 | 008-RHI | te::rhi | IDevice::DestroySemaphore | 成员函数 | 销毁 Semaphore | te/rhi/device.hpp | `void DestroySemaphore(ISemaphore* s) = 0;` |
 | 008-RHI | te::rhi | IDevice::CreateSwapChain | 成员函数 | 创建交换链 | te/rhi/device.hpp | `ISwapChain* CreateSwapChain(SwapChainDesc const& desc) = 0;` 失败返回 nullptr |
-| 008-RHI | te::rhi | IDevice::CreateDescriptorSetLayout | 成员函数 | 创建描述符集布局 | te/rhi/device.hpp | `IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) = 0;` 失败返回 nullptr（P2） |
-| 008-RHI | te::rhi | IDevice::AllocateDescriptorSet | 成员函数 | 分配描述符集 | te/rhi/device.hpp | `IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) = 0;` 失败返回 nullptr（P2） |
-| 008-RHI | te::rhi | IDevice::UpdateDescriptorSet | 成员函数 | 更新描述符 | te/rhi/device.hpp | `void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) = 0;`（P2） |
-| 008-RHI | te::rhi | IDevice::DestroyDescriptorSetLayout | 成员函数 | 销毁描述符集布局 | te/rhi/device.hpp | `void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) = 0;`（P2） |
-| 008-RHI | te::rhi | IDevice::DestroyDescriptorSet | 成员函数 | 销毁描述符集 | te/rhi/device.hpp | `void DestroyDescriptorSet(IDescriptorSet* set) = 0;`（P2） |
+| 008-RHI | te::rhi | IDevice::CreateDescriptorSetLayout | 成员函数 | 创建描述符集布局 | te/rhi/device.hpp | `IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) = 0;` 失败返回 nullptr |
+| 008-RHI | te::rhi | IDevice::AllocateDescriptorSet | 成员函数 | 分配描述符集 | te/rhi/device.hpp | `IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) = 0;` 失败返回 nullptr |
+| 008-RHI | te::rhi | IDevice::UpdateDescriptorSet | 成员函数 | 更新描述符 | te/rhi/device.hpp | `void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) = 0;` |
+| 008-RHI | te::rhi | IDevice::DestroyDescriptorSetLayout | 成员函数 | 销毁描述符集布局 | te/rhi/device.hpp | `void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) = 0;` |
+| 008-RHI | te::rhi | IDevice::DestroyDescriptorSet | 成员函数 | 销毁描述符集 | te/rhi/device.hpp | `void DestroyDescriptorSet(IDescriptorSet* set) = 0;` |
+| 008-RHI | te::rhi | IDevice::CreateGraphicsPSO | 成员函数（重载） | 创建图形 PSO（带 layout） | te/rhi/device.hpp | `IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) = 0;` layout 非空时 PSO 与该 layout 耦合；失败返回 nullptr |
 | 008-RHI | te::rhi | IQueue | 抽象接口 | 队列 | te/rhi/queue.hpp | 见下表 IQueue 成员 |
 | 008-RHI | te::rhi | IQueue::Submit | 成员函数 | 提交命令列表 | te/rhi/queue.hpp | `void Submit(ICommandList* cmdList, IFence* signalFence = nullptr, ISemaphore* waitSemaphore = nullptr, ISemaphore* signalSemaphore = nullptr) = 0;` |
 | 008-RHI | te::rhi | IQueue::WaitIdle | 成员函数 | 等待队列空闲 | te/rhi/queue.hpp | `void WaitIdle() = 0;` |
@@ -111,6 +112,7 @@
 | 008-RHI | te::rhi | ICommandList::SetVertexBuffer | 成员函数 | 绑定顶点缓冲 | te/rhi/command_list.hpp | `void SetVertexBuffer(uint32_t slot, IBuffer* buffer, size_t offset, uint32_t stride) = 0;` 020 在每条 Draw 前按 mesh 绑定 |
 | 008-RHI | te::rhi | ICommandList::SetIndexBuffer | 成员函数 | 绑定索引缓冲 | te/rhi/command_list.hpp | `void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) = 0;` indexFormat: 0=16bit, 1=32bit |
 | 008-RHI | te::rhi | ICommandList::SetGraphicsPSO | 成员函数 | 绑定图形 PSO | te/rhi/command_list.hpp | `void SetGraphicsPSO(IPSO* pso) = 0;` 每条 Draw 前按材质绑定；pso 可为 nullptr 表示解绑 |
+| 008-RHI | te::rhi | ICommandList::BindDescriptorSet | 成员函数 | 绑定材质描述符集 | te/rhi/command_list.hpp | `void BindDescriptorSet(IDescriptorSet* set) = 0;` 每条 Draw 前按材质绑定；set 可为 nullptr 表示解绑 |
 | 008-RHI | te::rhi | ICommandList::BeginRenderPass | 成员函数 | 开始渲染通道（P2） | te/rhi/command_list.hpp | `void BeginRenderPass(RenderPassDesc const& desc) = 0;` |
 | 008-RHI | te::rhi | ICommandList::EndRenderPass | 成员函数 | 结束渲染通道（P2） | te/rhi/command_list.hpp | `void EndRenderPass() = 0;` |
 | 008-RHI | te::rhi | ICommandList::BeginOcclusionQuery | 成员函数 | 开始遮挡查询 | te/rhi/command_list.hpp | `void BeginOcclusionQuery(uint32_t queryIndex) = 0;` 与 EndOcclusionQuery 成对；当前后端可为 no-op |
@@ -159,14 +161,15 @@
 | te/rhi/queue.hpp | te/rhi/types.hpp | IQueue |
 | te/rhi/sync.hpp | te/rhi/types.hpp | IFence, ISemaphore, Wait, Signal |
 | te/rhi/swapchain.hpp | te/rhi/types.hpp, &lt;cstdint&gt; | SwapChainDesc, ISwapChain |
-| te/rhi/command_list.hpp | te/rhi/types.hpp | ICommandList, Begin, End, Submit |
-| te/rhi/device.hpp | te/rhi/queue.hpp, types.hpp, resources.hpp, pso.hpp, sync.hpp, swapchain.hpp | IDevice, SelectBackend, GetSelectedBackend, CreateDevice, DestroyDevice |
+| te/rhi/command_list.hpp | te/rhi/types.hpp, te/rhi/descriptor_set.hpp | ICommandList, Begin, End, Submit, BindDescriptorSet |
+| te/rhi/device.hpp | te/rhi/queue.hpp, types.hpp, resources.hpp, pso.hpp, sync.hpp, swapchain.hpp, descriptor_set.hpp | IDevice, SelectBackend, GetSelectedBackend, CreateDevice, DestroyDevice, CreateGraphicsPSO(desc, layout) |
 
 ### 描述符集（te/rhi/descriptor_set.hpp）
 
 | 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
 |--------|----------|------|----------|----------|--------|------|
-| 008-RHI | te::rhi | DescriptorSetLayoutDesc, DescriptorWrite | struct | 描述符布局/写入 | te/rhi/descriptor_set.hpp | bindings[]; dstSet, binding, type, buffer/texture/sampler |
+| 008-RHI | te::rhi | DescriptorType | 枚举 | 描述符类型 | te/rhi/descriptor_set.hpp | UniformBuffer, CombinedImageSampler, Sampler 等；与 reflection 映射 |
+| 008-RHI | te::rhi | DescriptorSetLayoutDesc, DescriptorWrite | struct | 描述符布局/写入 | te/rhi/descriptor_set.hpp | bindings[]; dstSet, binding, type, buffer/texture/sampler；DescriptorWrite 含 bufferOffset（UB 环缓冲偏移） |
 | 008-RHI | te::rhi | IDescriptorSetLayout, IDescriptorSet | 抽象接口 | 描述符集布局/集 | te/rhi/descriptor_set.hpp | 虚析构 |
 
 ### 光追（te/rhi/raytracing.hpp）（仅 D3D12）
@@ -198,3 +201,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | 2026-02-10 | ABI 同步：ICommandList 增加 SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BeginOcclusionQuery、EndOcclusionQuery |
+| 2026-02-10 | 描述符与 PSO：ICommandList::BindDescriptorSet；IDevice::CreateGraphicsPSO(desc, layout) 重载；DescriptorType、DescriptorWrite.bufferOffset；CreateDescriptorSetLayout/AllocateDescriptorSet/UpdateDescriptorSet 已实现，去除 P2 标记 |

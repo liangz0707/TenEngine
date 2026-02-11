@@ -30,7 +30,7 @@
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
-| 1 | Source & Compilation | HLSL、GLSL；LoadSource/LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetTargetBackend、GetLastError；四后端 SPIRV/DXIL/MSL/HLSL_SOURCE；CompileOptions 含 targetBackend、optimizationLevel、generateDebugInfo、stage、entryPoint |
+| 1 | Source & Compilation | HLSL、GLSL；LoadSource/LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetBytecodeForStage(handle, stage, out_size)；GetTargetBackend、GetLastError；后端 SPIRV/DXIL/MSL/HLSL_SOURCE/DXBC（D3D11）；CompileOptions 含 targetBackend、optimizationLevel、generateDebugInfo、stage、entryPoint |
 | 2 | Macros & Variants | DefineKeyword、SetMacros、GetVariantKey、SelectVariant、EnumerateVariants、Precompile；游戏中可动态切换宏 |
 | 3 | Cache | SetCache、LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选） |
 | 4 | Hot Reload（可选） | CreateShaderHotReload、ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游 |
@@ -71,3 +71,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
 | 2026-02-10 | 能力 1–4、6–7 与实现对齐；TODO 接口与数据标为已实现 |
 | 2026-02-10 | 增加 Shader 资源：ShaderAssetDesc、ShaderResource、InitializeShaderModule、LoadAllShaders；依赖 002-Object；TODO 描述归属与 Shader 资源标为已实现 |
+| 2026-02-10 | 能力 1：GetBytecodeForStage(handle, stage, out_size)；BackendType::DXBC 供 D3D11 |

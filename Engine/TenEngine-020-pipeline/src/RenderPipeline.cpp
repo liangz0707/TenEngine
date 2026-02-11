@@ -187,13 +187,7 @@ class RenderPipelineImpl : public IRenderPipeline {
       if (rhiDevice && itemList && pipeline) {
         if (slot < static_cast<uint32_t>(slotFences_.size()) && slotFences_[slot])
           te::rhi::Wait(slotFences_[slot]);
-        for (size_t i = 0; i < itemList->Size(); ++i) {
-          pipelinecore::RenderItem const* r = itemList->At(i);
-          if (!r || !r->mesh) continue;
-          te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(r->mesh);
-          te::mesh::MeshHandle mh = meshRes->GetMeshHandle();
-          if (mh) te::mesh::EnsureDeviceResources(mh, rhiDevice);
-        }
+        // Mesh/Material Ensure 由 019 PrepareRenderResources 统一完成，020 不再单独对 mesh 做 Ensure
         pipelinecore::PrepareRenderResources(itemList, rhiDevice);
         pipelinecore::IRenderItemList* readyList = pipelinecore::CreateRenderItemList();
         if (readyList) {
@@ -224,7 +218,7 @@ class RenderPipelineImpl : public IRenderPipeline {
             te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
             cmd->SetScissor(0, 1, &scissor);
           }
-          // 按 Pass：BeginRenderPass -> SetCollectedObjects -> ExecuteCallback -> EndRenderPass
+          // 按 Pass：BeginRenderPass 内录制 Draw（主几何在 pass 0）；有 SwapChain 时填充 RenderPassDesc 使 Vulkan 等后端正确进入 RenderPass
           if (graphCapture && graphCapture->GetPassCount() > 0u) {
             struct Adapter : pipelinecore::IRenderObjectList {
               pipelinecore::IRenderItemList const* list{nullptr};
@@ -235,15 +229,64 @@ class RenderPipelineImpl : public IRenderPipeline {
             pipelinecore::PassContext passCtx;
             passCtx.SetCollectedObjects(&adapter);
             te::rhi::RenderPassDesc rpDesc = {};
+            if (swapChain_) {
+              te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
+              te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
+              if (backBuffer) {
+                rpDesc.colorAttachmentCount = 1u;
+                rpDesc.colorAttachments[0].texture = backBuffer;
+                rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
+                rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
+                rpDesc.colorAttachments[0].clearColor[0] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[1] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[2] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[3] = 1.f;
+              }
+            }
             for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
               cmd->BeginRenderPass(rpDesc);
+              // Vulkan：viewport/scissor 必须在 render pass 内设置才会对本 pass 的 draw 生效
+              if (vpW > 0u && vpH > 0u) {
+                te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
+                cmd->SetViewport(0, 1, &vp);
+                te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
+                cmd->SetScissor(0, 1, &scissor);
+              }
               cmd->BeginOcclusionQuery(0);
+              // 主几何绘制放在第一个 Pass（如 GBuffer）的 RenderPass 内，符合 RHI 要求
+              if (i == 0u)
+                ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot);
               graphCapture->ExecutePass(i, passCtx, cmd);
               cmd->EndOcclusionQuery(0);
               cmd->EndRenderPass();
             }
+          } else {
+            // 无 FrameGraph 时退化为单 Pass：Begin -> 录制 Draw -> End；有 SwapChain 时填充 RenderPassDesc
+            te::rhi::RenderPassDesc rpDesc = {};
+            if (swapChain_) {
+              te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
+              te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
+              if (backBuffer) {
+                rpDesc.colorAttachmentCount = 1u;
+                rpDesc.colorAttachments[0].texture = backBuffer;
+                rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
+                rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
+                rpDesc.colorAttachments[0].clearColor[0] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[1] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[2] = 0.f;
+                rpDesc.colorAttachments[0].clearColor[3] = 1.f;
+              }
+            }
+            cmd->BeginRenderPass(rpDesc);
+            if (vpW > 0u && vpH > 0u) {
+              te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
+              cmd->SetViewport(0, 1, &vp);
+              te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
+              cmd->SetScissor(0, 1, &scissor);
+            }
+            ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot);
+            cmd->EndRenderPass();
           }
-          ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB);
           te::rhi::End(cmd);
           te::rhi::IQueue* queue = rhiDevice->GetQueue(te::rhi::QueueType::Graphics, 0);
           if (queue) te::rhi::Submit(cmd, queue);
@@ -278,26 +321,30 @@ class RenderPipelineImpl : public IRenderPipeline {
   }
 
   void SubmitLogicalCommandBuffer(void* logical_cb) override {
-    deviceQueue_->Post([this, logical_cb]() {
-      ExecuteLogicalCommandBufferOnDeviceThread(static_cast<pipelinecore::ILogicalCommandBuffer*>(logical_cb));
+    uint32_t slot = currentSlot_;
+    deviceQueue_->Post([this, logical_cb, slot]() {
+      ExecuteLogicalCommandBufferOnDeviceThread(static_cast<pipelinecore::ILogicalCommandBuffer*>(logical_cb), 0u, 0u, slot);
     });
   }
 
-  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd（viewport 由调用方设置）；不 End/Submit。每条 Draw 前按 material 绑定 PSO 与 Uniform。
+  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd（viewport 由调用方设置）；不 End/Submit。每条 Draw 前按 material 先 UpdateDescriptorSetForFrame 再 SetGraphicsPSO、BindDescriptorSet。
   void ExecuteLogicalCommandBufferOnDeviceThread(te::rhi::ICommandList* cmd,
-                                                 pipelinecore::ILogicalCommandBuffer* logicalCB) {
+                                                 pipelinecore::ILogicalCommandBuffer* logicalCB,
+                                                 uint32_t frameSlot) {
     if (!cmd || !logicalCB) return;
+    te::rhi::IDevice* rhiDevice = device_ ? static_cast<te::rhi::IDevice*>(device_) : nullptr;
     size_t drawCount = logicalCB->GetDrawCount();
     for (size_t i = 0; i < drawCount; ++i) {
       pipelinecore::LogicalDraw d;
       logicalCB->GetDraw(i, &d);
-      if (d.material) {
-        te::material::MaterialResource const* matRes =
-            reinterpret_cast<te::material::MaterialResource const*>(d.material);
-        te::rendercore::IUniformBuffer* ub = matRes->GetUniformBuffer();
-        if (ub) ub->Bind(cmd, 0);
+      if (d.material && rhiDevice) {
+        te::material::MaterialResource* matRes =
+            const_cast<te::material::MaterialResource*>(reinterpret_cast<te::material::MaterialResource const*>(d.material));
+        matRes->UpdateDescriptorSetForFrame(rhiDevice, frameSlot);
         te::rhi::IPSO* pso = matRes->GetGraphicsPSO();
         if (pso) cmd->SetGraphicsPSO(pso);
+        te::rhi::IDescriptorSet* ds = matRes->GetDescriptorSet();
+        if (ds) cmd->BindDescriptorSet(ds);
       }
       if (!d.mesh) continue;
       te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(d.mesh);
@@ -318,7 +365,8 @@ class RenderPipelineImpl : public IRenderPipeline {
 
   /// 在线程 D 执行逻辑命令缓冲到 RHI 的录制与提交（仅内部/SubmitLogicalCommandBuffer 等调用）
   void ExecuteLogicalCommandBufferOnDeviceThread(pipelinecore::ILogicalCommandBuffer* logicalCB,
-                                                 uint32_t viewportWidth = 0, uint32_t viewportHeight = 0) {
+                                                 uint32_t viewportWidth = 0, uint32_t viewportHeight = 0,
+                                                 uint32_t frameSlot = 0) {
     if (!logicalCB || !device_) return;
     te::rhi::IDevice* rhiDevice = static_cast<te::rhi::IDevice*>(device_);
     te::rhi::IQueue* queue = rhiDevice->GetQueue(te::rhi::QueueType::Graphics, 0);
@@ -332,7 +380,7 @@ class RenderPipelineImpl : public IRenderPipeline {
       te::rhi::ScissorRect scissor = {0, 0, viewportWidth, viewportHeight};
       cmd->SetScissor(0, 1, &scissor);
     }
-    ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB);
+    ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, frameSlot);
     te::rhi::End(cmd);
     te::rhi::Submit(cmd, queue);
     rhiDevice->DestroyCommandList(cmd);

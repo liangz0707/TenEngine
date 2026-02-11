@@ -40,6 +40,8 @@ struct IDevice {
   virtual void DestroyTexture(ITexture* t) = 0;
   virtual void DestroySampler(ISampler* s) = 0;
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) = 0;
+  /** Create PSO with custom descriptor set layout (set 0). When null, uses device default layout. */
+  virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) = 0;
   virtual IPSO* CreateComputePSO(ComputePSODesc const& desc) = 0;
   virtual void SetShader(IPSO* pso, void const* data, size_t size) = 0;
   virtual void Cache(IPSO* pso) = 0;

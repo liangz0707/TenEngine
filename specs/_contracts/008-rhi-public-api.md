@@ -27,7 +27,7 @@
 | ISampler | 采样器；CreateSampler、DestroySampler | 创建后直至显式销毁 |
 | IPSO | 管线状态对象（图形/计算）；CreateGraphicsPSO、CreateComputePSO、SetShader、Cache、DestroyPSO | 创建后直至显式销毁，可缓存 |
 | IFence / ISemaphore | 同步对象；CreateFence、CreateSemaphore、Wait、Signal、Destroy | 按实现约定 |
-| IDescriptorSetLayout / IDescriptorSet | 描述符集布局与描述符集（P2）；AllocateDescriptorSet、UpdateDescriptorSet | 创建后直至显式销毁 |
+| IDescriptorSetLayout / IDescriptorSet | 描述符集布局与描述符集；CreateDescriptorSetLayout、AllocateDescriptorSet、UpdateDescriptorSet、BindDescriptorSet | 创建后直至显式销毁 |
 | ViewHandle | 资源视图句柄，用于绑定到 PSO | 与资源生命周期一致 |
 | Backend / DeviceFeatures / DeviceLimits | 后端枚举、特性与限制查询；GetFeatures、GetLimits | 只读 |
 
@@ -38,9 +38,9 @@
 | 序号 | 能力 | 说明 |
 |------|------|------|
 | 1 | 设备与队列 | CreateDevice(Backend)、DestroyDevice、GetQueue；SelectBackend、GetSelectedBackend；GetFeatures、GetLimits；多后端统一接口 |
-| 2 | 命令列表 | CreateCommandList、DestroyCommandList；Begin、End；Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier；SetViewport、SetScissor；SetUniformBuffer、SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO；BeginRenderPass、EndRenderPass；BeginOcclusionQuery、EndOcclusionQuery；Submit(cmd, queue) 及 Fence/Semaphore 重载 |
+| 2 | 命令列表 | CreateCommandList、DestroyCommandList；Begin、End；Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier；SetViewport、SetScissor；SetUniformBuffer、SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BindDescriptorSet；BeginRenderPass、EndRenderPass；BeginOcclusionQuery、EndOcclusionQuery；Submit(cmd, queue) 及 Fence/Semaphore 重载 |
 | 3 | 资源管理 | CreateBuffer、CreateTexture、CreateSampler、CreateView；Destroy；内存与生命周期明确；失败有明确报告 |
-| 4 | PSO | CreateGraphicsPSO、CreateComputePSO、SetShader、Cache、DestroyPSO；与 RenderCore/Shader 对接 |
+| 4 | PSO | CreateGraphicsPSO(desc)、CreateGraphicsPSO(desc, layout)（与 descriptor layout 耦合）、CreateComputePSO、SetShader、Cache、DestroyPSO；与 RenderCore/Shader 对接 |
 | 5 | 同步 | CreateFence、CreateSemaphore、Wait、Signal、Destroy；资源屏障在 ICommandList::ResourceBarrier |
 | 6 | 错误与恢复 | 设备丢失或运行时错误可上报；支持回退或重建 |
 | 7 | 线程安全 | 多线程行为由实现定义并文档化 |
@@ -68,3 +68,4 @@
 | T0 更新 | 对齐 T0 架构；消费者按依赖图 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 反向引用 |
 | 2026-02-10 | 能力 2 命令列表：补充 SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BeginOcclusionQuery、EndOcclusionQuery |
+| 2026-02-10 | 能力 2/4：BindDescriptorSet；CreateGraphicsPSO(desc, layout)；描述符集 API 已实现 |

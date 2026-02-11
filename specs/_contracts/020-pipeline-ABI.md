@@ -35,7 +35,7 @@
 
 - **待渲染项来源**：由 **029-World WorldManager::CollectRenderables** 提供；Pipeline 经此接口获取 RenderableItem 列表，不再直接使用 004 GetNodeModelGuid / 005 GetModelGuid。依赖 029-World 模块。
 - **收集与 LOD**：`CollectRenderablesToRenderItemList(sceneRef, resourceManager, out, frustum, cameraPositionWorld)`（te/pipeline/detail/RenderableCollector.h）；**cameraPositionWorld** 为可选 `float const*`（世界坐标），非空时用于 012 SelectLOD，仅对选中 LOD 的 submesh 生成 RenderItem。
-- **数据流**：Render 任务收集后对每项 mesh 调用 013 RequestStreaming(mesh->GetResourceId(), 0)；Device 任务 Prepare 后按 IResource::IsDeviceReady 过滤，仅对 ready 项 Convert 并录制；每条 Draw 前按材质 009 IUniformBuffer::Bind(cmd, slot)、008 SetGraphicsPSO（材质可后续暴露 GetGraphicsPSO）；按 Pass 调用 008 BeginOcclusionQuery/EndOcclusionQuery（占位）。
+- **数据流**：Render 任务收集后对每项 mesh 调用 013 RequestStreaming(mesh->GetResourceId(), 0)；Device 任务 Prepare 后按 IResource::IsDeviceReady 过滤，仅对 ready 项 Convert 并录制；每条 Draw 前按材质调用 **matRes->UpdateDescriptorSetForFrame(rhiDevice, frameSlot)**、008 **SetGraphicsPSO(matRes->GetGraphicsPSO())**、008 **BindDescriptorSet(matRes->GetDescriptorSet())**（UB 已写入 descriptor set，不再单独 ub->Bind）；ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, **frameSlot**) 与 SubmitLogicalCommandBuffer 传入当前帧 slot；按 Pass 调用 008 BeginOcclusionQuery/EndOcclusionQuery（占位）。
 - 数据与接口 TODO 已迁移至本模块契约 [020-pipeline-public-api.md](./020-pipeline-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
 
 ## 变更记录
@@ -43,3 +43,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | 2026-02-10 | ABI 同步：RenderingConfig 增加 ValidationLevel、CheckWarning/CheckError；TriggerRender 改为 Render 线程→Device 线程投递；实现说明补充 CollectRenderablesToRenderItemList(cameraPositionWorld)、013/009 数据流、OcclusionQuery 占位 |
+| 2026-02-10 | 渲染管线完备化：ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, frameSlot)；每 draw 调用 UpdateDescriptorSetForFrame、SetGraphicsPSO、BindDescriptorSet；SubmitLogicalCommandBuffer 传入 currentSlot_ 执行 |

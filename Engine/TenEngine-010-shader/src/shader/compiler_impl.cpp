@@ -3,9 +3,7 @@
 #include <te/shader/detail/glslang_backend.hpp>
 #include <te/shader/detail/handle_impl.hpp>
 #include <te/shader/detail/spirv_cross_backend.hpp>
-#if defined(TE_RHI_D3D12) && TE_RHI_D3D12
 #include <te/shader/detail/dxc_backend.hpp>
-#endif
 #if defined(TE_SHADER_USE_CORE) && TE_SHADER_USE_CORE
 #include <te/core/platform.h>
 #include <te/core/log.h>
@@ -118,6 +116,11 @@ bool ShaderCompilerImpl::Compile(IShaderHandle* handle, CompileOptions const& op
             ok = CompileHlslToDxil(impl, options, lastError_);
         }
 #endif
+#if defined(TE_SHADER_HAVE_DXC) && TE_SHADER_HAVE_DXC
+        else if (targetBackend_ == BackendType::DXBC) {
+            ok = CompileHlslToDxbc(impl, options, lastError_);
+        }
+#endif
     }
     if (!ok && lastError_.empty()) {
         lastError_ = "Unsupported format/backend combination";
@@ -148,11 +151,11 @@ void const* ShaderCompilerImpl::GetBytecode(IShaderHandle* handle, size_t* out_s
         *out_size = spirv.size() * sizeof(uint32_t);
         return spirv.data();
     }
-    if (targetBackend_ == BackendType::DXIL) {
-        auto const& dxil = vb ? vb->dxil : impl->bytecodeBlob_;
-        if (dxil.empty()) return nullptr;
-        *out_size = dxil.size();
-        return dxil.data();
+    if (targetBackend_ == BackendType::DXIL || targetBackend_ == BackendType::DXBC) {
+        auto const& blob = vb ? vb->dxil : impl->bytecodeBlob_;
+        if (blob.empty()) return nullptr;
+        *out_size = blob.size();
+        return blob.data();
     }
     if (targetBackend_ == BackendType::MSL || targetBackend_ == BackendType::HLSL_SOURCE) {
         auto const& src = vb ? vb->crossCompiled : impl->crossCompiledSource_;
@@ -161,6 +164,22 @@ void const* ShaderCompilerImpl::GetBytecode(IShaderHandle* handle, size_t* out_s
         return src.data();
     }
     return nullptr;
+}
+
+void const* ShaderCompilerImpl::GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size) {
+    if (!handle || !out_size) return nullptr;
+    *out_size = 0;
+    CompileOptions opts = lastOptions_;
+    opts.stage = stage;
+    opts.targetBackend = targetBackend_;
+    if (!Compile(handle, opts)) return nullptr;
+    size_t sz = 0;
+    void const* ptr = GetBytecode(handle, &sz);
+    if (!ptr || sz == 0) return nullptr;
+    bytecodeForStageBuffer_.resize(sz);
+    std::memcpy(bytecodeForStageBuffer_.data(), ptr, sz);
+    *out_size = sz;
+    return bytecodeForStageBuffer_.data();
 }
 
 char const* ShaderCompilerImpl::GetLastError() const { return lastError_.c_str(); }

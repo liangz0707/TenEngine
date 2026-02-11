@@ -169,6 +169,7 @@ struct CommandListD3D12 final : ICommandList {
     if (d->pipeline) list->SetPipelineState(d->pipeline.Get());
     if (d->rootSignature) list->SetGraphicsRootSignature(d->rootSignature.Get());
   }
+  void BindDescriptorSet(IDescriptorSet* set) override { (void)set; /* TODO: D3D12 descriptor set binding */ }
   void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
   void EndRenderPass() override {}
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -401,6 +402,10 @@ struct DeviceD3D12 final : IDevice {
   void DestroyTexture(ITexture* t) override { delete static_cast<TextureD3D12*>(t); }
   void DestroySampler(ISampler* s) override { delete static_cast<SamplerD3D12*>(s); }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) override {
+    return CreateGraphicsPSO(desc, nullptr);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    (void)layout;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
       return nullptr;

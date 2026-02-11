@@ -8,6 +8,8 @@ namespace te::shader {
 class ShaderHandleImpl;
 
 bool CompileHlslToDxil(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError);
+/** Compile HLSL to DXBC (sm_5) for D3D11. Uses DXC with vs_5_0/ps_5_0 when available. */
+bool CompileHlslToDxbc(ShaderHandleImpl* handle, CompileOptions const& options, std::string& outError);
 }  // namespace te::shader
 
 #endif

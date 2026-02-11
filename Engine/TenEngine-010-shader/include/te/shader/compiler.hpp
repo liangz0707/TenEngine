@@ -19,6 +19,8 @@ public:
 
     virtual bool Compile(IShaderHandle* handle, CompileOptions const& options) = 0;
     virtual void const* GetBytecode(IShaderHandle* handle, size_t* out_size) = 0;
+    /** Compile for the given stage and return bytecode. Result is valid until next GetBytecodeForStage or Compile. Does not change handle variant selection. */
+    virtual void const* GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size) { (void)handle; (void)stage; if (out_size) *out_size = 0; return nullptr; }
     virtual char const* GetLastError() const = 0;
     virtual BackendType GetTargetBackend() const = 0;
 

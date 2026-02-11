@@ -11,6 +11,8 @@
 #include <te/material/types.hpp>
 #include <te/rhi/device.hpp>
 #include <te/rhi/pso.hpp>
+#include <te/rhi/descriptor_set.hpp>
+#include <te/rhi/resources.hpp>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -55,6 +57,12 @@ class MaterialResource : public resource::IMaterialResource {
   /** Graphics PSO for this material; used by pipeline to bind before draw. May be null until created in EnsureDeviceResources. */
   te::rhi::IPSO* GetGraphicsPSO() const { return graphicsPSO_; }
 
+  /** Descriptor set for this material (UB + textures). Updated by UpdateDescriptorSetForFrame. */
+  te::rhi::IDescriptorSet* GetDescriptorSet() const { return descriptorSet_; }
+
+  /** Update descriptor set with current frame slot (UB offset) and texture bindings. Call before BindDescriptorSet. */
+  void UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uint32_t frameSlot);
+
   /** Set RHI device for EnsureDeviceResources; call before EnsureDeviceResources. */
   void SetDevice(te::rhi::IDevice* device) { device_ = device; }
   void EnsureDeviceResources() override;
@@ -83,7 +91,10 @@ class MaterialResource : public resource::IMaterialResource {
   bool deviceResourcesReady_ = false;
   te::rendercore::IUniformLayout* uniformLayout_ = nullptr;
   te::rendercore::IUniformBuffer* uniformBuffer_ = nullptr;
-  te::rhi::IPSO* graphicsPSO_ = nullptr;  // Optional; set in EnsureDeviceResources when pipeline needs PSO binding.
+  te::rhi::IPSO* graphicsPSO_ = nullptr;
+  te::rhi::IDescriptorSetLayout* descriptorSetLayout_ = nullptr;
+  te::rhi::IDescriptorSet* descriptorSet_ = nullptr;
+  te::rhi::ISampler* defaultSampler_ = nullptr;
 };
 
 }  // namespace material

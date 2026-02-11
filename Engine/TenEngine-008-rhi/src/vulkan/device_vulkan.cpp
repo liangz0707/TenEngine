@@ -59,7 +59,10 @@ struct CommandListVulkan final : ICommandList {
   VkCommandBuffer cmd = VK_NULL_HANDLE;
   VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  VkRenderPass defaultRenderPass = VK_NULL_HANDLE;
   bool recording = false;
+  bool inRenderPass = false;
+  VkFramebuffer currentFramebuffer = VK_NULL_HANDLE;
 
   void Begin() override {
     if (cmd == VK_NULL_HANDLE || recording) return;
@@ -143,18 +146,66 @@ struct CommandListVulkan final : ICommandList {
     vkCmdBindIndexBuffer(cmd, b->buffer, static_cast<VkDeviceSize>(offset), idxType);
   }
   void SetGraphicsPSO(IPSO* pso) override {
-    (void)pso;
-    /* Vulkan: PSOVulkan currently only has shader modules; vkCmdBindPipeline would need VkPipeline from CreateGraphicsPSO. */
+    if (cmd == VK_NULL_HANDLE || !recording) return;
+    if (!pso) return;
+    PSOVulkan* p = static_cast<PSOVulkan*>(pso);
+    if (p->pipelineLayout != VK_NULL_HANDLE)
+      pipelineLayout = p->pipelineLayout;
+    if (p->pipeline != VK_NULL_HANDLE)
+      vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
+  }
+  void BindDescriptorSet(IDescriptorSet* set) override {
+    if (cmd == VK_NULL_HANDLE || !recording || pipelineLayout == VK_NULL_HANDLE) return;
+    if (!set) return;
+    DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(set);
+    if (ds->set == VK_NULL_HANDLE) return;
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
   }
   void BeginRenderPass(RenderPassDesc const& desc) override {
-    (void)desc;
-    if (cmd == VK_NULL_HANDLE || !recording) return;
-    if (desc.colorAttachmentCount == 0) return;
-    /* Requires VkRenderPass/VkFramebuffer from CreateRenderPass; skip real call when not set. */
+    if (cmd == VK_NULL_HANDLE || !recording || desc.colorAttachmentCount == 0 ||
+        defaultRenderPass == VK_NULL_HANDLE) return;
+    ITexture* tex = desc.colorAttachments[0].texture;
+    if (!tex) return;
+    TextureVulkan* tv = static_cast<TextureVulkan*>(tex);
+    if (tv->imageView == VK_NULL_HANDLE || tv->width == 0 || tv->height == 0) return;
+    if (currentFramebuffer != VK_NULL_HANDLE) return;
+    VkFramebufferCreateInfo fbCi = {};
+    fbCi.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    fbCi.renderPass = defaultRenderPass;
+    fbCi.attachmentCount = 1;
+    fbCi.pAttachments = &tv->imageView;
+    fbCi.width = tv->width;
+    fbCi.height = tv->height;
+    fbCi.layers = 1;
+    if (vkCreateFramebuffer(device, &fbCi, nullptr, &currentFramebuffer) != VK_SUCCESS) return;
+    VkClearValue clearValue = {};
+    clearValue.color.float32[0] = desc.colorAttachments[0].clearColor[0];
+    clearValue.color.float32[1] = desc.colorAttachments[0].clearColor[1];
+    clearValue.color.float32[2] = desc.colorAttachments[0].clearColor[2];
+    clearValue.color.float32[3] = desc.colorAttachments[0].clearColor[3];
+    VkRenderPassBeginInfo rpBi = {};
+    rpBi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    rpBi.renderPass = defaultRenderPass;
+    rpBi.framebuffer = currentFramebuffer;
+    rpBi.renderArea = { { 0, 0 }, { tv->width, tv->height } };
+    rpBi.clearValueCount = 1;
+    rpBi.pClearValues = &clearValue;
+    vkCmdBeginRenderPass(cmd, &rpBi, VK_SUBPASS_CONTENTS_INLINE);
+    inRenderPass = true;
   }
   void EndRenderPass() override {
-    if (cmd == VK_NULL_HANDLE || !recording) return;
-    /* Paired with BeginRenderPass; no vkCmdEndRenderPass if Begin was skipped. */
+    if (cmd == VK_NULL_HANDLE || !recording || !inRenderPass) return;
+    vkCmdEndRenderPass(cmd);
+    inRenderPass = false;
+    if (currentFramebuffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
+      vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
+      currentFramebuffer = VK_NULL_HANDLE;
+    }
+  }
+  ~CommandListVulkan() {
+    if (currentFramebuffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
   }
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -223,7 +274,12 @@ struct TextureVulkan final : ITexture {
   VkDevice device = VK_NULL_HANDLE;
   VkImage image = VK_NULL_HANDLE;
   VkDeviceMemory memory = VK_NULL_HANDLE;
+  VkImageView imageView = VK_NULL_HANDLE;
+  uint32_t width = 0;
+  uint32_t height = 0;
   ~TextureVulkan() override {
+    if (imageView != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyImageView(device, imageView, nullptr);
     if (image != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
       vkDestroyImage(device, image, nullptr);
     if (memory != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
@@ -240,13 +296,51 @@ struct SamplerVulkan final : ISampler {
   }
 };
 
+struct DescriptorSetLayoutVulkan final : IDescriptorSetLayout {
+  VkDevice device = VK_NULL_HANDLE;
+  VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+  ~DescriptorSetLayoutVulkan() override {
+    if (layout != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyDescriptorSetLayout(device, layout, nullptr);
+  }
+};
+
+struct DescriptorSetVulkan final : IDescriptorSet {
+  VkDevice device = VK_NULL_HANDLE;
+  VkDescriptorPool pool = VK_NULL_HANDLE;
+  VkDescriptorSet set = VK_NULL_HANDLE;
+  ~DescriptorSetVulkan() override {
+    if (set != VK_NULL_HANDLE && pool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkFreeDescriptorSets(device, pool, 1, &set);
+  }
+};
+
+static VkDescriptorType ToVkDescriptorType(uint32_t type) {
+  switch (type) {
+    case static_cast<uint32_t>(DescriptorType::UniformBuffer): return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case static_cast<uint32_t>(DescriptorType::CombinedImageSampler): return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    case static_cast<uint32_t>(DescriptorType::Sampler): return VK_DESCRIPTOR_TYPE_SAMPLER;
+    case static_cast<uint32_t>(DescriptorType::StorageBuffer): return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case static_cast<uint32_t>(DescriptorType::StorageImage): return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    default: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  }
+}
+
 struct PSOVulkan final : IPSO {
   VkDevice device = VK_NULL_HANDLE;
   VkShaderModule vertModule = VK_NULL_HANDLE;
   VkShaderModule fragModule = VK_NULL_HANDLE;
   VkShaderModule computeModule = VK_NULL_HANDLE;
+  VkPipeline pipeline = VK_NULL_HANDLE;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;  /* used by BindDescriptorSet */
+  bool ownPipelineLayout = false;  /* if true, destroy in dtor */
   ~PSOVulkan() override {
     if (device == VK_NULL_HANDLE) return;
+    if (pipeline != VK_NULL_HANDLE) { vkDestroyPipeline(device, pipeline, nullptr); pipeline = VK_NULL_HANDLE; }
+    if (ownPipelineLayout && pipelineLayout != VK_NULL_HANDLE) {
+      vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+      pipelineLayout = VK_NULL_HANDLE;
+    }
     if (vertModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, vertModule, nullptr); vertModule = VK_NULL_HANDLE; }
     if (fragModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, fragModule, nullptr); fragModule = VK_NULL_HANDLE; }
     if (computeModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, computeModule, nullptr); computeModule = VK_NULL_HANDLE; }
@@ -304,7 +398,9 @@ struct DeviceVulkan final : IDevice {
   VkCommandPool commandPool = VK_NULL_HANDLE;
   VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
   VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+  VkDescriptorPool dynamicDescriptorPool = VK_NULL_HANDLE;  /* for AllocateDescriptorSet with custom layouts */
   VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  VkRenderPass defaultRenderPass = VK_NULL_HANDLE;
   QueueVulkan* queueWrapper = nullptr;
   DeviceFeatures features{};
   DeviceLimits    limits{};
@@ -344,6 +440,7 @@ struct DeviceVulkan final : IDevice {
     cl->cmd = cb;
     cl->descriptorSet = ds;
     cl->pipelineLayout = pipelineLayout;
+    cl->defaultRenderPass = defaultRenderPass;
     return cl;
   }
   void DestroyCommandList(ICommandList* cmd) override {
@@ -442,7 +539,7 @@ struct DeviceVulkan final : IDevice {
     ici.arrayLayers = 1;
     ici.samples = VK_SAMPLE_COUNT_1_BIT;
     ici.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImage img = VK_NULL_HANDLE;
     if (vkCreateImage(device, &ici, nullptr, &img) != VK_SUCCESS)
@@ -477,10 +574,25 @@ struct DeviceVulkan final : IDevice {
       vkDestroyImage(device, img, nullptr);
       return nullptr;
     }
+    VkImageViewCreateInfo ivci = {};
+    ivci.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivci.image = img;
+    ivci.viewType = (desc.depth > 1) ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
+    ivci.format = fmt;
+    ivci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    VkImageView imageView = VK_NULL_HANDLE;
+    if (vkCreateImageView(device, &ivci, nullptr, &imageView) != VK_SUCCESS) {
+      vkDestroyImage(device, img, nullptr);
+      vkFreeMemory(device, mem, nullptr);
+      return nullptr;
+    }
     auto* t = new TextureVulkan();
     t->device = device;
     t->image = img;
     t->memory = mem;
+    t->imageView = imageView;
+    t->width = desc.width;
+    t->height = desc.height;
     return t;
   }
   ISampler* CreateSampler(SamplerDesc const& desc) override {
@@ -521,32 +633,111 @@ struct DeviceVulkan final : IDevice {
   void DestroyTexture(ITexture* t) override { delete static_cast<TextureVulkan*>(t); }
   void DestroySampler(ISampler* s) override { delete static_cast<SamplerVulkan*>(s); }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) override {
-    if (device == VK_NULL_HANDLE) return nullptr;
+    return CreateGraphicsPSO(desc, nullptr);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    if (device == VK_NULL_HANDLE || defaultRenderPass == VK_NULL_HANDLE) return nullptr;
+    if (!layout && pipelineLayout == VK_NULL_HANDLE) return nullptr;
     constexpr size_t kMinSpirvSize = 20u;
     bool hasVert = desc.vertex_shader && desc.vertex_shader_size >= kMinSpirvSize;
     bool hasFrag = desc.fragment_shader && desc.fragment_shader_size >= kMinSpirvSize;
-    if (!hasVert && !hasFrag) return nullptr;
+    if (!hasVert || !hasFrag) return nullptr;
     auto* p = new PSOVulkan();
     p->device = device;
-    if (hasVert) {
-      VkShaderModuleCreateInfo smci = {};
-      smci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      smci.codeSize = desc.vertex_shader_size;
-      smci.pCode = static_cast<uint32_t const*>(desc.vertex_shader);
-      if (vkCreateShaderModule(device, &smci, nullptr, &p->vertModule) != VK_SUCCESS) {
+    if (layout) {
+      DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(layout);
+      VkPipelineLayoutCreateInfo plCi = {};
+      plCi.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+      plCi.setLayoutCount = 1;
+      plCi.pSetLayouts = &dsl->layout;
+      if (vkCreatePipelineLayout(device, &plCi, nullptr, &p->pipelineLayout) != VK_SUCCESS) {
         delete p;
         return nullptr;
       }
+      p->ownPipelineLayout = true;
+    } else {
+      p->pipelineLayout = pipelineLayout;
+      p->ownPipelineLayout = false;
     }
-    if (hasFrag) {
-      VkShaderModuleCreateInfo smci = {};
-      smci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-      smci.codeSize = desc.fragment_shader_size;
-      smci.pCode = static_cast<uint32_t const*>(desc.fragment_shader);
-      if (vkCreateShaderModule(device, &smci, nullptr, &p->fragModule) != VK_SUCCESS) {
-        delete p;
-        return nullptr;
-      }
+    VkShaderModuleCreateInfo vsCi = {};
+    vsCi.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    vsCi.codeSize = desc.vertex_shader_size;
+    vsCi.pCode = static_cast<uint32_t const*>(desc.vertex_shader);
+    if (vkCreateShaderModule(device, &vsCi, nullptr, &p->vertModule) != VK_SUCCESS) {
+      delete p;
+      return nullptr;
+    }
+    VkShaderModuleCreateInfo fsCi = {};
+    fsCi.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    fsCi.codeSize = desc.fragment_shader_size;
+    fsCi.pCode = static_cast<uint32_t const*>(desc.fragment_shader);
+    if (vkCreateShaderModule(device, &fsCi, nullptr, &p->fragModule) != VK_SUCCESS) {
+      delete p;
+      return nullptr;
+    }
+    VkPipelineShaderStageCreateInfo stages[2] = {};
+    uint32_t stageCount = 0;
+    if (p->vertModule != VK_NULL_HANDLE) {
+      stages[stageCount].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      stages[stageCount].stage = VK_SHADER_STAGE_VERTEX_BIT;
+      stages[stageCount].module = p->vertModule;
+      stages[stageCount].pName = "main";
+      stageCount++;
+    }
+    if (p->fragModule != VK_NULL_HANDLE) {
+      stages[stageCount].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      stages[stageCount].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+      stages[stageCount].module = p->fragModule;
+      stages[stageCount].pName = "main";
+      stageCount++;
+    }
+    if (stageCount == 0) { delete p; return nullptr; }
+    VkPipelineVertexInputStateCreateInfo vi = {};
+    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    VkPipelineInputAssemblyStateCreateInfo ia = {};
+    ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    VkPipelineViewportStateCreateInfo vp = {};
+    vp.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    vp.viewportCount = 1;
+    vp.scissorCount = 1;
+    VkPipelineRasterizationStateCreateInfo rs = {};
+    rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rs.polygonMode = VK_POLYGON_MODE_FILL;
+    rs.cullMode = VK_CULL_MODE_BACK_BIT;
+    rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rs.lineWidth = 1.0f;
+    VkPipelineMultisampleStateCreateInfo ms = {};
+    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    VkPipelineColorBlendAttachmentState blendAtt = {};
+    blendAtt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    VkPipelineColorBlendStateCreateInfo cb = {};
+    cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    cb.attachmentCount = 1;
+    cb.pAttachments = &blendAtt;
+    VkDynamicState dynStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dyn = {};
+    dyn.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dyn.dynamicStateCount = 2;
+    dyn.pDynamicStates = dynStates;
+    VkGraphicsPipelineCreateInfo gpCi = {};
+    gpCi.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    gpCi.stageCount = stageCount;
+    gpCi.pStages = stages;
+    gpCi.pVertexInputState = &vi;
+    gpCi.pInputAssemblyState = &ia;
+    gpCi.pViewportState = &vp;
+    gpCi.pRasterizationState = &rs;
+    gpCi.pMultisampleState = &ms;
+    gpCi.pColorBlendState = &cb;
+    gpCi.pDynamicState = &dyn;
+    gpCi.layout = p->pipelineLayout;
+    gpCi.renderPass = defaultRenderPass;
+    gpCi.subpass = 0;
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpCi, nullptr, &p->pipeline) != VK_SUCCESS) {
+      delete p;
+      return nullptr;
     }
     return p;
   }
@@ -600,14 +791,93 @@ struct DeviceVulkan final : IDevice {
     sc->height = desc.height;
     return sc;
   }
-  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override { (void)desc; return nullptr; }
-  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override { (void)layout; return nullptr; }
-  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override { (void)set; (void)writes; (void)writeCount; }
-  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override { (void)layout; }
-  void DestroyDescriptorSet(IDescriptorSet* set) override { (void)set; }
+  IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override {
+    if (device == VK_NULL_HANDLE || desc.bindingCount == 0) return nullptr;
+    std::vector<VkDescriptorSetLayoutBinding> vkBindings(desc.bindingCount);
+    for (uint32_t i = 0; i < desc.bindingCount; ++i) {
+      vkBindings[i].binding = desc.bindings[i].binding;
+      vkBindings[i].descriptorType = ToVkDescriptorType(desc.bindings[i].descriptorType);
+      vkBindings[i].descriptorCount = desc.bindings[i].descriptorCount ? desc.bindings[i].descriptorCount : 1u;
+      vkBindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    VkDescriptorSetLayoutCreateInfo ci = {};
+    ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    ci.bindingCount = desc.bindingCount;
+    ci.pBindings = vkBindings.data();
+    VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+    if (vkCreateDescriptorSetLayout(device, &ci, nullptr, &layout) != VK_SUCCESS)
+      return nullptr;
+    auto* dsl = new DescriptorSetLayoutVulkan();
+    dsl->device = device;
+    dsl->layout = layout;
+    return dsl;
+  }
+  IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override {
+    if (device == VK_NULL_HANDLE || !layout || dynamicDescriptorPool == VK_NULL_HANDLE) return nullptr;
+    DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(layout);
+    VkDescriptorSetAllocateInfo ai = {};
+    ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    ai.descriptorPool = dynamicDescriptorPool;
+    ai.descriptorSetCount = 1;
+    ai.pSetLayouts = &dsl->layout;
+    VkDescriptorSet set = VK_NULL_HANDLE;
+    if (vkAllocateDescriptorSets(device, &ai, &set) != VK_SUCCESS)
+      return nullptr;
+    auto* ds = new DescriptorSetVulkan();
+    ds->device = device;
+    ds->pool = dynamicDescriptorPool;
+    ds->set = set;
+    return ds;
+  }
+  void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override {
+    if (device == VK_NULL_HANDLE || !set || !writes || writeCount == 0) return;
+    DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(set);
+    std::vector<VkWriteDescriptorSet> vkWrites(writeCount);
+    std::vector<VkDescriptorBufferInfo> bufInfos(writeCount);
+    std::vector<VkDescriptorImageInfo> imgInfos(writeCount);
+    for (uint32_t i = 0; i < writeCount; ++i) {
+      vkWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      vkWrites[i].dstSet = ds->set;
+      vkWrites[i].dstBinding = writes[i].binding;
+      vkWrites[i].dstArrayElement = 0;
+      vkWrites[i].descriptorCount = 1;
+      vkWrites[i].descriptorType = ToVkDescriptorType(writes[i].type);
+      if (writes[i].buffer) {
+        BufferVulkan* b = static_cast<BufferVulkan*>(writes[i].buffer);
+        bufInfos[i].buffer = b->buffer;
+        bufInfos[i].offset = writes[i].bufferOffset;
+        bufInfos[i].range = VK_WHOLE_SIZE;
+        vkWrites[i].pBufferInfo = &bufInfos[i];
+      } else if (writes[i].texture || writes[i].sampler) {
+        imgInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imgInfos[i].imageView = VK_NULL_HANDLE;
+        if (writes[i].texture) {
+          TextureVulkan* tv = static_cast<TextureVulkan*>(writes[i].texture);
+          imgInfos[i].imageView = tv->imageView;
+        }
+        imgInfos[i].sampler = VK_NULL_HANDLE;
+        if (writes[i].sampler) {
+          SamplerVulkan* sv = static_cast<SamplerVulkan*>(writes[i].sampler);
+          imgInfos[i].sampler = sv->sampler;
+        }
+        vkWrites[i].pImageInfo = &imgInfos[i];
+      }
+    }
+    vkUpdateDescriptorSets(device, writeCount, vkWrites.data(), 0, nullptr);
+  }
+  void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override {
+    delete static_cast<DescriptorSetLayoutVulkan*>(layout);
+  }
+  void DestroyDescriptorSet(IDescriptorSet* set) override {
+    delete static_cast<DescriptorSetVulkan*>(set);
+  }
   ~DeviceVulkan() override {
     delete queueWrapper;
     queueWrapper = nullptr;
+    if (dynamicDescriptorPool != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
+      vkDestroyDescriptorPool(device, dynamicDescriptorPool, nullptr);
+      dynamicDescriptorPool = VK_NULL_HANDLE;
+    }
     if (descriptorPool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
       vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     if (pipelineLayout != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
@@ -706,18 +976,70 @@ IDevice* CreateDeviceVulkan() {
     vkDestroyInstance(instance, nullptr);
     return nullptr;
   }
-  VkPipelineLayoutCreateInfo plCi = {};
-  plCi.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  plCi.setLayoutCount = 1;
-  plCi.pSetLayouts = &descriptorSetLayout;
-  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-  if (vkCreatePipelineLayout(device, &plCi, nullptr, &pipelineLayout) != VK_SUCCESS) {
+  VkDescriptorPoolSize dynamicPoolSizes[] = {
+    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64 * 16 },
+    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64 * 8 }
+  };
+  VkDescriptorPoolCreateInfo dynamicPoolCi = {};
+  dynamicPoolCi.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  dynamicPoolCi.maxSets = 64;
+  dynamicPoolCi.poolSizeCount = 2;
+  dynamicPoolCi.pPoolSizes = dynamicPoolSizes;
+  VkDescriptorPool dynamicDescriptorPool = VK_NULL_HANDLE;
+  if (vkCreateDescriptorPool(device, &dynamicPoolCi, nullptr, &dynamicDescriptorPool) != VK_SUCCESS) {
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
     vkDestroyCommandPool(device, commandPool, nullptr);
     vkDestroyDevice(device, nullptr);
     vkDestroyInstance(instance, nullptr);
     return nullptr;
+  }
+  VkPipelineLayoutCreateInfo plCi = {};
+  plCi.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  plCi.setLayoutCount = 1;
+  plCi.pSetLayouts = &descriptorSetLayout;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+  if (vkCreatePipelineLayout(device, &plCi, nullptr, &pipelineLayout) != VK_SUCCESS) {
+    vkDestroyDescriptorPool(device, dynamicDescriptorPool, nullptr);
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+    vkDestroyCommandPool(device, commandPool, nullptr);
+    vkDestroyDevice(device, nullptr);
+    vkDestroyInstance(instance, nullptr);
+    return nullptr;
+  }
+  VkRenderPass defaultRenderPass = VK_NULL_HANDLE;
+  {
+    VkAttachmentDescription att = {};
+    att.format = VK_FORMAT_R8G8B8A8_UNORM;
+    att.samples = VK_SAMPLE_COUNT_1_BIT;
+    att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    att.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    att.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    att.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentReference colorRef = { 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorRef;
+    VkRenderPassCreateInfo rpCi = {};
+    rpCi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpCi.attachmentCount = 1;
+    rpCi.pAttachments = &att;
+    rpCi.subpassCount = 1;
+    rpCi.pSubpasses = &subpass;
+    if (vkCreateRenderPass(device, &rpCi, nullptr, &defaultRenderPass) != VK_SUCCESS) {
+      vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+      vkDestroyDescriptorPool(device, dynamicDescriptorPool, nullptr);
+      vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+      vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+      vkDestroyCommandPool(device, commandPool, nullptr);
+      vkDestroyDevice(device, nullptr);
+      vkDestroyInstance(instance, nullptr);
+      return nullptr;
+    }
   }
   auto* d = new DeviceVulkan();
   d->instance = instance;
@@ -727,7 +1049,9 @@ IDevice* CreateDeviceVulkan() {
   d->commandPool = commandPool;
   d->descriptorSetLayout = descriptorSetLayout;
   d->descriptorPool = descriptorPool;
+  d->dynamicDescriptorPool = dynamicDescriptorPool;
   d->pipelineLayout = pipelineLayout;
+  d->defaultRenderPass = defaultRenderPass;
   VkPhysicalDeviceProperties props = {};
   vkGetPhysicalDeviceProperties(physDev, &props);
   d->limits.maxBufferSize = 256 * 1024 * 1024ull;
@@ -744,13 +1068,31 @@ IDevice* CreateDeviceVulkan() {
 void DestroyDeviceVulkan(IDevice* dev) {
   auto* d = static_cast<DeviceVulkan*>(dev);
   if (!d) return;
+  if (d->defaultRenderPass != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE)
+    vkDestroyRenderPass(d->device, d->defaultRenderPass, nullptr);
+  d->defaultRenderPass = VK_NULL_HANDLE;
   if (d->commandPool != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE)
     vkDestroyCommandPool(d->device, d->commandPool, nullptr);
   d->commandPool = VK_NULL_HANDLE;
+  if (d->pipelineLayout != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE)
+    vkDestroyPipelineLayout(d->device, d->pipelineLayout, nullptr);
+  d->pipelineLayout = VK_NULL_HANDLE;
+  if (d->dynamicDescriptorPool != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE) {
+    vkDestroyDescriptorPool(d->device, d->dynamicDescriptorPool, nullptr);
+    d->dynamicDescriptorPool = VK_NULL_HANDLE;
+  }
+  if (d->descriptorPool != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE)
+    vkDestroyDescriptorPool(d->device, d->descriptorPool, nullptr);
+  d->descriptorPool = VK_NULL_HANDLE;
+  if (d->descriptorSetLayout != VK_NULL_HANDLE && d->device != VK_NULL_HANDLE)
+    vkDestroyDescriptorSetLayout(d->device, d->descriptorSetLayout, nullptr);
+  d->descriptorSetLayout = VK_NULL_HANDLE;
   if (d->device != VK_NULL_HANDLE)
     vkDestroyDevice(d->device, nullptr);
+  d->device = VK_NULL_HANDLE;
   if (d->instance != VK_NULL_HANDLE)
     vkDestroyInstance(d->instance, nullptr);
+  d->instance = VK_NULL_HANDLE;
   delete d;
 }
 

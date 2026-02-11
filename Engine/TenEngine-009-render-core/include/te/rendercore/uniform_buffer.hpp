@@ -23,6 +23,8 @@ struct IUniformBuffer {
   virtual void Bind(te::rhi::ICommandList* cmd, uint32_t slot) = 0;
   virtual size_t GetRingBufferOffset(FrameSlotId slot) const = 0;
   virtual void SetCurrentFrameSlot(FrameSlotId slot) = 0;
+  /** Underlying RHI buffer for descriptor set updates. */
+  virtual te::rhi::IBuffer* GetBuffer() = 0;
   virtual ~IUniformBuffer() = default;
 };
 
