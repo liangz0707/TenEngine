@@ -63,6 +63,9 @@ class MaterialResource : public resource::IMaterialResource {
   /** Update descriptor set with current frame slot (UB offset) and texture bindings. Call before BindDescriptorSet. */
   void UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uint32_t frameSlot);
 
+  /** Override texture at binding for this frame (e.g. post-process input RT). Cleared after UpdateDescriptorSetForFrame if desired; used when building descriptor writes. */
+  void SetRuntimeTexture(uint32_t binding, te::rhi::ITexture* texture);
+
   /** Set RHI device for EnsureDeviceResources; call before EnsureDeviceResources. */
   void SetDevice(te::rhi::IDevice* device) { device_ = device; }
   void EnsureDeviceResources() override;
@@ -98,6 +101,7 @@ class MaterialResource : public resource::IMaterialResource {
   te::rhi::IDescriptorSetLayout* descriptorSetLayout_ = nullptr;
   te::rhi::IDescriptorSet* descriptorSet_ = nullptr;
   te::rhi::ISampler* defaultSampler_ = nullptr;
+  std::map<std::uint32_t, te::rhi::ITexture*> runtimeTextureOverrides_;
 };
 
 }  // namespace material

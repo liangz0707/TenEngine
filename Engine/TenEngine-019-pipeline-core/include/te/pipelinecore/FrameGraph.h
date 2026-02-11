@@ -61,9 +61,12 @@ struct PassOutputDesc {
   uint32_t colorFormats[kMaxPassColorAttachments]{0};  // 0 = infer; 用于校验或创建 RT
 };
 
-/// LoadOp/StoreOp 与 te::rhi::LoadOp/StoreOp 值一致，020 转换时使用
-enum class AttachmentLoadOp : uint32_t { Load = 0, Clear = 1, DontCare = 2 };
-enum class AttachmentStoreOp : uint32_t { Store = 0, DontCare = 1 };
+/// LoadOp/StoreOp 与 te::rhi::LoadOp/StoreOp 值一致，020 转换时使用（避免 Windows Load/Store 宏）
+enum class AttachmentLoadOp : uint32_t { LoadOp_Load = 0, Clear = 1, DontCare = 2 };
+enum class AttachmentStoreOp : uint32_t { StoreOp_Store = 0, DontCare = 1 };
+
+/// Attachment 生命周期：Transient 每帧创建/销毁，Persistent 创建一次多帧复用
+enum class AttachmentLifetime : uint32_t { Transient = 0, Persistent = 1 };
 
 /// 单 Attachment 描述；用于 Pass 级 Attachment 定义与连接
 struct PassAttachmentDesc {
@@ -74,6 +77,7 @@ struct PassAttachmentDesc {
   bool isDepthStencil{false};
   AttachmentLoadOp loadOp{AttachmentLoadOp::Clear};
   AttachmentStoreOp storeOp{AttachmentStoreOp::Store};
+  AttachmentLifetime lifetime{AttachmentLifetime::Transient};
   size_t sourcePassIndex{static_cast<size_t>(-1)};  // 上一 Pass 索引，-1 表示无
   uint32_t sourceAttachmentIndex{0};
 };
@@ -146,6 +150,12 @@ struct ILightPassBuilder : public IPassBuilder {
 /// 后处理 Pass Builder（Pass 内定义 quad + material）
 struct IPostProcessPassBuilder : public IPassBuilder {
   ~IPostProcessPassBuilder() override = default;
+  /// 指定本 Pass 使用的材质名（如 "color_grading"）
+  virtual void SetMaterial(char const* name) = 0;
+  /// 指定本 Pass 使用的 mesh 名（如 "fullscreen_quad"）
+  virtual void SetMesh(char const* name) = 0;
+  /// 等价于 SetMesh("fullscreen_quad")
+  virtual void SetFullscreenQuad() = 0;
 };
 
 /// 特效 Pass Builder
@@ -155,6 +165,8 @@ struct IEffectPassBuilder : public IPassBuilder {
 
 /// 保留 ResourceHandle.id 约定：0 表示 SwapChain/BackBuffer
 constexpr uint64_t kResourceHandleIdBackBuffer = 0u;
+
+constexpr uint32_t kMaxPassReadResources = 8u;
 
 /// Pass 收集配置；供 BuildLogicalPipeline 使用
 struct PassCollectConfig {
@@ -168,6 +180,14 @@ struct PassCollectConfig {
   PassAttachmentDesc colorAttachments[kMaxPassColorAttachments];
   bool hasDepthStencil{false};
   PassAttachmentDesc depthStencilAttachment{};
+  /// Pass 名称（指针在 FrameGraph 存活期内有效）
+  char const* passName{nullptr};
+  /// 本 Pass 使用的材质名（如 "color_grading"），由 020 解析为句柄；空表示用场景材质
+  char const* materialName{nullptr};
+  /// 本 Pass 使用的 mesh 名（如 "fullscreen_quad"），空表示用场景 mesh
+  char const* meshName{nullptr};
+  uint32_t readResourceCount{0};
+  uint64_t readResourceIds[kMaxPassReadResources]{};
 };
 
 /// FrameGraph 入口

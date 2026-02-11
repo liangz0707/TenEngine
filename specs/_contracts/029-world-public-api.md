@@ -21,6 +21,10 @@
 | IModelResource | 模型资源视图；聚合 IMeshResource*、IMaterialResource* 与 submeshMaterialIndices；由 013 经 RequestLoadAsync(..., Model, ...) 加载后返回，类型与接口归属 029 | 013 缓存或调用方解析持有 |
 | ModelAssetDesc | .model 描述；meshGuids、materialGuids、submeshMaterialIndices 等；029 拥有并向 002 注册；013 反序列化 .model 得到后交 029 或 013 组装 RResource | 与 .model 资源绑定 |
 | RenderableItem | 单条可渲染项；worldMatrix、modelResource、submeshIndex；由 CollectRenderables 回调提供 | 单次回调内有效 |
+| LightComponent | 灯光组件；LightType（Point/Directional/Spot）、color、intensity、range、direction、spotAngle；继承 Component | 与 Entity 绑定 |
+| CameraComponent | 相机组件；fovY、nearZ、farZ、isActive；继承 Component；FrameContext.camera 为空时可由 Active 相机提供视图 | 与 Entity 绑定 |
+| ReflectionProbeComponent | 反射探针组件；ReflectionProbeType（Box/Sphere）、extent、resolution；继承 Component | 与 Entity 绑定 |
+| DecalComponent | 贴花组件；albedoTextureId、size、blend；继承 Component | 与 Entity 绑定 |
 
 ### 能力（提供方保证）
 
@@ -30,6 +34,10 @@
 | 2 | 当前场景获取 | GetCurrentLevelScene/GetSceneRef：返回当前关卡对应的 SceneRef；上层经此获取 SceneRef 后调用 004 的遍历/查询 API |
 | 3 | 委托式场景遍历 | GetRootNodes(LevelHandle)、Traverse(LevelHandle, callback) 等，内部转调 004 |
 | 4 | 渲染物收集 | CollectRenderables(LevelHandle, callback)：遍历场景，对带 ModelComponent 的 Entity 调用 callback(ISceneNode*, RenderableItem)；020-Pipeline 经此获取待渲染项，不再直接使用 004 GetNodeModelGuid / 005 GetModelGuid |
+| 5 | 灯光收集 | CollectLights(SceneRef, callback)：遍历场景，对带 LightComponent 的 Entity 调用 callback(ISceneNode*, LightComponent)；020 经此填充 ILightItemList |
+| 6 | 相机收集 | CollectCameras(SceneRef, callback)：遍历场景，对带 CameraComponent 的 Entity 调用 callback(ISceneNode*, CameraComponent) |
+| 7 | 反射探针收集 | CollectReflectionProbes(SceneRef, callback)：遍历场景，对带 ReflectionProbeComponent 的 Entity 调用 callback(ISceneNode*, ReflectionProbeComponent) |
+| 8 | 贴花收集 | CollectDecals(SceneRef, callback)：遍历场景，对带 DecalComponent 的 Entity 调用 callback(ISceneNode*, DecalComponent) |
 
 ## 版本 / ABI
 
@@ -64,3 +72,4 @@
 | 2026-02-10 | 依赖增加 005-Entity；能力增加 CollectRenderables（渲染物收集）；类型增加 RenderableItem；020 待渲染项来源改为本模块 CollectRenderables |
 | 2026-02-10 | 实现 LevelAssetDesc/SceneNodeDesc、CreateLevelFromDesc(LevelAssetDesc|ResourceId)、UnloadLevel 顺序约定、CollectRenderables(SceneRef)、002 类型注册、013 Level 工厂；待渲染项由本模块 CollectRenderables 统一提供 |
 | 2026-02-10 | Level 双格式：支持二进制 .level 与 JSON .level.json；格式由 002 GetFormatFromPath(path) 按路径扩展名自动选择 |
+| 2026-02-11 | 新增 LightComponent、CameraComponent、ReflectionProbeComponent、DecalComponent；WorldManager 新增 CollectLights、CollectCameras、CollectReflectionProbes、CollectDecals(SceneRef, callback) |

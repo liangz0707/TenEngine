@@ -58,3 +58,4 @@
 | 日期 | 变更说明 |
 |------|----------|
 | 2026-02-10 | ABI 同步：IFrameGraph 增加 GetPassCount、ExecutePass；PassContext 增加 SetCollectedObjects；RenderItem 扩展 transform、bounds；ConvertToLogicalCommandBuffer 排序与 instanced 合批 |
+| 2026-02-11 | FrameGraph 扩展：PassKind、PassContentSource、PassAttachmentDesc；IFrameGraph::AddPass(name, PassKind)、GetPassCollectConfig；IPassBuilder SetPassKind/SetContentSource/AddColorAttachment/SetDepthStencilAttachment；IScenePassBuilder、ILightPassBuilder、IPostProcessPassBuilder、IEffectPassBuilder；PassContext GetRenderItemList(slot)、GetLightItemList、SetLightItemList；ILogicalPipeline::GetPassConfig(index, PassCollectConfig*)；RenderItem.h 增加 LightItem、ILightItemList、CameraItem、ICameraItemList、ReflectionProbeItem、IReflectionProbeItemList、DecalItem、IDecalItemList 及 Create/Destroy |

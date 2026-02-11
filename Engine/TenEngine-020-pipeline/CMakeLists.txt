@@ -41,6 +41,8 @@ set(TE_PIPELINE_SOURCES
   src/RenderableCollector.cpp
   src/BuiltinMeshes.cpp
   src/BuiltinMaterials.cpp
+  src/FrameGraphResources.cpp
+  src/MaterialRuntime.cpp
 )
 
 set(TE_PIPELINE_HEADERS
@@ -51,6 +53,8 @@ set(TE_PIPELINE_HEADERS
   include/te/pipeline/BuiltinMaterials.h
   include/te/pipeline/detail/PipelineImpl.h
   include/te/pipeline/detail/RenderableCollector.h
+  include/te/pipeline/detail/FrameGraphResources.h
+  include/te/pipeline/detail/MaterialRuntime.h
 )
 
 add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})
@@ -61,6 +65,8 @@ source_group("Header Files" FILES ${TE_PIPELINE_HEADERS})
 source_group("Header Files\\Detail" FILES
   include/te/pipeline/detail/PipelineImpl.h
   include/te/pipeline/detail/RenderableCollector.h
+  include/te/pipeline/detail/FrameGraphResources.h
+  include/te/pipeline/detail/MaterialRuntime.h
 )
 set_target_properties(te_pipeline PROPERTIES PUBLIC_HEADER "${TE_PIPELINE_HEADERS}")
 

@@ -580,6 +580,7 @@ struct DeviceVulkan final : IDevice {
     if (device == VK_NULL_HANDLE || physicalDevice == VK_NULL_HANDLE || desc.width == 0 || desc.height == 0)
       return nullptr;
     VkFormat fmt = (desc.format == 0) ? VK_FORMAT_R8G8B8A8_UNORM : static_cast<VkFormat>(desc.format);
+    bool isDepthStencil = (fmt == VK_FORMAT_D24_UNORM_S8_UINT || fmt == VK_FORMAT_D32_SFLOAT || fmt == VK_FORMAT_D16_UNORM);
     VkImageCreateInfo ici = {};
     ici.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     ici.imageType = desc.depth > 1 ? VK_IMAGE_TYPE_3D : VK_IMAGE_TYPE_2D;
@@ -589,7 +590,10 @@ struct DeviceVulkan final : IDevice {
     ici.arrayLayers = 1;
     ici.samples = VK_SAMPLE_COUNT_1_BIT;
     ici.tiling = VK_IMAGE_TILING_OPTIMAL;
-    ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    if (isDepthStencil)
+      ici.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    else
+      ici.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImage img = VK_NULL_HANDLE;
     if (vkCreateImage(device, &ici, nullptr, &img) != VK_SUCCESS)
@@ -629,7 +633,10 @@ struct DeviceVulkan final : IDevice {
     ivci.image = img;
     ivci.viewType = (desc.depth > 1) ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D;
     ivci.format = fmt;
-    ivci.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+    VkImageAspectFlags aspect = isDepthStencil
+        ? (VK_IMAGE_ASPECT_DEPTH_BIT | ((fmt == VK_FORMAT_D24_UNORM_S8_UINT) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0u))
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    ivci.subresourceRange = { aspect, 0, 1, 0, 1 };
     VkImageView imageView = VK_NULL_HANDLE;
     if (vkCreateImageView(device, &ivci, nullptr, &imageView) != VK_SUCCESS) {
       vkDestroyImage(device, img, nullptr);

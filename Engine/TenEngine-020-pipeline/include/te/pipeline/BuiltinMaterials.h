@@ -8,12 +8,18 @@
 #define TE_PIPELINE_BUILTIN_MATERIALS_H
 
 namespace te {
+namespace resource {
+class IResourceManager;
+}
 namespace pipelinecore {
 struct IMaterialHandle;
 }
 namespace pipeline {
 
-/// Post-process material by name (e.g. "blit", "tonemap"). Loads from builtin/shaders/<name>.shader / .material
+/// Optional: set resource manager so GetPostProcessMaterial can load from builtin/shaders/<name>.material
+void SetBuiltinMaterialResourceManager(te::resource::IResourceManager* manager);
+
+/// Post-process material by name (e.g. "color_grading"). Loads from builtin/shaders/<name>.material when manager set
 pipelinecore::IMaterialHandle const* GetPostProcessMaterial(char const* name);
 
 /// Light pass material by type (point, directional, spot). Loads from builtin/shaders/light_<type>.shader

@@ -15,6 +15,8 @@ namespace {
 
 struct PassData {
   std::string name;
+  std::string materialName;
+  std::string meshName;
   ISceneWorld const* scene{nullptr};
   CullMode cullMode{CullMode::None};
   RenderType renderType{RenderType::Opaque};
@@ -58,6 +60,10 @@ class PassBuilderImpl : public IPassBuilder {
     data_.hasDepthStencil = true;
     data_.depthStencilAttachment = desc;
   }
+
+ protected:
+  void SetPassMaterial(char const* name) { data_.materialName = name ? name : ""; }
+  void SetPassMesh(char const* name) { data_.meshName = name ? name : ""; }
 
  private:
   PassData& data_;
@@ -119,6 +125,9 @@ class PostProcessPassBuilderImpl : public IPostProcessPassBuilder, private PassB
   PassContentSource GetContentSource() const override { return PassBuilderImpl::GetContentSource(); }
   void AddColorAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::AddColorAttachment(d); }
   void SetDepthStencilAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::SetDepthStencilAttachment(d); }
+  void SetMaterial(char const* name) override { SetPassMaterial(name); }
+  void SetMesh(char const* name) override { SetPassMesh(name); }
+  void SetFullscreenQuad() override { SetPassMesh("fullscreen_quad"); }
 };
 
 class EffectPassBuilderImpl : public IEffectPassBuilder, private PassBuilderImpl {
@@ -259,6 +268,12 @@ class FrameGraphImpl : public IFrameGraph {
       out->colorAttachments[i] = p.colorAttachments[i];
     out->hasDepthStencil = p.hasDepthStencil;
     out->depthStencilAttachment = p.depthStencilAttachment;
+    out->passName = p.name.empty() ? nullptr : p.name.c_str();
+    out->materialName = p.materialName.empty() ? nullptr : p.materialName.c_str();
+    out->meshName = p.meshName.empty() ? nullptr : p.meshName.c_str();
+    out->readResourceCount = static_cast<uint32_t>(std::min(p.readResources.size(), size_t{kMaxPassReadResources}));
+    for (uint32_t i = 0; i < out->readResourceCount; ++i)
+      out->readResourceIds[i] = p.readResources[i];
   }
 
   void ExecutePass(size_t executionOrder, PassContext& ctx, te::rhi::ICommandList* cmd) override {

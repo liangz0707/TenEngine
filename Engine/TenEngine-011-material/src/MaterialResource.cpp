@@ -347,6 +347,13 @@ bool MaterialResource::IsDeviceReady() const {
   return true;
 }
 
+void MaterialResource::SetRuntimeTexture(uint32_t binding, te::rhi::ITexture* texture) {
+  if (texture)
+    runtimeTextureOverrides_[binding] = texture;
+  else
+    runtimeTextureOverrides_.erase(binding);
+}
+
 void MaterialResource::UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uint32_t frameSlot) {
   if (!device || !descriptorSet_) return;
   if (uniformBuffer_) {
@@ -370,9 +377,14 @@ void MaterialResource::UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uin
     writes.push_back(w);
   }
   for (TextureEntry const& e : textureRefs_) {
-    te::texture::TextureResource* texRes = dynamic_cast<te::texture::TextureResource*>(e.textureResource);
-    if (!texRes) continue;
-    te::rhi::ITexture* tex = texRes->GetDeviceTexture();
+    te::rhi::ITexture* tex = nullptr;
+    auto it = runtimeTextureOverrides_.find(e.slot.binding);
+    if (it != runtimeTextureOverrides_.end())
+      tex = it->second;
+    else {
+      te::texture::TextureResource* texRes = dynamic_cast<te::texture::TextureResource*>(e.textureResource);
+      if (texRes) tex = texRes->GetDeviceTexture();
+    }
     if (!tex) continue;
     te::rhi::DescriptorWrite w = {};
     w.dstSet = descriptorSet_;
@@ -383,6 +395,20 @@ void MaterialResource::UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uin
     w.texture = tex;
     w.sampler = defaultSampler_;
     writes.push_back(w);
+  }
+  for (auto const& kv : runtimeTextureOverrides_) {
+    if (std::none_of(textureRefs_.begin(), textureRefs_.end(),
+                     [&kv](TextureEntry const& e) { return e.slot.binding == kv.first; })) {
+      te::rhi::DescriptorWrite w = {};
+      w.dstSet = descriptorSet_;
+      w.binding = kv.first;
+      w.type = static_cast<std::uint32_t>(te::rhi::DescriptorType::CombinedImageSampler);
+      w.buffer = nullptr;
+      w.bufferOffset = 0;
+      w.texture = kv.second;
+      w.sampler = defaultSampler_;
+      writes.push_back(w);
+    }
   }
   if (!writes.empty())
     device->UpdateDescriptorSet(descriptorSet_, writes.data(), static_cast<std::uint32_t>(writes.size()));

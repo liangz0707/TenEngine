@@ -20,8 +20,10 @@
 | RenderTargetHandle | 渲染目标句柄；PresentTarget、与 RHI/SwapChain/XR 对接 | 由 Pipeline 或调用方管理 |
 | DrawCall 接口 | 批次、材质/网格/变换、实例化与合批；与 Material/Mesh/Shader 对接 | 单次 Pass 或帧 |
 | VisibleSet / BatchList | 可见实体/组件、批次列表；CollectVisible、FrustumCull、SelectLOD、BuildBatches | 单帧 |
+| BuiltinMeshes | GetFullscreenQuadMesh、GetSphereMesh、GetConeMesh；020 内建几何（全屏 quad、球体、锥体），供后处理与灯光体积 | 020 内部缓存 |
+| BuiltinMaterials | GetPostProcessMaterial(name)、GetLightMaterial(lightTypeIndex)；预置 Shader/Material 路径（builtin/shaders/），供后处理与灯光 Pass | 020 内部 |
 
-收集：待渲染项由 **029-World WorldManager::CollectRenderables**（LevelHandle 或 SceneRef）统一提供；回调得到 RenderableItem（worldMatrix、modelResource、submeshIndex）；020 不依赖 004 节点 modelGuid 或 005 GetModelGuid，由 029 遍历带 ModelComponent 的 Entity 并填充 RenderableItem。经 013 解析/缓存 IModelResource；EnsureDeviceResources 触发 011/012/028 创建 DResource；与 019 PrepareRenderMaterial/PrepareRenderMesh 对接。命令缓冲与 RHI 提交见 `pipeline-to-rci.md`。
+收集：待渲染项由 **029-World WorldManager::CollectRenderables**（LevelHandle 或 SceneRef）统一提供；回调得到 RenderableItem（worldMatrix、modelResource、submeshIndex）；020 不依赖 004 节点 modelGuid 或 005 GetModelGuid，由 029 遍历带 ModelComponent 的 Entity 并填充 RenderableItem。经 013 解析/缓存 IModelResource；EnsureDeviceResources 触发 011/012/028 创建 DResource；与 019 PrepareRenderMaterial/PrepareRenderMesh 对接。灯光/相机/反射探针/贴花由 **CollectLightsToLightItemList**、**CollectCamerasToCameraItemList**、**CollectReflectionProbesToReflectionProbeItemList**、**CollectDecalsToDecalItemList**（029 Collect* + 019 ItemList）填充；PassContext 设 SetLightItemList 等供 Pass 使用。命令缓冲与 RHI 提交见 `pipeline-to-rci.md`。
 
 ### 能力（提供方保证）
 
@@ -29,7 +31,7 @@
 |------|------|------|
 | 1 | Culling | CollectVisible、FrustumCull、OcclusionQuery（可选）、SelectLOD；与 Scene/Entity 对接 |
 | 2 | Batching | BuildBatches、MaterialSlot、MeshSlot、Transform、Instancing、MergeBatch；经 013 解析取 Mesh/Material |
-| 3 | PassExecution | ExecutePass、GBuffer、Lighting、PostProcess；与 PipelineCore 图对接 |
+| 3 | PassExecution | ExecutePass、GBuffer(PassKind::Scene)、Lighting(PassKind::Light)、PostProcess；按 PassCollectConfig.passKind 分发（仅 Scene Pass 录制 logicalCB）；与 PipelineCore 图对接 |
 | 4 | Submit | BuildCommandBuffer、SubmitToRHI、Present、XRSubmit（可选）；与 RHI/SwapChain/XR 对接 |
 
 ## 版本 / ABI
@@ -56,3 +58,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格 |
 | 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用；约束与 TODO 更新：RenderingConfig.validationLevel、CheckWarning/CheckError；TriggerRender 投递、IsDeviceReady 过滤、RequestStreaming、SelectLOD、合批、按 Pass ExecutePass 已实现 |
 | 2026-02-10 | 每 draw：UpdateDescriptorSetForFrame(frameSlot)、SetGraphicsPSO、BindDescriptorSet；ExecuteLogicalCommandBufferOnDeviceThread 传入 frameSlot；SubmitLogicalCommandBuffer 使用 currentSlot |
+| 2026-02-11 | BuiltinMeshes（FullscreenQuad、Sphere、Cone）、BuiltinMaterials（PostProcess/Light stub）；CollectLightsToLightItemList、CollectCamerasToCameraItemList、CollectReflectionProbesToReflectionProbeItemList、CollectDecalsToDecalItemList；RenderPipeline 按 PassKind 分发、LightItemList 生命周期；PassContext SetLightItemList |

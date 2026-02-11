@@ -25,6 +25,14 @@
 | 029-World | te::world | ModelAssetDesc | 结构体 | te/world/ModelAssetDesc.h | ModelAssetDesc | meshGuids、materialGuids、submeshMaterialIndices；029 拥有并向 002 注册 |
 | 029-World | te::world | ModelComponent | 结构体 | te/world/ModelComponent.h | ModelComponent | 继承 Component；modelResourceId；由 RegisterWorldModule 注册到 005/002 |
 | 029-World | te::world | — | 自由函数 | te/world/WorldModuleInit.h | RegisterWorldModule | void RegisterWorldModule(); 注册 ModelComponent 等 029 组件类型 |
+| 029-World | te::world | LightComponent | 结构体 | te/world/LightComponent.h | LightComponent | 继承 Component；LightType、color、intensity、range、direction、spotAngle |
+| 029-World | te::world | CameraComponent | 结构体 | te/world/CameraComponent.h | CameraComponent | 继承 Component；fovY、nearZ、farZ、isActive |
+| 029-World | te::world | ReflectionProbeComponent | 结构体 | te/world/ReflectionProbeComponent.h | ReflectionProbeComponent | 继承 Component；ReflectionProbeType、extent、resolution |
+| 029-World | te::world | DecalComponent | 结构体 | te/world/DecalComponent.h | DecalComponent | 继承 Component；albedoTextureId、size、blend |
+| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectLights | void CollectLights(SceneRef, function<void(ISceneNode*, LightComponent const&)>) const |
+| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectCameras | void CollectCameras(SceneRef, function<void(ISceneNode*, CameraComponent const&)>) const |
+| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectReflectionProbes | void CollectReflectionProbes(SceneRef, function<void(ISceneNode*, ReflectionProbeComponent const&)>) const |
+| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectDecals | void CollectDecals(SceneRef, function<void(ISceneNode*, DecalComponent const&)>) const |
 
 ## 与 004-Scene、013-Resource、005-Entity 的调用关系
 
@@ -39,3 +47,4 @@
 | 2026-02-10 | 实现 IModelResource、ModelAssetDesc、ModelComponent；CollectRenderables 仅对带 ModelComponent 的 Entity 回调；增加 CollectRenderables(handle, IResourceManager*, callback) 重载以解析 modelResource；RegisterWorldModule、WorldModuleInit |
 | 2026-02-10 | 新增 LevelAssetDesc、SceneNodeDesc、ILevelResource；CreateLevelFromDesc(LevelAssetDesc) 与 CreateLevelFromDesc(ResourceId)；CollectRenderables(SceneRef,…) 重载；向 002 注册 LevelAssetDesc/SceneNodeDesc/ModelAssetDesc；013 Level 工厂注册；UnloadLevel 顺序：先 Entity 再 UnloadScene |
 | 2026-02-10 | Level 双格式：.level 二进制与 .level.json JSON，格式由 002 GetFormatFromPath 按路径扩展名选择 |
+| 2026-02-11 | 新增 LightComponent、CameraComponent、ReflectionProbeComponent、DecalComponent；WorldManager 新增 CollectLights、CollectCameras、CollectReflectionProbes、CollectDecals |

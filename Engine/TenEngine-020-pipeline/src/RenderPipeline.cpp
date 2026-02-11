@@ -8,6 +8,8 @@
 #include <te/pipeline/RenderingConfig.h>
 #include <te/pipeline/detail/PipelineImpl.h>
 #include <te/pipeline/detail/RenderableCollector.h>
+#include <te/pipeline/detail/FrameGraphResources.h>
+#include <te/pipeline/detail/MaterialRuntime.h>
 #include <te/pipelinecore/FrameGraph.h>
 #include <te/pipelinecore/LogicalPipeline.h>
 #include <te/pipelinecore/LogicalCommandBuffer.h>
@@ -26,9 +28,12 @@
 #include <te/mesh/Mesh.h>
 #include <te/mesh/MeshResource.h>
 #include <te/mesh/MeshDevice.h>
+#include <te/pipeline/BuiltinMaterials.h>
+#include <te/pipeline/BuiltinMeshes.h>
 #include <te/pipelinecore/LogicalCommandBuffer.h>
 #include <te/rendercore/types.hpp>
 #include <condition_variable>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -98,13 +103,17 @@ class RenderPipelineImpl : public IRenderPipeline {
       for (uint32_t i = 0; i < frameInFlightCount_; ++i)
         slotFences_[i] = rhiDevice->CreateFence(i == 0);
     }
+    if (desc.resourceManager)
+      SetBuiltinMaterialResourceManager(static_cast<te::resource::IResourceManager*>(desc.resourceManager));
   }
 
   ~RenderPipelineImpl() override {
     te::rhi::IDevice* rhiDevice = static_cast<te::rhi::IDevice*>(device_);
-    if (rhiDevice)
+    if (rhiDevice) {
+      detail::DestroyFrameGraphPersistentCache(&persistentCache_, rhiDevice);
       for (te::rhi::IFence* f : slotFences_)
         if (f) rhiDevice->DestroyFence(f);
+    }
     slotFences_.clear();
     if (ownFrameGraph_ && frameGraph_) {
       pipelinecore::DestroyFrameGraph(static_cast<pipelinecore::IFrameGraph*>(frameGraph_));
@@ -191,32 +200,18 @@ class RenderPipelineImpl : public IRenderPipeline {
         pipelinecore::ILightItemList const* lightListPtr = lightItemList;
         if (slot < static_cast<uint32_t>(slotFences_.size()) && slotFences_[slot])
           te::rhi::Wait(slotFences_[slot]);
-        // 多 subpass：有 FrameGraph 且有多 Pass 时构建 RenderPassDesc 并创建 IRenderPass，供 PrepareRenderResources 与录制使用
-        te::rhi::IRenderPass* renderPass = nullptr;
+        // 多 subpass：根据 FrameGraph Pass 依赖创建 Transient RT 并构建 RenderPassDesc + IRenderPass
+        detail::FrameGraphResourceSet resourceSet;
         uint32_t subpassCount = 0u;
-        te::rhi::RenderPassDesc rpDescMulti = {};
         if (graphCapture && graphCapture->GetPassCount() > 0u && swapChain_) {
           te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
           te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
           if (backBuffer) {
-            rpDescMulti.colorAttachmentCount = 1u;
-            rpDescMulti.colorAttachments[0].texture = backBuffer;
-            rpDescMulti.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
-            rpDescMulti.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
-            rpDescMulti.colorAttachments[0].clearColor[0] = 0.f;
-            rpDescMulti.colorAttachments[0].clearColor[1] = 0.f;
-            rpDescMulti.colorAttachments[0].clearColor[2] = 0.f;
-            rpDescMulti.colorAttachments[0].clearColor[3] = 1.f;
-            subpassCount = static_cast<uint32_t>(graphCapture->GetPassCount());
-            rpDescMulti.subpassCount = subpassCount;
-            for (uint32_t i = 0; i < subpassCount; ++i) {
-              rpDescMulti.subpasses[i].colorAttachmentCount = 1u;
-              rpDescMulti.subpasses[i].colorAttachmentIndices[0] = 0u;
-              rpDescMulti.subpasses[i].depthStencilAttachmentIndex = te::rhi::kDepthStencilAttachmentIndexNone;
-            }
-            renderPass = rhiDevice->CreateRenderPass(rpDescMulti);
+            resourceSet = detail::BuildFrameGraphResources(graphCapture, vpW, vpH, rhiDevice, backBuffer, &persistentCache_);
+            subpassCount = resourceSet.rpDesc.subpassCount;
           }
         }
+        te::rhi::IRenderPass* renderPass = resourceSet.renderPass;
         // Mesh/Material Ensure 由 019 PrepareRenderResources 统一完成；多 subpass 时传入 renderPass 与 subpassCount
         pipelinecore::PrepareRenderResources(itemList, rhiDevice, renderPass, subpassCount);
         pipelinecore::IRenderItemList* readyList = pipelinecore::CreateRenderItemList();
@@ -262,7 +257,8 @@ class RenderPipelineImpl : public IRenderPipeline {
             passCtx.SetRenderItemList(0, itemList);
             passCtx.SetLightItemList(lightListPtr);
             if (renderPass) {
-              cmd->BeginRenderPass(rpDescMulti, renderPass);
+              pipelinecore::PassCollectConfig passConfig = {};
+              cmd->BeginRenderPass(resourceSet.rpDesc, renderPass);
               for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
                 if (i > 0u) cmd->NextSubpass();
                 if (vpW > 0u && vpH > 0u) {
@@ -272,72 +268,53 @@ class RenderPipelineImpl : public IRenderPipeline {
                   cmd->SetScissor(0, 1, &scissor);
                 }
                 cmd->BeginOcclusionQuery(0);
-                if (i == 0u)
-                  ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, static_cast<uint32_t>(i));
+                if (pipeline->GetPassConfig(i, &passConfig)) {
+                  if (passConfig.passKind == pipelinecore::PassKind::Scene)
+                    ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, static_cast<uint32_t>(i));
+                  else if (passConfig.passKind == pipelinecore::PassKind::PostProcess) {
+                    pipelinecore::IMaterialHandle const* matHandle = passConfig.materialName
+                        ? GetPostProcessMaterial(passConfig.materialName) : nullptr;
+                    if (matHandle && passConfig.readResourceCount > 0u) {
+                      auto it = resourceSet.idToTexture.find(passConfig.readResourceIds[0]);
+                      te::rhi::ITexture* inputTex = (it != resourceSet.idToTexture.end()) ? it->second : nullptr;
+                      if (inputTex) {
+                        detail::MaterialRuntimeBindTexture(matHandle, 0, inputTex);
+                        detail::MaterialRuntimeCommit(matHandle, rhiDevice, slot);
+                        te::rhi::IPSO* pso = detail::MaterialRuntimeGetPSO(matHandle, static_cast<uint32_t>(i));
+                        if (pso) cmd->SetGraphicsPSO(pso);
+                        te::rhi::IDescriptorSet* ds = detail::MaterialRuntimeGetDescriptorSet(matHandle);
+                        if (ds) cmd->BindDescriptorSet(ds);
+                        pipelinecore::IMeshHandle const* meshHandle = nullptr;
+                        if (passConfig.meshName && std::strcmp(passConfig.meshName, "fullscreen_quad") == 0)
+                          meshHandle = GetFullscreenQuadMesh();
+                        if (meshHandle) {
+                          te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(meshHandle);
+                          te::mesh::MeshHandle mh = meshRes->GetMeshHandle();
+                          if (mh) {
+                            te::mesh::SubmeshDesc const* sub = te::mesh::GetSubmesh(mh, 0);
+                            if (sub) {
+                              te::rhi::IBuffer* vb = te::mesh::GetVertexBufferHandle(mh);
+                              te::rhi::IBuffer* ib = te::mesh::GetIndexBufferHandle(mh);
+                              if (vb && ib) {
+                                uint32_t vertexStride = te::mesh::GetVertexStride(mh);
+                                uint32_t indexFormat = te::mesh::GetIndexFormat(mh);
+                                cmd->SetVertexBuffer(0, vb, 0, vertexStride);
+                                cmd->SetIndexBuffer(ib, 0, indexFormat);
+                                cmd->DrawIndexed(sub->count, 1, sub->offset, 0, 0);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
                 graphCapture->ExecutePass(i, passCtx, cmd);
                 cmd->EndOcclusionQuery(0);
               }
               cmd->EndRenderPass();
-              rhiDevice->DestroyRenderPass(renderPass);
-            } else {
-              // CreateRenderPass 失败时退化为每 Pass 单独 Begin/End
-              te::rhi::RenderPassDesc rpDesc = {};
-              if (swapChain_) {
-                te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
-                te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
-                if (backBuffer) {
-                  rpDesc.colorAttachmentCount = 1u;
-                  rpDesc.colorAttachments[0].texture = backBuffer;
-                  rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
-                  rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
-                  rpDesc.colorAttachments[0].clearColor[0] = 0.f;
-                  rpDesc.colorAttachments[0].clearColor[1] = 0.f;
-                  rpDesc.colorAttachments[0].clearColor[2] = 0.f;
-                  rpDesc.colorAttachments[0].clearColor[3] = 1.f;
-                }
-              }
-              for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
-                cmd->BeginRenderPass(rpDesc);
-                if (vpW > 0u && vpH > 0u) {
-                  te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
-                  cmd->SetViewport(0, 1, &vp);
-                  te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
-                  cmd->SetScissor(0, 1, &scissor);
-                }
-                cmd->BeginOcclusionQuery(0);
-                if (i == 0u)
-                  ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, 0u);
-                graphCapture->ExecutePass(i, passCtx, cmd);
-                cmd->EndOcclusionQuery(0);
-                cmd->EndRenderPass();
-              }
+              detail::DestroyFrameGraphResources(&resourceSet, rhiDevice);
             }
-          } else {
-            // 无 FrameGraph 时退化为单 Pass：Begin -> 录制 Draw -> End；有 SwapChain 时填充 RenderPassDesc
-            te::rhi::RenderPassDesc rpDesc = {};
-            if (swapChain_) {
-              te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
-              te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
-              if (backBuffer) {
-                rpDesc.colorAttachmentCount = 1u;
-                rpDesc.colorAttachments[0].texture = backBuffer;
-                rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
-                rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
-                rpDesc.colorAttachments[0].clearColor[0] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[1] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[2] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[3] = 1.f;
-              }
-            }
-            cmd->BeginRenderPass(rpDesc);
-            if (vpW > 0u && vpH > 0u) {
-              te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
-              cmd->SetViewport(0, 1, &vp);
-              te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
-              cmd->SetScissor(0, 1, &scissor);
-            }
-            ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, 0u);
-            cmd->EndRenderPass();
           }
           te::rhi::End(cmd);
           te::rhi::IQueue* queue = rhiDevice->GetQueue(te::rhi::QueueType::Graphics, 0);
@@ -450,6 +427,7 @@ class RenderPipelineImpl : public IRenderPipeline {
   void* frameGraph_{nullptr};
   bool ownFrameGraph_{false};
   std::vector<te::rhi::IFence*> slotFences_;
+  detail::FrameGraphPersistentCache persistentCache_;
   std::unique_ptr<SingleThreadQueue> renderQueue_;
   std::unique_ptr<SingleThreadQueue> deviceQueue_;
 };

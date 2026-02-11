@@ -44,3 +44,4 @@
 |------|----------|
 | 2026-02-10 | ABI 同步：RenderingConfig 增加 ValidationLevel、CheckWarning/CheckError；TriggerRender 改为 Render 线程→Device 线程投递；实现说明补充 CollectRenderablesToRenderItemList(cameraPositionWorld)、013/009 数据流、OcclusionQuery 占位 |
 | 2026-02-10 | 渲染管线完备化：ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, frameSlot)；每 draw 调用 UpdateDescriptorSetForFrame、SetGraphicsPSO、BindDescriptorSet；SubmitLogicalCommandBuffer 传入 currentSlot_ 执行 |
+| 2026-02-11 | BuiltinMeshes（te/pipeline/BuiltinMeshes.h）、BuiltinMaterials（te/pipeline/BuiltinMaterials.h）；RenderableCollector 增加 CollectLightsToLightItemList、CollectCamerasToCameraItemList、CollectReflectionProbesToReflectionProbeItemList、CollectDecalsToDecalItemList；TriggerRender 收集 LightItemList、PassContext SetLightItemList、按 PassKind 仅 Scene Pass 录制 logicalCB、LightItemList 生命周期 DestroyLightItemList |

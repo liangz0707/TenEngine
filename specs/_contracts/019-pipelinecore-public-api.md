@@ -17,8 +17,11 @@
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
 | PassGraphBuilder | Pass 图构建器；AddPass、DeclareRead、DeclareWrite、TopologicalSort、ExecuteOrder | 单次图构建周期 |
-| PassContext | Pass 执行上下文；RecordPass、资源访问、与 RHI 命令列表映射 | 单次 Pass 执行 |
-| ResourceHandle | 管线内资源句柄；AllocateTransient、Alias、RingBuffer、ReleaseAfterPass | 与 Pass 图资源生命周期一致 |
+| PassContext | Pass 执行上下文；GetCollectedObjects、GetRenderItemList(slot)、GetLightItemList；SetRenderItemList、SetLightItemList；与 RHI 命令列表映射 | 单次 Pass 执行 |
+| ResourceHandle | 管线内资源句柄；AllocateTransient、Alias、RingBuffer、ReleaseAfterPass；kResourceHandleIdBackBuffer 表示 BackBuffer | 与 Pass 图资源生命周期一致 |
+| PassKind / PassContentSource | Pass 类型（Scene/Light/PostProcess/Effect/Custom）与内容来源（FromModelComponent/FromLightComponent/FromPassDefined/Custom）；用于收集与执行分发 | 与 Pass 配置绑定 |
+| PassAttachmentDesc / PassCollectConfig | 单 Attachment 描述（handle、format、loadOp/storeOp、sourcePass）；Pass 收集配置含 passKind、contentSource、colorAttachments、depthStencilAttachment | 与 Pass 绑定 |
+| IRenderItemList / ILightItemList / ICameraItemList / IReflectionProbeItemList / IDecalItemList | 渲染项/灯光项/相机项/反射探针项/贴花项列表；Create/Destroy 工厂；020 收集后填入 PassContext | 单帧或单次收集 |
 | SubmitContext | 提交上下文；SubmitQueue、SyncPoint、与 RHI 队列对接 | 单次提交周期 |
 | CreateRenderItem / PrepareRenderMaterial / PrepareRenderMesh | 创建逻辑渲染资源、准备材质/网格；CollectCommandBuffer 产出逻辑命令缓冲 | 单帧或单次收集 |
 
@@ -28,7 +31,7 @@
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
-| 1 | PassGraph | AddPass、DeclareRead、DeclareWrite、TopologicalSort、ExecuteOrder；RDG 风格与 RenderCore Pass 协议一致 |
+| 1 | PassGraph | AddPass(name)、AddPass(name, PassKind)；IScenePassBuilder、ILightPassBuilder、IPostProcessPassBuilder、IEffectPassBuilder 派生；DeclareRead、DeclareWrite、AddColorAttachment、SetDepthStencilAttachment；TopologicalSort、ExecuteOrder；RDG 风格与 RenderCore Pass 协议一致 |
 | 2 | ResourceLifetime | AllocateTransient、Alias、RingBuffer、ReleaseAfterPass；与 RHI 屏障协同 |
 | 3 | CommandFormat | RecordPass、MapToRHI、InsertBarrier；命令缓冲抽象与 RHI 命令列表映射 |
 | 4 | Submit | SubmitQueue、SyncPoint、MultiQueue（可选）；与 RHI 队列、同步点约定 |
@@ -56,3 +59,4 @@
 | T0 新增 | 019-PipelineCore 契约 |
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
 | 2026-02-10 | TODO 更新：PrepareRenderMaterial/Mesh、Convert 合批、ExecutePass、PassContext 已实现；CollectRenderItemsParallel 与 009 Bind 分工说明 |
+| 2026-02-11 | FrameGraph 扩展：PassKind、PassContentSource、PassAttachmentDesc、派生 PassBuilder；PassContext 多 slot RenderItemList、LightItemList；ILightItemList、ICameraItemList、IReflectionProbeItemList、IDecalItemList 及 Create/Destroy；ILogicalPipeline::GetPassConfig(index, PassCollectConfig*) |
