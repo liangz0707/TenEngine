@@ -187,8 +187,34 @@ class RenderPipelineImpl : public IRenderPipeline {
       if (rhiDevice && itemList && pipeline) {
         if (slot < static_cast<uint32_t>(slotFences_.size()) && slotFences_[slot])
           te::rhi::Wait(slotFences_[slot]);
-        // Mesh/Material Ensure 由 019 PrepareRenderResources 统一完成，020 不再单独对 mesh 做 Ensure
-        pipelinecore::PrepareRenderResources(itemList, rhiDevice);
+        // 多 subpass：有 FrameGraph 且有多 Pass 时构建 RenderPassDesc 并创建 IRenderPass，供 PrepareRenderResources 与录制使用
+        te::rhi::IRenderPass* renderPass = nullptr;
+        uint32_t subpassCount = 0u;
+        te::rhi::RenderPassDesc rpDescMulti = {};
+        if (graphCapture && graphCapture->GetPassCount() > 0u && swapChain_) {
+          te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
+          te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
+          if (backBuffer) {
+            rpDescMulti.colorAttachmentCount = 1u;
+            rpDescMulti.colorAttachments[0].texture = backBuffer;
+            rpDescMulti.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
+            rpDescMulti.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
+            rpDescMulti.colorAttachments[0].clearColor[0] = 0.f;
+            rpDescMulti.colorAttachments[0].clearColor[1] = 0.f;
+            rpDescMulti.colorAttachments[0].clearColor[2] = 0.f;
+            rpDescMulti.colorAttachments[0].clearColor[3] = 1.f;
+            subpassCount = static_cast<uint32_t>(graphCapture->GetPassCount());
+            rpDescMulti.subpassCount = subpassCount;
+            for (uint32_t i = 0; i < subpassCount; ++i) {
+              rpDescMulti.subpasses[i].colorAttachmentCount = 1u;
+              rpDescMulti.subpasses[i].colorAttachmentIndices[0] = 0u;
+              rpDescMulti.subpasses[i].depthStencilAttachmentIndex = te::rhi::kDepthStencilAttachmentIndexNone;
+            }
+            renderPass = rhiDevice->CreateRenderPass(rpDescMulti);
+          }
+        }
+        // Mesh/Material Ensure 由 019 PrepareRenderResources 统一完成；多 subpass 时传入 renderPass 与 subpassCount
+        pipelinecore::PrepareRenderResources(itemList, rhiDevice, renderPass, subpassCount);
         pipelinecore::IRenderItemList* readyList = pipelinecore::CreateRenderItemList();
         if (readyList) {
           for (size_t i = 0; i < itemList->Size(); ++i) {
@@ -218,7 +244,7 @@ class RenderPipelineImpl : public IRenderPipeline {
             te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
             cmd->SetScissor(0, 1, &scissor);
           }
-          // 按 Pass：BeginRenderPass 内录制 Draw（主几何在 pass 0）；有 SwapChain 时填充 RenderPassDesc 使 Vulkan 等后端正确进入 RenderPass
+          // 按 Pass：一个 RenderPass 内多 subpass（NextSubpass）；主几何在 subpass 0
           if (graphCapture && graphCapture->GetPassCount() > 0u) {
             struct Adapter : pipelinecore::IRenderObjectList {
               pipelinecore::IRenderItemList const* list{nullptr};
@@ -228,37 +254,56 @@ class RenderPipelineImpl : public IRenderPipeline {
             adapter.list = itemList;
             pipelinecore::PassContext passCtx;
             passCtx.SetCollectedObjects(&adapter);
-            te::rhi::RenderPassDesc rpDesc = {};
-            if (swapChain_) {
-              te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
-              te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
-              if (backBuffer) {
-                rpDesc.colorAttachmentCount = 1u;
-                rpDesc.colorAttachments[0].texture = backBuffer;
-                rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
-                rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
-                rpDesc.colorAttachments[0].clearColor[0] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[1] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[2] = 0.f;
-                rpDesc.colorAttachments[0].clearColor[3] = 1.f;
+            if (renderPass) {
+              cmd->BeginRenderPass(rpDescMulti, renderPass);
+              for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
+                if (i > 0u) cmd->NextSubpass();
+                if (vpW > 0u && vpH > 0u) {
+                  te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
+                  cmd->SetViewport(0, 1, &vp);
+                  te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
+                  cmd->SetScissor(0, 1, &scissor);
+                }
+                cmd->BeginOcclusionQuery(0);
+                if (i == 0u)
+                  ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, static_cast<uint32_t>(i));
+                graphCapture->ExecutePass(i, passCtx, cmd);
+                cmd->EndOcclusionQuery(0);
               }
-            }
-            for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
-              cmd->BeginRenderPass(rpDesc);
-              // Vulkan：viewport/scissor 必须在 render pass 内设置才会对本 pass 的 draw 生效
-              if (vpW > 0u && vpH > 0u) {
-                te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
-                cmd->SetViewport(0, 1, &vp);
-                te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
-                cmd->SetScissor(0, 1, &scissor);
-              }
-              cmd->BeginOcclusionQuery(0);
-              // 主几何绘制放在第一个 Pass（如 GBuffer）的 RenderPass 内，符合 RHI 要求
-              if (i == 0u)
-                ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot);
-              graphCapture->ExecutePass(i, passCtx, cmd);
-              cmd->EndOcclusionQuery(0);
               cmd->EndRenderPass();
+              rhiDevice->DestroyRenderPass(renderPass);
+            } else {
+              // CreateRenderPass 失败时退化为每 Pass 单独 Begin/End
+              te::rhi::RenderPassDesc rpDesc = {};
+              if (swapChain_) {
+                te::rhi::ISwapChain* sc = static_cast<te::rhi::ISwapChain*>(swapChain_);
+                te::rhi::ITexture* backBuffer = sc ? sc->GetCurrentBackBuffer() : nullptr;
+                if (backBuffer) {
+                  rpDesc.colorAttachmentCount = 1u;
+                  rpDesc.colorAttachments[0].texture = backBuffer;
+                  rpDesc.colorAttachments[0].loadOp = te::rhi::LoadOp::Clear;
+                  rpDesc.colorAttachments[0].storeOp = te::rhi::StoreOp::Store;
+                  rpDesc.colorAttachments[0].clearColor[0] = 0.f;
+                  rpDesc.colorAttachments[0].clearColor[1] = 0.f;
+                  rpDesc.colorAttachments[0].clearColor[2] = 0.f;
+                  rpDesc.colorAttachments[0].clearColor[3] = 1.f;
+                }
+              }
+              for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
+                cmd->BeginRenderPass(rpDesc);
+                if (vpW > 0u && vpH > 0u) {
+                  te::rhi::Viewport vp = {0.f, 0.f, static_cast<float>(vpW), static_cast<float>(vpH), 0.f, 1.f};
+                  cmd->SetViewport(0, 1, &vp);
+                  te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
+                  cmd->SetScissor(0, 1, &scissor);
+                }
+                cmd->BeginOcclusionQuery(0);
+                if (i == 0u)
+                  ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, 0u);
+                graphCapture->ExecutePass(i, passCtx, cmd);
+                cmd->EndOcclusionQuery(0);
+                cmd->EndRenderPass();
+              }
             }
           } else {
             // 无 FrameGraph 时退化为单 Pass：Begin -> 录制 Draw -> End；有 SwapChain 时填充 RenderPassDesc
@@ -284,7 +329,7 @@ class RenderPipelineImpl : public IRenderPipeline {
               te::rhi::ScissorRect scissor = {0, 0, vpW, vpH};
               cmd->SetScissor(0, 1, &scissor);
             }
-            ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot);
+            ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, 0u);
             cmd->EndRenderPass();
           }
           te::rhi::End(cmd);
@@ -327,10 +372,11 @@ class RenderPipelineImpl : public IRenderPipeline {
     });
   }
 
-  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd（viewport 由调用方设置）；不 End/Submit。每条 Draw 前按 material 先 UpdateDescriptorSetForFrame 再 SetGraphicsPSO、BindDescriptorSet。
+  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd（viewport 由调用方设置）；不 End/Submit。每条 Draw 前按 material 先 UpdateDescriptorSetForFrame 再 SetGraphicsPSO(subpassIndex)、BindDescriptorSet。
   void ExecuteLogicalCommandBufferOnDeviceThread(te::rhi::ICommandList* cmd,
                                                  pipelinecore::ILogicalCommandBuffer* logicalCB,
-                                                 uint32_t frameSlot) {
+                                                 uint32_t frameSlot,
+                                                 uint32_t subpassIndex = 0u) {
     if (!cmd || !logicalCB) return;
     te::rhi::IDevice* rhiDevice = device_ ? static_cast<te::rhi::IDevice*>(device_) : nullptr;
     size_t drawCount = logicalCB->GetDrawCount();
@@ -341,7 +387,7 @@ class RenderPipelineImpl : public IRenderPipeline {
         te::material::MaterialResource* matRes =
             const_cast<te::material::MaterialResource*>(reinterpret_cast<te::material::MaterialResource const*>(d.material));
         matRes->UpdateDescriptorSetForFrame(rhiDevice, frameSlot);
-        te::rhi::IPSO* pso = matRes->GetGraphicsPSO();
+        te::rhi::IPSO* pso = matRes->GetGraphicsPSO(subpassIndex);
         if (pso) cmd->SetGraphicsPSO(pso);
         te::rhi::IDescriptorSet* ds = matRes->GetDescriptorSet();
         if (ds) cmd->BindDescriptorSet(ds);
@@ -380,7 +426,7 @@ class RenderPipelineImpl : public IRenderPipeline {
       te::rhi::ScissorRect scissor = {0, 0, viewportWidth, viewportHeight};
       cmd->SetScissor(0, 1, &scissor);
     }
-    ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, frameSlot);
+    ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, frameSlot, 0u);
     te::rhi::End(cmd);
     te::rhi::Submit(cmd, queue);
     rhiDevice->DestroyCommandList(cmd);

@@ -54,8 +54,8 @@ class MaterialResource : public resource::IMaterialResource {
   /** Uniform buffer for material parameters; created in EnsureDeviceResources when shader has uniform block. May be null. */
   te::rendercore::IUniformBuffer* GetUniformBuffer() const { return uniformBuffer_; }
 
-  /** Graphics PSO for this material; used by pipeline to bind before draw. May be null until created in EnsureDeviceResources. */
-  te::rhi::IPSO* GetGraphicsPSO() const { return graphicsPSO_; }
+  /** Graphics PSO for this material; used by pipeline to bind before draw. When multi-subpass, use GetGraphicsPSO(subpassIndex). */
+  te::rhi::IPSO* GetGraphicsPSO(std::uint32_t subpassIndex = 0) const;
 
   /** Descriptor set for this material (UB + textures). Updated by UpdateDescriptorSetForFrame. */
   te::rhi::IDescriptorSet* GetDescriptorSet() const { return descriptorSet_; }
@@ -66,6 +66,8 @@ class MaterialResource : public resource::IMaterialResource {
   /** Set RHI device for EnsureDeviceResources; call before EnsureDeviceResources. */
   void SetDevice(te::rhi::IDevice* device) { device_ = device; }
   void EnsureDeviceResources() override;
+  /** When renderPass and subpassCount are set, creates one PSO per subpass. Otherwise single PSO (subpass 0). */
+  void EnsureDeviceResources(te::rhi::IRenderPass* renderPass, uint32_t subpassCount);
   bool IsDeviceReady() const override;
 
  protected:
@@ -92,6 +94,7 @@ class MaterialResource : public resource::IMaterialResource {
   te::rendercore::IUniformLayout* uniformLayout_ = nullptr;
   te::rendercore::IUniformBuffer* uniformBuffer_ = nullptr;
   te::rhi::IPSO* graphicsPSO_ = nullptr;
+  std::vector<te::rhi::IPSO*> graphicsPSOs_;  /* when multi-subpass, one PSO per subpass */
   te::rhi::IDescriptorSetLayout* descriptorSetLayout_ = nullptr;
   te::rhi::IDescriptorSet* descriptorSet_ = nullptr;
   te::rhi::ISampler* defaultSampler_ = nullptr;

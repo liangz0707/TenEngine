@@ -34,11 +34,15 @@ enum class RenderType : uint32_t {
   Custom,
 };
 
-/// Pass 输出描述（渲染目标、深度、多 RT、分辨率、格式等）
+constexpr uint32_t kMaxPassColorAttachments = 8u;
+
+/// Pass 输出描述（渲染目标、深度、多 RT、分辨率、格式等）. 020 据此构建 RHI RenderPassDesc；具体 ITexture* 由 020 从 FrameGraph 资源或 SwapChain 解析填入。
 struct PassOutputDesc {
   uint32_t width{0};
   uint32_t height{0};
-  // 可扩展：colorAttachments, depthStencil, format 等
+  uint32_t colorAttachmentCount{1};
+  bool useDepthStencil{false};
+  uint32_t colorFormats[kMaxPassColorAttachments]{0};  // 0 = infer; 用于校验或创建 RT
 };
 
 /// 收集到的物体列表（只读）；由 Pipeline 在收集阶段填充

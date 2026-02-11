@@ -5,6 +5,7 @@
 
 namespace te::rhi {
 struct IDevice;
+struct IRenderPass;
 }
 
 namespace te::rendercore {
@@ -50,8 +51,16 @@ void DestroyRenderItemList(IRenderItemList* l);
 /// 必须在线程 D 调用；遇 RHI 失败返回 ResultCode
 te::rendercore::ResultCode PrepareRenderResources(IRenderItemList const* items,
                                                   te::rhi::IDevice* device);
+te::rendercore::ResultCode PrepareRenderResources(IRenderItemList const* items,
+                                                  te::rhi::IDevice* device,
+                                                  te::rhi::IRenderPass* renderPass,
+                                                  uint32_t subpassCount);
 te::rendercore::ResultCode PrepareRenderMaterial(IMaterialHandle const* material,
                                                  te::rhi::IDevice* device);
+te::rendercore::ResultCode PrepareRenderMaterial(IMaterialHandle const* material,
+                                                 te::rhi::IDevice* device,
+                                                 te::rhi::IRenderPass* renderPass,
+                                                 uint32_t subpassCount);
 te::rendercore::ResultCode PrepareRenderMesh(IMeshHandle const* mesh,
                                              te::rhi::IDevice* device);
 

@@ -175,7 +175,8 @@ struct CommandListD3D11 final : ICommandList {
       }
     }
   }
-  void BeginRenderPass(RenderPassDesc const& desc) override {
+  void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override {
+    (void)pass;
     if (!deferredCtx || !recording || desc.colorAttachmentCount == 0) return;
     ITexture* tex = desc.colorAttachments[0].texture;
     if (!tex) return;
@@ -183,6 +184,7 @@ struct CommandListD3D11 final : ICommandList {
     if (t->rtv)
       deferredCtx->OMSetRenderTargets(1, &t->rtv, nullptr);
   }
+  void NextSubpass() override {}
   void EndRenderPass() override {}
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -419,6 +421,12 @@ struct DeviceD3D11 final : IDevice {
     return CreateGraphicsPSO(desc, nullptr);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    return CreateGraphicsPSO(desc, layout, nullptr, 0);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
+                          IRenderPass* pass, uint32_t subpassIndex) override {
+    (void)pass;
+    (void)subpassIndex;
     (void)layout;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
@@ -521,6 +529,8 @@ struct DeviceD3D11 final : IDevice {
       }
     }
   }
+  IRenderPass* CreateRenderPass(RenderPassDesc const& desc) override { (void)desc; return nullptr; }
+  void DestroyRenderPass(IRenderPass* pass) override { (void)pass; }
   void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override {
     delete static_cast<DescriptorSetLayoutD3D11*>(layout);
   }

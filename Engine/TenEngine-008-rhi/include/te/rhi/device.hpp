@@ -42,6 +42,11 @@ struct IDevice {
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) = 0;
   /** Create PSO with custom descriptor set layout (set 0). When null, uses device default layout. */
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) = 0;
+  /** Create PSO for a specific render pass and subpass. When pass is null, uses default single-subpass render pass and subpass 0. */
+  virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
+                                  IRenderPass* pass, uint32_t subpassIndex) = 0;
+  virtual IRenderPass* CreateRenderPass(RenderPassDesc const& desc) = 0;
+  virtual void DestroyRenderPass(IRenderPass* pass) = 0;
   virtual IPSO* CreateComputePSO(ComputePSODesc const& desc) = 0;
   virtual void SetShader(IPSO* pso, void const* data, size_t size) = 0;
   virtual void Cache(IPSO* pso) = 0;

@@ -35,6 +35,10 @@ MaterialResource::~MaterialResource() {
     device_->DestroyPSO(graphicsPSO_);
     graphicsPSO_ = nullptr;
   }
+  if (device_) {
+    for (te::rhi::IPSO* p : graphicsPSOs_) { if (p) device_->DestroyPSO(p); }
+    graphicsPSOs_.clear();
+  }
   if (device_ && descriptorSet_) {
     device_->DestroyDescriptorSet(descriptorSet_);
     descriptorSet_ = nullptr;
@@ -224,6 +228,10 @@ void* MaterialResource::OnCreateAssetDesc() {
 }
 
 void MaterialResource::EnsureDeviceResources() {
+  EnsureDeviceResources(nullptr, 0);
+}
+
+void MaterialResource::EnsureDeviceResources(te::rhi::IRenderPass* renderPass, uint32_t subpassCount) {
   if (!device_) return;
   for (TextureEntry& e : textureRefs_) {
     if (!e.textureResource) continue;
@@ -279,8 +287,11 @@ void MaterialResource::EnsureDeviceResources() {
     sd.filter = 1;  /* linear */
     defaultSampler_ = device_->CreateSampler(sd);
   }
-  /* PSO: get bytecode for vertex and fragment, create graphics PSO with layout */
-  if (!graphicsPSO_ && shaderHandle_ && descriptorSetLayout_ && device_) {
+  /* PSO: get bytecode for vertex and fragment, create graphics PSO with layout (single or per-subpass) */
+  bool wantMulti = (renderPass != nullptr && subpassCount > 0u);
+  bool needPSO = shaderHandle_ && descriptorSetLayout_ && device_ &&
+      (wantMulti ? (graphicsPSOs_.size() != subpassCount) : (graphicsPSO_ == nullptr));
+  if (needPSO) {
     te::rhi::Backend backend = device_->GetBackend();
     te::shader::BackendType shaderBackend = te::shader::BackendType::SPIRV;
     if (backend == te::rhi::Backend::Vulkan)
@@ -303,10 +314,28 @@ void MaterialResource::EnsureDeviceResources() {
     psoDesc.vertex_shader_size = vsSize;
     psoDesc.fragment_shader = fsPtr;
     psoDesc.fragment_shader_size = fsSize;
-    graphicsPSO_ = device_->CreateGraphicsPSO(psoDesc, descriptorSetLayout_);
+    if (renderPass && subpassCount > 0u) {
+      for (te::rhi::IPSO* p : graphicsPSOs_) { if (p) device_->DestroyPSO(p); }
+      graphicsPSOs_.clear();
+      if (graphicsPSO_) { device_->DestroyPSO(graphicsPSO_); graphicsPSO_ = nullptr; }
+      for (uint32_t i = 0; i < subpassCount; ++i) {
+        te::rhi::IPSO* p = device_->CreateGraphicsPSO(psoDesc, descriptorSetLayout_, renderPass, i);
+        if (p) graphicsPSOs_.push_back(p);
+      }
+    } else {
+      for (te::rhi::IPSO* p : graphicsPSOs_) { if (p) device_->DestroyPSO(p); }
+      graphicsPSOs_.clear();
+      graphicsPSO_ = device_->CreateGraphicsPSO(psoDesc, descriptorSetLayout_);
+    }
   }
   te::shader::DestroyShaderCompiler(compiler);
   deviceResourcesReady_ = true;
+}
+
+te::rhi::IPSO* MaterialResource::GetGraphicsPSO(std::uint32_t subpassIndex) const {
+  if (!graphicsPSOs_.empty())
+    return (subpassIndex < graphicsPSOs_.size()) ? graphicsPSOs_[subpassIndex] : nullptr;
+  return (subpassIndex == 0) ? graphicsPSO_ : nullptr;
 }
 
 bool MaterialResource::IsDeviceReady() const {
@@ -320,8 +349,14 @@ bool MaterialResource::IsDeviceReady() const {
 
 void MaterialResource::UpdateDescriptorSetForFrame(te::rhi::IDevice* device, uint32_t frameSlot) {
   if (!device || !descriptorSet_) return;
-  if (uniformBuffer_)
+  if (uniformBuffer_) {
     uniformBuffer_->SetCurrentFrameSlot(static_cast<te::rendercore::FrameSlotId>(frameSlot));
+    // Upload current params to this frame's slot so the ring buffer region is valid for the descriptor.
+    size_t totalSize = uniformLayout_ ? uniformLayout_->GetTotalSize() : paramBuffer_.size();
+    if (totalSize == 0 && !paramBuffer_.empty()) totalSize = paramBuffer_.size();
+    if (totalSize > 0 && !paramBuffer_.empty())
+      uniformBuffer_->Update(paramBuffer_.data(), totalSize);
+  }
   std::vector<te::rhi::DescriptorWrite> writes;
   if (uniformBuffer_ && uniformBuffer_->GetBuffer()) {
     te::rhi::DescriptorWrite w = {};

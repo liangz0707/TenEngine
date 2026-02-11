@@ -246,7 +246,8 @@ struct CommandListMetal final : ICommandList {
   }
   void BindDescriptorSet(IDescriptorSet* set) override { (void)set; /* TODO: Metal descriptor set binding */ }
 
-  void BeginRenderPass(RenderPassDesc const& desc) override { (void)desc; }
+  void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override { (void)desc; (void)pass; }
+  void NextSubpass() override {}
   void EndRenderPass() override {}
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -448,6 +449,12 @@ struct DeviceMetal final : IDevice {
     return CreateGraphicsPSO(desc, nullptr);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
+    return CreateGraphicsPSO(desc, layout, nullptr, 0);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
+                          IRenderPass* pass, uint32_t subpassIndex) override {
+    (void)pass;
+    (void)subpassIndex;
     (void)layout;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
@@ -508,6 +515,8 @@ struct DeviceMetal final : IDevice {
   IDescriptorSetLayout* CreateDescriptorSetLayout(DescriptorSetLayoutDesc const& desc) override { (void)desc; return nullptr; }
   IDescriptorSet* AllocateDescriptorSet(IDescriptorSetLayout* layout) override { (void)layout; return nullptr; }
   void UpdateDescriptorSet(IDescriptorSet* set, DescriptorWrite const* writes, uint32_t writeCount) override { (void)set; (void)writes; (void)writeCount; }
+  IRenderPass* CreateRenderPass(RenderPassDesc const& desc) override { (void)desc; return nullptr; }
+  void DestroyRenderPass(IRenderPass* pass) override { (void)pass; }
   void DestroyDescriptorSetLayout(IDescriptorSetLayout* layout) override { (void)layout; }
   void DestroyDescriptorSet(IDescriptorSet* set) override { (void)set; }
 

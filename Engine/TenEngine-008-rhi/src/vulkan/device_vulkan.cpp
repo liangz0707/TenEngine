@@ -53,6 +53,70 @@ struct BufferVulkan final : IBuffer {
   }
 };
 
+struct RenderPassVulkan final : IRenderPass {
+  VkDevice device = VK_NULL_HANDLE;
+  VkRenderPass pass = VK_NULL_HANDLE;
+  uint32_t subpassColorCounts[kMaxSubpasses] = {};
+  uint32_t subpassCount = 0;
+  uint32_t GetSubpassColorAttachmentCount(uint32_t subpassIndex) const override {
+    if (subpassIndex >= subpassCount) return 1u;
+    uint32_t n = subpassColorCounts[subpassIndex];
+    return n > 0u ? n : 1u;
+  }
+  ~RenderPassVulkan() override {
+    if (pass != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyRenderPass(device, pass, nullptr);
+  }
+};
+
+struct TextureVulkan final : ITexture {
+  VkDevice device = VK_NULL_HANDLE;
+  VkImage image = VK_NULL_HANDLE;
+  VkDeviceMemory memory = VK_NULL_HANDLE;
+  VkImageView imageView = VK_NULL_HANDLE;
+  uint32_t width = 0;
+  uint32_t height = 0;
+  ~TextureVulkan() override {
+    if (imageView != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyImageView(device, imageView, nullptr);
+    if (image != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroyImage(device, image, nullptr);
+    if (memory != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkFreeMemory(device, memory, nullptr);
+  }
+};
+
+struct DescriptorSetVulkan final : IDescriptorSet {
+  VkDevice device = VK_NULL_HANDLE;
+  VkDescriptorPool pool = VK_NULL_HANDLE;
+  VkDescriptorSet set = VK_NULL_HANDLE;
+  ~DescriptorSetVulkan() override {
+    if (set != VK_NULL_HANDLE && pool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkFreeDescriptorSets(device, pool, 1, &set);
+  }
+};
+
+struct PSOVulkan final : IPSO {
+  VkDevice device = VK_NULL_HANDLE;
+  VkShaderModule vertModule = VK_NULL_HANDLE;
+  VkShaderModule fragModule = VK_NULL_HANDLE;
+  VkShaderModule computeModule = VK_NULL_HANDLE;
+  VkPipeline pipeline = VK_NULL_HANDLE;
+  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;  /* used by BindDescriptorSet */
+  bool ownPipelineLayout = false;  /* if true, destroy in dtor */
+  ~PSOVulkan() override {
+    if (device == VK_NULL_HANDLE) return;
+    if (pipeline != VK_NULL_HANDLE) { vkDestroyPipeline(device, pipeline, nullptr); pipeline = VK_NULL_HANDLE; }
+    if (ownPipelineLayout && pipelineLayout != VK_NULL_HANDLE) {
+      vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+      pipelineLayout = VK_NULL_HANDLE;
+    }
+    if (vertModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, vertModule, nullptr); vertModule = VK_NULL_HANDLE; }
+    if (fragModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, fragModule, nullptr); fragModule = VK_NULL_HANDLE; }
+    if (computeModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, computeModule, nullptr); computeModule = VK_NULL_HANDLE; }
+  }
+};
+
 struct CommandListVulkan final : ICommandList {
   VkDevice device = VK_NULL_HANDLE;
   VkCommandPool pool = VK_NULL_HANDLE;
@@ -63,6 +127,8 @@ struct CommandListVulkan final : ICommandList {
   bool recording = false;
   bool inRenderPass = false;
   VkFramebuffer currentFramebuffer = VK_NULL_HANDLE;
+  uint32_t currentSubpassIndex = 0;
+  uint32_t currentRenderPassSubpassCount = 1;
 
   void Begin() override {
     if (cmd == VK_NULL_HANDLE || recording) return;
@@ -162,50 +228,82 @@ struct CommandListVulkan final : ICommandList {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
   }
-  void BeginRenderPass(RenderPassDesc const& desc) override {
-    if (cmd == VK_NULL_HANDLE || !recording || desc.colorAttachmentCount == 0 ||
-        defaultRenderPass == VK_NULL_HANDLE) return;
-    ITexture* tex = desc.colorAttachments[0].texture;
-    if (!tex) return;
-    TextureVulkan* tv = static_cast<TextureVulkan*>(tex);
-    if (tv->imageView == VK_NULL_HANDLE || tv->width == 0 || tv->height == 0) return;
+  void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override {
+    if (cmd == VK_NULL_HANDLE || !recording || desc.colorAttachmentCount == 0) return;
+    ITexture* tex0 = desc.colorAttachments[0].texture;
+    if (!tex0) return;
+    TextureVulkan* tv0 = static_cast<TextureVulkan*>(tex0);
+    if (tv0->imageView == VK_NULL_HANDLE || tv0->width == 0 || tv0->height == 0) return;
     if (currentFramebuffer != VK_NULL_HANDLE) return;
+    VkRenderPass rp = defaultRenderPass;
+    uint32_t subpassCount = 1u;
+    if (pass) {
+      RenderPassVulkan* rpv = static_cast<RenderPassVulkan*>(pass);
+      rp = rpv->pass;
+      subpassCount = rpv->subpassCount;
+    }
+    if (rp == VK_NULL_HANDLE) return;
+    currentRenderPassSubpassCount = subpassCount;
+    currentSubpassIndex = 0;
+    bool hasDepth = desc.depthStencilAttachment.texture != nullptr;
+    uint32_t attachmentCount = desc.colorAttachmentCount + (hasDepth ? 1u : 0u);
+    std::vector<VkImageView> views(attachmentCount);
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i) {
+      ITexture* t = desc.colorAttachments[i].texture;
+      if (!t) { views[i] = tv0->imageView; continue; }
+      TextureVulkan* tv = static_cast<TextureVulkan*>(t);
+      views[i] = tv->imageView != VK_NULL_HANDLE ? tv->imageView : tv0->imageView;
+    }
+    if (hasDepth) {
+      TextureVulkan* dv = static_cast<TextureVulkan*>(desc.depthStencilAttachment.texture);
+      views[desc.colorAttachmentCount] = dv ? dv->imageView : VK_NULL_HANDLE;
+    }
     VkFramebufferCreateInfo fbCi = {};
     fbCi.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    fbCi.renderPass = defaultRenderPass;
-    fbCi.attachmentCount = 1;
-    fbCi.pAttachments = &tv->imageView;
-    fbCi.width = tv->width;
-    fbCi.height = tv->height;
+    fbCi.renderPass = rp;
+    fbCi.attachmentCount = attachmentCount;
+    fbCi.pAttachments = views.data();
+    fbCi.width = tv0->width;
+    fbCi.height = tv0->height;
     fbCi.layers = 1;
     if (vkCreateFramebuffer(device, &fbCi, nullptr, &currentFramebuffer) != VK_SUCCESS) return;
-    VkClearValue clearValue = {};
-    clearValue.color.float32[0] = desc.colorAttachments[0].clearColor[0];
-    clearValue.color.float32[1] = desc.colorAttachments[0].clearColor[1];
-    clearValue.color.float32[2] = desc.colorAttachments[0].clearColor[2];
-    clearValue.color.float32[3] = desc.colorAttachments[0].clearColor[3];
+    std::vector<VkClearValue> clearValues(attachmentCount);
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i) {
+      clearValues[i].color.float32[0] = desc.colorAttachments[i].clearColor[0];
+      clearValues[i].color.float32[1] = desc.colorAttachments[i].clearColor[1];
+      clearValues[i].color.float32[2] = desc.colorAttachments[i].clearColor[2];
+      clearValues[i].color.float32[3] = desc.colorAttachments[i].clearColor[3];
+    }
+    if (hasDepth) {
+      clearValues[desc.colorAttachmentCount].depthStencil.depth = desc.depthStencilAttachment.clearDepth;
+      clearValues[desc.colorAttachmentCount].depthStencil.stencil = desc.depthStencilAttachment.clearStencil;
+    }
     VkRenderPassBeginInfo rpBi = {};
     rpBi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    rpBi.renderPass = defaultRenderPass;
+    rpBi.renderPass = rp;
     rpBi.framebuffer = currentFramebuffer;
-    rpBi.renderArea = { { 0, 0 }, { tv->width, tv->height } };
-    rpBi.clearValueCount = 1;
-    rpBi.pClearValues = &clearValue;
+    rpBi.renderArea = { { 0, 0 }, { tv0->width, tv0->height } };
+    rpBi.clearValueCount = attachmentCount;
+    rpBi.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(cmd, &rpBi, VK_SUBPASS_CONTENTS_INLINE);
     inRenderPass = true;
+  }
+  void NextSubpass() override {
+    if (cmd == VK_NULL_HANDLE || !recording || !inRenderPass) return;
+    if (currentSubpassIndex + 1 >= currentRenderPassSubpassCount) return;
+    vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+    currentSubpassIndex++;
   }
   void EndRenderPass() override {
     if (cmd == VK_NULL_HANDLE || !recording || !inRenderPass) return;
     vkCmdEndRenderPass(cmd);
     inRenderPass = false;
+    currentSubpassIndex = 0;
+    currentRenderPassSubpassCount = 1;
     if (currentFramebuffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE) {
       vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
       currentFramebuffer = VK_NULL_HANDLE;
     }
-  }
-  ~CommandListVulkan() {
-    if (currentFramebuffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkDestroyFramebuffer(device, currentFramebuffer, nullptr);
   }
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
@@ -270,23 +368,6 @@ struct CommandListVulkan final : ICommandList {
   }
 };
 
-struct TextureVulkan final : ITexture {
-  VkDevice device = VK_NULL_HANDLE;
-  VkImage image = VK_NULL_HANDLE;
-  VkDeviceMemory memory = VK_NULL_HANDLE;
-  VkImageView imageView = VK_NULL_HANDLE;
-  uint32_t width = 0;
-  uint32_t height = 0;
-  ~TextureVulkan() override {
-    if (imageView != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkDestroyImageView(device, imageView, nullptr);
-    if (image != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkDestroyImage(device, image, nullptr);
-    if (memory != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkFreeMemory(device, memory, nullptr);
-  }
-};
-
 struct SamplerVulkan final : ISampler {
   VkDevice device = VK_NULL_HANDLE;
   VkSampler sampler = VK_NULL_HANDLE;
@@ -305,16 +386,6 @@ struct DescriptorSetLayoutVulkan final : IDescriptorSetLayout {
   }
 };
 
-struct DescriptorSetVulkan final : IDescriptorSet {
-  VkDevice device = VK_NULL_HANDLE;
-  VkDescriptorPool pool = VK_NULL_HANDLE;
-  VkDescriptorSet set = VK_NULL_HANDLE;
-  ~DescriptorSetVulkan() override {
-    if (set != VK_NULL_HANDLE && pool != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
-      vkFreeDescriptorSets(device, pool, 1, &set);
-  }
-};
-
 static VkDescriptorType ToVkDescriptorType(uint32_t type) {
   switch (type) {
     case static_cast<uint32_t>(DescriptorType::UniformBuffer): return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -325,27 +396,6 @@ static VkDescriptorType ToVkDescriptorType(uint32_t type) {
     default: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   }
 }
-
-struct PSOVulkan final : IPSO {
-  VkDevice device = VK_NULL_HANDLE;
-  VkShaderModule vertModule = VK_NULL_HANDLE;
-  VkShaderModule fragModule = VK_NULL_HANDLE;
-  VkShaderModule computeModule = VK_NULL_HANDLE;
-  VkPipeline pipeline = VK_NULL_HANDLE;
-  VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;  /* used by BindDescriptorSet */
-  bool ownPipelineLayout = false;  /* if true, destroy in dtor */
-  ~PSOVulkan() override {
-    if (device == VK_NULL_HANDLE) return;
-    if (pipeline != VK_NULL_HANDLE) { vkDestroyPipeline(device, pipeline, nullptr); pipeline = VK_NULL_HANDLE; }
-    if (ownPipelineLayout && pipelineLayout != VK_NULL_HANDLE) {
-      vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-      pipelineLayout = VK_NULL_HANDLE;
-    }
-    if (vertModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, vertModule, nullptr); vertModule = VK_NULL_HANDLE; }
-    if (fragModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, fragModule, nullptr); fragModule = VK_NULL_HANDLE; }
-    if (computeModule != VK_NULL_HANDLE) { vkDestroyShaderModule(device, computeModule, nullptr); computeModule = VK_NULL_HANDLE; }
-  }
-};
 
 struct SwapChainVulkan final : ISwapChain {
   IDevice* device = nullptr;
@@ -636,7 +686,16 @@ struct DeviceVulkan final : IDevice {
     return CreateGraphicsPSO(desc, nullptr);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
-    if (device == VK_NULL_HANDLE || defaultRenderPass == VK_NULL_HANDLE) return nullptr;
+    return CreateGraphicsPSO(desc, layout, nullptr, 0);
+  }
+  IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
+                          IRenderPass* pass, uint32_t subpassIndex) override {
+    VkRenderPass rp = defaultRenderPass;
+    if (pass) {
+      RenderPassVulkan* rpv = static_cast<RenderPassVulkan*>(pass);
+      rp = rpv->pass;
+    }
+    if (device == VK_NULL_HANDLE || rp == VK_NULL_HANDLE) return nullptr;
     if (!layout && pipelineLayout == VK_NULL_HANDLE) return nullptr;
     constexpr size_t kMinSpirvSize = 20u;
     bool hasVert = desc.vertex_shader && desc.vertex_shader_size >= kMinSpirvSize;
@@ -710,12 +769,16 @@ struct DeviceVulkan final : IDevice {
     VkPipelineMultisampleStateCreateInfo ms = {};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    VkPipelineColorBlendAttachmentState blendAtt = {};
-    blendAtt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    uint32_t colorBlendCount = pass ? pass->GetSubpassColorAttachmentCount(subpassIndex) : 1u;
+    if (colorBlendCount > kMaxColorAttachments) colorBlendCount = kMaxColorAttachments;
+    VkPipelineColorBlendAttachmentState blendAtts[kMaxColorAttachments] = {};
+    for (uint32_t i = 0; i < colorBlendCount; ++i) {
+      blendAtts[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    }
     VkPipelineColorBlendStateCreateInfo cb = {};
     cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    cb.attachmentCount = 1;
-    cb.pAttachments = &blendAtt;
+    cb.attachmentCount = colorBlendCount;
+    cb.pAttachments = blendAtts;
     VkDynamicState dynStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
     VkPipelineDynamicStateCreateInfo dyn = {};
     dyn.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -733,8 +796,8 @@ struct DeviceVulkan final : IDevice {
     gpCi.pColorBlendState = &cb;
     gpCi.pDynamicState = &dyn;
     gpCi.layout = p->pipelineLayout;
-    gpCi.renderPass = defaultRenderPass;
-    gpCi.subpass = 0;
+    gpCi.renderPass = rp;
+    gpCi.subpass = subpassIndex;
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpCi, nullptr, &p->pipeline) != VK_SUCCESS) {
       delete p;
       return nullptr;
@@ -760,6 +823,97 @@ struct DeviceVulkan final : IDevice {
   void SetShader(IPSO* pso, void const* data, size_t size) override { (void)pso; (void)data; (void)size; }
   void Cache(IPSO* pso) override { (void)pso; }
   void DestroyPSO(IPSO* pso) override { delete static_cast<PSOVulkan*>(pso); }
+  IRenderPass* CreateRenderPass(RenderPassDesc const& desc) override {
+    if (device == VK_NULL_HANDLE) return nullptr;
+    if (desc.colorAttachmentCount == 0) return nullptr;
+    bool hasDepth = desc.depthStencilAttachment.texture != nullptr;
+    uint32_t attachmentCount = desc.colorAttachmentCount + (hasDepth ? 1u : 0u);
+    std::vector<VkAttachmentDescription> atts(attachmentCount);
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; ++i) {
+      VkFormat fmt = (desc.colorAttachments[i].format != 0) ? static_cast<VkFormat>(desc.colorAttachments[i].format) : VK_FORMAT_R8G8B8A8_UNORM;
+      atts[i].format = fmt;
+      atts[i].samples = VK_SAMPLE_COUNT_1_BIT;
+      atts[i].loadOp = (desc.colorAttachments[i].loadOp == LoadOp::Clear) ? VK_ATTACHMENT_LOAD_OP_CLEAR : (desc.colorAttachments[i].loadOp == LoadOp::Load ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+      atts[i].storeOp = (desc.colorAttachments[i].storeOp == StoreOp::Store) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      atts[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      atts[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      atts[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      atts[i].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+      if (i > 0) atts[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
+    if (hasDepth) {
+      uint32_t di = desc.colorAttachmentCount;
+      atts[di].format = (desc.depthStencilAttachment.format != 0) ? static_cast<VkFormat>(desc.depthStencilAttachment.format) : VK_FORMAT_D24_UNORM_S8_UINT;
+      atts[di].samples = VK_SAMPLE_COUNT_1_BIT;
+      atts[di].loadOp = (desc.depthStencilAttachment.loadOp == LoadOp::Clear) ? VK_ATTACHMENT_LOAD_OP_CLEAR : (desc.depthStencilAttachment.loadOp == LoadOp::Load ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE);
+      atts[di].storeOp = (desc.depthStencilAttachment.storeOp == StoreOp::Store) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      atts[di].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+      atts[di].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+      atts[di].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      atts[di].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
+    uint32_t numSubpasses = (desc.subpassCount > 0u) ? desc.subpassCount : 1u;
+    std::vector<VkSubpassDescription> subpasses(numSubpasses);
+    std::vector<std::vector<VkAttachmentReference>> colorRefs(numSubpasses);
+    std::vector<VkAttachmentReference> depthRefs(numSubpasses);
+    for (uint32_t s = 0; s < numSubpasses; ++s) {
+      uint32_t numColors = (desc.subpassCount > 0u) ? desc.subpasses[s].colorAttachmentCount : desc.colorAttachmentCount;
+      if (numColors > kMaxColorAttachments) numColors = kMaxColorAttachments;
+      colorRefs[s].resize(numColors);
+      for (uint32_t c = 0; c < numColors; ++c) {
+        uint32_t idx = (desc.subpassCount > 0u) ? desc.subpasses[s].colorAttachmentIndices[c] : c;
+        if (idx >= attachmentCount) idx = 0;
+        colorRefs[s][c] = { idx, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+      }
+      uint32_t depthIdx = (desc.subpassCount > 0u) ? desc.subpasses[s].depthStencilAttachmentIndex : (hasDepth ? desc.colorAttachmentCount : kDepthStencilAttachmentIndexNone);
+      if (hasDepth && depthIdx != kDepthStencilAttachmentIndexNone && depthIdx < attachmentCount) {
+        depthRefs[s].attachment = depthIdx;
+        depthRefs[s].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      } else {
+        depthRefs[s].attachment = VK_ATTACHMENT_UNUSED;
+        depthRefs[s].layout = VK_IMAGE_LAYOUT_UNDEFINED;
+      }
+      subpasses[s].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+      subpasses[s].colorAttachmentCount = numColors;
+      subpasses[s].pColorAttachments = colorRefs[s].data();
+      subpasses[s].pDepthStencilAttachment = (depthRefs[s].attachment != VK_ATTACHMENT_UNUSED) ? &depthRefs[s] : nullptr;
+    }
+    VkSubpassDependency deps[2] = {};
+    deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    deps[0].dstSubpass = 0;
+    deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[0].srcAccessMask = 0;
+    deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    deps[1].srcSubpass = numSubpasses - 1;
+    deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    deps[1].dstAccessMask = 0;
+    VkRenderPassCreateInfo rpCi = {};
+    rpCi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    rpCi.attachmentCount = attachmentCount;
+    rpCi.pAttachments = atts.data();
+    rpCi.subpassCount = numSubpasses;
+    rpCi.pSubpasses = subpasses.data();
+    rpCi.dependencyCount = 2;
+    rpCi.pDependencies = deps;
+    VkRenderPass vkRp = VK_NULL_HANDLE;
+    if (vkCreateRenderPass(device, &rpCi, nullptr, &vkRp) != VK_SUCCESS) return nullptr;
+    auto* rpv = new RenderPassVulkan();
+    rpv->device = device;
+    rpv->pass = vkRp;
+    rpv->subpassCount = numSubpasses;
+    for (uint32_t s = 0; s < numSubpasses; ++s) {
+      rpv->subpassColorCounts[s] = static_cast<uint32_t>(colorRefs[s].size());
+    }
+    return rpv;
+  }
+  void DestroyRenderPass(IRenderPass* pass) override {
+    if (!pass) return;
+    delete static_cast<RenderPassVulkan*>(pass);
+  }
   IFence* CreateFence(bool initialSignaled) override {
     if (device == VK_NULL_HANDLE) return nullptr;
     VkFenceCreateInfo fci = {};
