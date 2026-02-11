@@ -96,5 +96,19 @@ te::core::AABB GetSubmeshAABB(MeshHandle h, uint32_t submeshIndex) {
   return meshAabb;
 }
 
+uint32_t GetVertexStride(MeshHandle h) {
+  if (!h) return 32u;
+  detail::MeshData* data = static_cast<detail::MeshData*>(h);
+  if (data->vertexLayout.IsValid() && data->vertexLayout.stride > 0u)
+    return data->vertexLayout.stride;
+  return 32u;
+}
+
+uint32_t GetIndexFormat(MeshHandle h) {
+  if (!h) return 0u;
+  detail::MeshData* data = static_cast<detail::MeshData*>(h);
+  return (data->indexFormat.type == te::rendercore::IndexType::UInt32) ? 1u : 0u;
+}
+
 }  // namespace mesh
 }  // namespace te

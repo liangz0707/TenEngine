@@ -9,7 +9,7 @@
 | 线程 | 职责 | 关键 API / 位置 |
 |------|------|------------------|
 | **主线程** | 游戏逻辑、每帧驱动、接收加载回调、配置更新 | `IRenderPipeline::RenderFrame(ctx)` / `TriggerRender(ctx)`；准备 `FrameContext` |
-| **Render 线程**（可选） | 管线构造、渲染物体收集 | `BuildLogicalPipeline`、`CollectRenderablesToRenderItemList`、`CollectRenderItemsParallel`；当前可与主线程合并 |
+| **Render 线程** | 管线构造、渲染物体收集 | `BuildLogicalPipeline`、`CollectRenderablesToRenderItemList`；由 TriggerRender 投递到 `renderQueue_`，完成后将结果投递到 Device 线程 |
 | **Device 线程（D）** | 所有 RHI 相关：资源准备、命令录制与提交 | `PrepareRenderResources`、`ConvertToLogicalCommandBuffer`、`ExecuteLogicalCommandBufferOnDeviceThread`（RHI Begin/End/Submit） |
 | **IO 线程** | 资源加载 | 013 `RequestLoadAsync` 在后台执行 Load；**仅当加载完成回调成功**后该资源才可被收集 |
 
@@ -25,13 +25,15 @@ TriggerRender(ctx)
        │
        ├─ 帧 slot 推进 (currentSlot_)
        ├─ 构建 pipelinecore::FrameContext、Deferred FrameGraph（若无）
-       ├─ BuildLogicalPipeline(graph, coreCtx)  → ILogicalPipeline*
-       ├─ CreateRenderItemList() + CollectRenderablesToRenderItemList(SceneRef, IResourceManager*, list)
-       │     └─ 029 CollectRenderables；仅 modelResource 非空项转为 RenderItem 入列表
-       │
-       └─ Post(Device 任务)
+       └─ Post(Render 任务)
               │
-              ▼ Device 线程
+              ▼ Render 线程
+              ├─ BuildLogicalPipeline(graph, coreCtx)  → ILogicalPipeline*
+              ├─ CreateRenderItemList() + CollectRenderablesToRenderItemList(SceneRef, IResourceManager*, list)
+              │     └─ 029 CollectRenderables；仅 modelResource 非空项转为 RenderItem 入列表
+              └─ Post(Device 任务)
+                     │
+                     ▼ Device 线程
               ├─ PrepareRenderResources(itemList, device)
               ├─ ConvertToLogicalCommandBuffer(itemList, pipeline, &logicalCB)
               ├─ ExecuteLogicalCommandBufferOnDeviceThread(logicalCB)
@@ -53,7 +55,7 @@ TriggerRender(ctx)
 
 - **RHI 提交**：所有 `ICommandList::Begin/End`、`Submit(cmd, queue)`、`CreateCommandList`/`DestroyCommandList` 仅在 **Device 线程** 执行（通过 `DeviceThreadQueue` 串行执行）。
 - **019 Prepare* / ConvertToLogicalCommandBuffer**：契约规定必须在线程 D 调用；020 仅在投递到 Device 队列的任务内调用。
-- **帧 slot**：`currentSlot_` 每帧环增，与 `frameInFlightCount_` 一致；完整的多帧 Fence 等待可由调用方或后续在 Device 任务前插入。
+- **帧 slot**：`currentSlot_` 每帧环增，与 `frameInFlightCount_` 一致。**多帧 Fence 策略**：020 在 Device 任务内先 `Wait(slotFences_[slot])` 再执行本帧 Prepare/Convert/Execute，最后 `Signal(slotFences_[slot])`；可选三重缓冲或与 Present 显式同步由调用方或 SwapChain 配置。
 
 ---
 
@@ -61,5 +63,5 @@ TriggerRender(ctx)
 
 - **019 ILogicalCommandBuffer**：扩展为携带 Draw/Viewport/RenderPass 等逻辑命令，在 `ExecuteLogicalCommandBufferOnDeviceThread` 内遍历并映射到 RHI `ICommandList` 调用。
 - **帧同步**：按 slot 使用 `IFence` 等待上一帧完成后再提交本帧，避免 GPU 写读冲突。
-- **Render 线程**：将「BuildLogicalPipeline + CollectRenderablesToRenderItemList」投递到独立 Render 线程，再将其结果投递到 Device 线程。
+- **Render 线程**：已实现；TriggerRender 将「BuildLogicalPipeline + CollectRenderablesToRenderItemList」投递到 renderQueue_（Render 线程），完成后将 IRenderItemList、ILogicalPipeline 投递到 deviceQueue_（Device 线程）。
 - **LOD / 流式 / 遮挡剔除**：在收集阶段或 Pass 配置中接入 013 RequestStreaming、遮挡查询等。

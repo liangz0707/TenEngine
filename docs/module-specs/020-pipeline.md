@@ -59,7 +59,7 @@ flowchart LR
 
 ### 6.1 和上下游交互、传递的数据类型
 
-- **上游**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource（见 000-module-dependency-map）。**调用关系**：场景遍历**调用 004**（GetCurrentWorld、GetRootNodes、Traverse）；从节点/实体取 ResourceId/句柄后**经 013** LoadSync/GetCached 解析，不长期持有 IResource*。向下游提供：VisibleSet、BatchList、PassGraph、CommandBuffer、PresentTarget。  
+- **上游**：Core、Scene、Entity、PipelineCore、RenderCore、Shader、Material、Mesh、Resource（见 000-module-dependency-map）。**调用关系**：待渲染项由 **029-World WorldManager::CollectRenderables** 提供（LevelHandle 或 SceneRef），020 经此接口获取 RenderableItem 列表，不直接调用 004 Traverse；从节点/实体取 ResourceId/句柄后**经 013** 解析，不长期持有 IResource*。向下游提供：VisibleSet、BatchList、PassGraph、CommandBuffer、PresentTarget。  
 - **下游**：Effects、2D、Terrain、Editor、XR。向下游提供：PipelineContext、RenderTargetHandle、DrawCall 接口。
 
 ### 6.2 上下游依赖图
@@ -92,5 +92,5 @@ flowchart TB
 
 ## 待办
 
-- **待办**：需随 `001-Core` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 001-core-fullversion-001 同步，完整 7 子模块声明）。
-- **待办**：需随 `004-scene` 契约变更做适配（契约变更日期：2026-01-29；变更摘要：契约由 plan 004-scene-fullversion-001 同步）。
+- **已完成**：随 `001-Core` 契约做适配（020 使用 te::core 数学等，符合 001-core-public-api 能力列表）。
+- **已完成**：随 `004-scene` 契约做适配（020 通过 029 CollectRenderables 获取 RenderableItem，使用 004 SceneRef/SceneTypes，符合 004-scene 契约）。

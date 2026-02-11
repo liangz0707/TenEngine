@@ -7,7 +7,7 @@ void CollectRenderItemsParallel(ILogicalPipeline const* pipeline, FrameContext c
                                 IRenderItemList* out) {
   if (!pipeline || !out) return;
   out->Clear();
-  (void)pipeline;  // 首版：无场景查询，仅清空；020 实现收集逻辑
+  (void)pipeline;  // 首版：无场景查询，仅清空；020 负责 029→RenderItem 收集。可扩展：按 ILogicalPipeline 的 Pass 配置从 ISceneWorld 取数并填充 out，与 020 CollectRenderablesToRenderItemList 分工。
 }
 
 void MergeRenderItems(IRenderItemList const* const* partialLists, size_t count,

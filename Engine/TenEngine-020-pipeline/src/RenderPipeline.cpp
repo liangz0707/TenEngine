@@ -296,7 +296,8 @@ class RenderPipelineImpl : public IRenderPipeline {
             reinterpret_cast<te::material::MaterialResource const*>(d.material);
         te::rendercore::IUniformBuffer* ub = matRes->GetUniformBuffer();
         if (ub) ub->Bind(cmd, 0);
-        /* PSO 绑定：材质可后续暴露 GetGraphicsPSO()，此处 cmd->SetGraphicsPSO(matRes->GetGraphicsPSO()); */
+        te::rhi::IPSO* pso = matRes->GetGraphicsPSO();
+        if (pso) cmd->SetGraphicsPSO(pso);
       }
       if (!d.mesh) continue;
       te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(d.mesh);
@@ -307,8 +308,8 @@ class RenderPipelineImpl : public IRenderPipeline {
       te::rhi::IBuffer* vb = te::mesh::GetVertexBufferHandle(mh);
       te::rhi::IBuffer* ib = te::mesh::GetIndexBufferHandle(mh);
       if (!vb || !ib) continue;
-      uint32_t vertexStride = 32;  // default; 012 可后续提供 GetVertexStride(MeshHandle)
-      uint32_t indexFormat = 0;   // 0 = 16bit, 1 = 32bit
+      uint32_t vertexStride = te::mesh::GetVertexStride(mh);
+      uint32_t indexFormat = te::mesh::GetIndexFormat(mh);
       cmd->SetVertexBuffer(0, vb, 0, vertexStride);
       cmd->SetIndexBuffer(ib, 0, indexFormat);
       cmd->DrawIndexed(sub->count, d.instanceCount, sub->offset, 0, d.firstInstance);
