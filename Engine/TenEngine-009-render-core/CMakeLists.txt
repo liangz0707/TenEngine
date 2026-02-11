@@ -27,9 +27,22 @@ set(TE_RENDERCORE_SOURCES
   src/render_core/uniform_layout.cpp
 )
 
-add_library(te_rendercore STATIC ${TE_RENDERCORE_SOURCES})
+set(TE_RENDERCORE_HEADERS
+  include/te/rendercore/api.hpp
+  include/te/rendercore/pass_protocol.hpp
+  include/te/rendercore/resource_desc.hpp
+  include/te/rendercore/shader_reflection.hpp
+  include/te/rendercore/types.hpp
+  include/te/rendercore/uniform_buffer.hpp
+  include/te/rendercore/uniform_layout.hpp
+)
+
+add_library(te_rendercore STATIC ${TE_RENDERCORE_SOURCES} ${TE_RENDERCORE_HEADERS})
 target_include_directories(te_rendercore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(te_rendercore PUBLIC ${MY_DEPS})
+
+source_group("Header Files" FILES ${TE_RENDERCORE_HEADERS})
+set_target_properties(te_rendercore PROPERTIES PUBLIC_HEADER "${TE_RENDERCORE_HEADERS}")
 
 option(BUILD_TESTS "Build unit and contract tests" ON)
 # Skip tests if TENENGINE_SKIP_DEPENDENCY_TESTS is set (when used as a dependency)

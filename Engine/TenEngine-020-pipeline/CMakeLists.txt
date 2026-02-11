@@ -41,9 +41,24 @@ set(TE_PIPELINE_SOURCES
   src/RenderableCollector.cpp
 )
 
-add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES})
+set(TE_PIPELINE_HEADERS
+  include/te/pipeline/FrameContext.h
+  include/te/pipeline/RenderingConfig.h
+  include/te/pipeline/RenderPipeline.h
+  include/te/pipeline/detail/PipelineImpl.h
+  include/te/pipeline/detail/RenderableCollector.h
+)
+
+add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})
 target_include_directories(te_pipeline PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(te_pipeline PUBLIC ${MY_DEPS})
+
+source_group("Header Files" FILES ${TE_PIPELINE_HEADERS})
+source_group("Header Files\\Detail" FILES
+  include/te/pipeline/detail/PipelineImpl.h
+  include/te/pipeline/detail/RenderableCollector.h
+)
+set_target_properties(te_pipeline PROPERTIES PUBLIC_HEADER "${TE_PIPELINE_HEADERS}")
 
 option(BUILD_TESTS "Build unit tests" ON)
 # 作为上游被引用时不加入测试

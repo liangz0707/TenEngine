@@ -71,7 +71,27 @@ if(TE_RHI_D3D12 AND WIN32)
   list(APPEND TE_SHADER_SOURCES src/backends/dxc_backend.cpp)
 endif()
 
-add_library(te_shader STATIC ${TE_SHADER_SOURCES})
+set(TE_SHADER_HEADERS
+  include/te/shader/api.hpp
+  include/te/shader/cache.hpp
+  include/te/shader/compiler.hpp
+  include/te/shader/factory.hpp
+  include/te/shader/handle.hpp
+  include/te/shader/hot_reload.hpp
+  include/te/shader/ShaderAssetDesc.h
+  include/te/shader/ShaderModuleInit.h
+  include/te/shader/ShaderResource.h
+  include/te/shader/types.hpp
+  include/te/shader/detail/cache_impl.hpp
+  include/te/shader/detail/compiler_impl.hpp
+  include/te/shader/detail/dxc_backend.hpp
+  include/te/shader/detail/glslang_backend.hpp
+  include/te/shader/detail/handle_impl.hpp
+  include/te/shader/detail/hot_reload_impl.hpp
+  include/te/shader/detail/spirv_cross_backend.hpp
+)
+
+add_library(te_shader STATIC ${TE_SHADER_SOURCES} ${TE_SHADER_HEADERS})
 target_include_directories(te_shader PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -101,6 +121,18 @@ if(TE_RHI_D3D12 AND WIN32)
     target_compile_definitions(te_shader PRIVATE TE_RHI_D3D12=1 TE_SHADER_HAVE_DXC=1)
   endif()
 endif()
+
+source_group("Header Files" FILES ${TE_SHADER_HEADERS})
+source_group("Header Files\\Detail" FILES
+  include/te/shader/detail/cache_impl.hpp
+  include/te/shader/detail/compiler_impl.hpp
+  include/te/shader/detail/dxc_backend.hpp
+  include/te/shader/detail/glslang_backend.hpp
+  include/te/shader/detail/handle_impl.hpp
+  include/te/shader/detail/hot_reload_impl.hpp
+  include/te/shader/detail/spirv_cross_backend.hpp
+)
+set_target_properties(te_shader PROPERTIES PUBLIC_HEADER "${TE_SHADER_HEADERS}")
 
 # Do not add tests when built as dependency (e.g. by 011-material) to avoid pulling shader tests into material project
 if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)

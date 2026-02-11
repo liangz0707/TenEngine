@@ -99,7 +99,24 @@ if(TENENGINE_USE_LIBWEBP)
   list(APPEND TEXTURE_SOURCES src/import/LibWebPImporter.cpp)
 endif()
 
-add_library(te_texture STATIC ${TEXTURE_SOURCES})
+set(TEXTURE_HEADERS
+  include/te/texture/Texture.h
+  include/te/texture/TextureAssetDesc.h
+  include/te/texture/TextureDevice.h
+  include/te/texture/TextureFactory.h
+  include/te/texture/TextureModuleInit.h
+  include/te/texture/TextureResource.h
+  include/te/texture/TextureSerialize.h
+  include/te/texture/detail/texture_data.hpp
+  include/te/texture/import/ImageImporter.h
+  include/te/texture/import/ImageImporterRegistry.h
+  include/te/texture/import/LibJpegTurboImporter.h
+  include/te/texture/import/LibPngImporter.h
+  include/te/texture/import/LibWebPImporter.h
+  include/te/texture/import/StbImageImporter.h
+)
+
+add_library(te_texture STATIC ${TEXTURE_SOURCES} ${TEXTURE_HEADERS})
 target_include_directories(te_texture
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${stb_SOURCE_DIR}
@@ -124,6 +141,18 @@ endif()
 if(OBJECT_TARGET AND TARGET ${OBJECT_TARGET})
   target_link_libraries(te_texture PUBLIC ${OBJECT_TARGET})
 endif()
+
+source_group("Header Files" FILES ${TEXTURE_HEADERS})
+source_group("Header Files\\Detail" FILES include/te/texture/detail/texture_data.hpp)
+source_group("Header Files\\Import" FILES
+  include/te/texture/import/ImageImporter.h
+  include/te/texture/import/ImageImporterRegistry.h
+  include/te/texture/import/LibJpegTurboImporter.h
+  include/te/texture/import/LibPngImporter.h
+  include/te/texture/import/LibWebPImporter.h
+  include/te/texture/import/StbImageImporter.h
+)
+set_target_properties(te_texture PROPERTIES PUBLIC_HEADER "${TEXTURE_HEADERS}")
 
 if(DEFINED TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR)
   target_include_directories(te_texture PRIVATE "${TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR}/include")

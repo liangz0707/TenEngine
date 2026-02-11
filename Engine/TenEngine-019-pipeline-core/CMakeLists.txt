@@ -38,9 +38,24 @@ set(TE_PIPELINECORE_SOURCES
   src/Profiling.cpp
 )
 
-add_library(te_pipelinecore STATIC ${TE_PIPELINECORE_SOURCES})
+set(TE_PIPELINECORE_HEADERS
+  include/te/pipelinecore/CollectPass.h
+  include/te/pipelinecore/Config.h
+  include/te/pipelinecore/FrameContext.h
+  include/te/pipelinecore/FrameGraph.h
+  include/te/pipelinecore/LogicalCommandBuffer.h
+  include/te/pipelinecore/LogicalPipeline.h
+  include/te/pipelinecore/Profiling.h
+  include/te/pipelinecore/RenderItem.h
+)
+
+add_library(te_pipelinecore STATIC ${TE_PIPELINECORE_SOURCES} ${TE_PIPELINECORE_HEADERS})
 target_include_directories(te_pipelinecore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(te_pipelinecore PUBLIC ${MY_DEPS})
+
+source_group("Header Files" FILES ${TE_PIPELINECORE_HEADERS})
+set_target_properties(te_pipelinecore PROPERTIES PUBLIC_HEADER "${TE_PIPELINECORE_HEADERS}")
+
 # 显式添加 011/012 的 include，确保编译 019 源文件时能找到 te/material/*、te/mesh/*（作为上游被 020 等引用时 INTERFACE 传播可能未生效）
 if(NOT DEFINED TENENGINE_011_MATERIAL_DIR)
   set(TENENGINE_011_MATERIAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-011-material")

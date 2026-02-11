@@ -49,7 +49,25 @@ endif()
 if(TE_RHI_METAL AND APPLE)
   list(APPEND TE_RHI_SOURCES src/metal/device_metal.mm)
 endif()
-add_library(te_rhi STATIC ${TE_RHI_SOURCES})
+
+set(TE_RHI_HEADERS
+  include/te/rhi/backend_d3d11.hpp
+  include/te/rhi/backend_d3d12.hpp
+  include/te/rhi/backend_metal.hpp
+  include/te/rhi/backend_vulkan.hpp
+  include/te/rhi/command_list.hpp
+  include/te/rhi/descriptor_set.hpp
+  include/te/rhi/device.hpp
+  include/te/rhi/pso.hpp
+  include/te/rhi/queue.hpp
+  include/te/rhi/raytracing.hpp
+  include/te/rhi/resources.hpp
+  include/te/rhi/swapchain.hpp
+  include/te/rhi/sync.hpp
+  include/te/rhi/types.hpp
+)
+
+add_library(te_rhi STATIC ${TE_RHI_SOURCES} ${TE_RHI_HEADERS})
 target_link_libraries(te_rhi PRIVATE ${MY_DEPS})
 target_include_directories(te_rhi PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -85,6 +103,9 @@ endif()
 if(TE_RHI_METAL AND APPLE)
   target_link_libraries(te_rhi PRIVATE "-framework Metal" "-framework QuartzCore" "-framework Foundation")
 endif()
+
+source_group("Header Files" FILES ${TE_RHI_HEADERS})
+set_target_properties(te_rhi PROPERTIES PUBLIC_HEADER "${TE_RHI_HEADERS}")
 
 if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
 tenengine_add_module_test(
