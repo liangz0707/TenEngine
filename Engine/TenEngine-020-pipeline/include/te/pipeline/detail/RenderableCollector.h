@@ -1,6 +1,6 @@
 /**
  * @file RenderableCollector.h
- * @brief 020-Pipeline: Collect 029 renderables into 019 IRenderItemList (only when loaded).
+ * @brief 020-Pipeline: Collect 029 renderables/lights into 019 IRenderItemList / ILightItemList.
  */
 
 #ifndef TE_PIPELINE_DETAIL_RENDERABLE_COLLECTOR_H
@@ -14,6 +14,10 @@ struct IResourceManager;
 }
 namespace pipelinecore {
 struct IRenderItemList;
+struct ILightItemList;
+struct ICameraItemList;
+struct IReflectionProbeItemList;
+struct IDecalItemList;
 }
 namespace pipeline {
 
@@ -24,6 +28,22 @@ void CollectRenderablesToRenderItemList(te::scene::SceneRef sceneRef,
                                          pipelinecore::IRenderItemList* out,
                                          void* frustum = nullptr,
                                          float const* cameraPositionWorld = nullptr);
+
+/// 收集场景内灯光到 ILightItemList；需 029 LightComponent，无 Light 时仅清空 out
+void CollectLightsToLightItemList(te::scene::SceneRef sceneRef,
+                                   pipelinecore::ILightItemList* out);
+
+/// 收集场景内相机到 ICameraItemList；需 029 CameraComponent
+void CollectCamerasToCameraItemList(te::scene::SceneRef sceneRef,
+                                    pipelinecore::ICameraItemList* out);
+
+/// 收集场景内反射探针到 IReflectionProbeItemList；需 029 ReflectionProbeComponent
+void CollectReflectionProbesToReflectionProbeItemList(te::scene::SceneRef sceneRef,
+                                                      pipelinecore::IReflectionProbeItemList* out);
+
+/// 收集场景内贴花到 IDecalItemList；需 029 DecalComponent；albedoTexture 暂不解析，填 nullptr
+void CollectDecalsToDecalItemList(te::scene::SceneRef sceneRef,
+                                 pipelinecore::IDecalItemList* out);
 }
 }
 

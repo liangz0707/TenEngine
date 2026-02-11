@@ -15,8 +15,9 @@ class LogicalPipelineImpl : public ILogicalPipeline {
  public:
   explicit LogicalPipelineImpl(std::vector<PassEntry> passes) : passes_(std::move(passes)) {}
   size_t GetPassCount() const override { return passes_.size(); }
-  PassCollectConfig const& GetPassConfig(size_t i) const {
-    return passes_[i].config;
+  void GetPassConfig(size_t index, PassCollectConfig* out) const override {
+    if (!out || index >= passes_.size()) return;
+    *out = passes_[index].config;
   }
 
  private:

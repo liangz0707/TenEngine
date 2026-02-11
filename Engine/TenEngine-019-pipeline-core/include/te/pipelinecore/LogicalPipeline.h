@@ -8,6 +8,7 @@ namespace te::pipelinecore {
 struct ILogicalPipeline {
   virtual ~ILogicalPipeline() = default;
   virtual size_t GetPassCount() const = 0;
+  virtual void GetPassConfig(size_t index, PassCollectConfig* out) const = 0;
 };
 
 /// 从已编译的 FrameGraph 构建逻辑管线；产出 Pass 列表与每 Pass 收集配置

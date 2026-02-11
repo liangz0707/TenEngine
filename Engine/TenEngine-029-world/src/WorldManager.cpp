@@ -9,6 +9,10 @@
 #include <te/world/LevelResource.h>
 #include <te/world/ModelComponent.h>
 #include <te/world/ModelResource.h>
+#include <te/world/LightComponent.h>
+#include <te/world/CameraComponent.h>
+#include <te/world/ReflectionProbeComponent.h>
+#include <te/world/DecalComponent.h>
 #include <te/entity/Entity.h>
 #include <te/entity/EntityManager.h>
 #include <te/scene/SceneWorld.h>
@@ -207,6 +211,80 @@ void WorldManager::CollectRenderables(te::scene::SceneRef sceneRef,
                                       te::resource::IResourceManager* resourceManager,
                                       std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const {
     CollectRenderablesImpl(sceneRef, resourceManager, callback);
+}
+
+namespace {
+void CollectLightsImpl(te::scene::SceneRef sceneRef,
+                       std::function<void(te::scene::ISceneNode*, LightComponent const&)> const& callback) {
+    if (!sceneRef.IsValid()) return;
+    te::scene::SceneManager::GetInstance().Traverse(sceneRef, [&callback](te::scene::ISceneNode* node) {
+        te::entity::Entity* e = dynamic_cast<te::entity::Entity*>(node);
+        if (!e || !e->IsActive()) return;
+        if (!e->HasComponent<LightComponent>()) return;
+        LightComponent* comp = e->GetComponent<LightComponent>();
+        if (!comp) return;
+        callback(node, *comp);
+    });
+}
+void CollectCamerasImpl(te::scene::SceneRef sceneRef,
+                        std::function<void(te::scene::ISceneNode*, CameraComponent const&)> const& callback) {
+    if (!sceneRef.IsValid()) return;
+    te::scene::SceneManager::GetInstance().Traverse(sceneRef, [&callback](te::scene::ISceneNode* node) {
+        te::entity::Entity* e = dynamic_cast<te::entity::Entity*>(node);
+        if (!e || !e->IsActive()) return;
+        if (!e->HasComponent<CameraComponent>()) return;
+        CameraComponent* comp = e->GetComponent<CameraComponent>();
+        if (!comp) return;
+        callback(node, *comp);
+    });
+}
+
+void CollectReflectionProbesImpl(te::scene::SceneRef sceneRef,
+                                 std::function<void(te::scene::ISceneNode*, ReflectionProbeComponent const&)> const& callback) {
+    if (!sceneRef.IsValid()) return;
+    te::scene::SceneManager::GetInstance().Traverse(sceneRef, [&callback](te::scene::ISceneNode* node) {
+        te::entity::Entity* e = dynamic_cast<te::entity::Entity*>(node);
+        if (!e || !e->IsActive()) return;
+        if (!e->HasComponent<ReflectionProbeComponent>()) return;
+        ReflectionProbeComponent* comp = e->GetComponent<ReflectionProbeComponent>();
+        if (!comp) return;
+        callback(node, *comp);
+    });
+}
+
+void CollectDecalsImpl(te::scene::SceneRef sceneRef,
+                       std::function<void(te::scene::ISceneNode*, DecalComponent const&)> const& callback) {
+    if (!sceneRef.IsValid()) return;
+    te::scene::SceneManager::GetInstance().Traverse(sceneRef, [&callback](te::scene::ISceneNode* node) {
+        te::entity::Entity* e = dynamic_cast<te::entity::Entity*>(node);
+        if (!e || !e->IsActive()) return;
+        if (!e->HasComponent<DecalComponent>()) return;
+        DecalComponent* comp = e->GetComponent<DecalComponent>();
+        if (!comp) return;
+        callback(node, *comp);
+    });
+}
+
+}  // namespace
+
+void WorldManager::CollectLights(te::scene::SceneRef sceneRef,
+                                 std::function<void(te::scene::ISceneNode*, LightComponent const&)> const& callback) const {
+    CollectLightsImpl(sceneRef, callback);
+}
+
+void WorldManager::CollectCameras(te::scene::SceneRef sceneRef,
+                                  std::function<void(te::scene::ISceneNode*, CameraComponent const&)> const& callback) const {
+    CollectCamerasImpl(sceneRef, callback);
+}
+
+void WorldManager::CollectReflectionProbes(te::scene::SceneRef sceneRef,
+                                           std::function<void(te::scene::ISceneNode*, ReflectionProbeComponent const&)> const& callback) const {
+    CollectReflectionProbesImpl(sceneRef, callback);
+}
+
+void WorldManager::CollectDecals(te::scene::SceneRef sceneRef,
+                                std::function<void(te::scene::ISceneNode*, DecalComponent const&)> const& callback) const {
+    CollectDecalsImpl(sceneRef, callback);
 }
 
 }  // namespace world

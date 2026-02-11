@@ -30,7 +30,7 @@ pipelinecore::IFrameGraph* CreateDeferredFrameGraph(uint32_t viewportWidth, uint
   pipelinecore::IFrameGraph* graph = pipelinecore::CreateFrameGraph();
   if (!graph) return nullptr;
 
-  pipelinecore::IPassBuilder* gbuffer = graph->AddPass("GBuffer");
+  pipelinecore::IPassBuilder* gbuffer = graph->AddPass("GBuffer", pipelinecore::PassKind::Scene);
   if (gbuffer) {
     gbuffer->SetCullMode(pipelinecore::CullMode::FrustumCull);
     gbuffer->SetRenderType(pipelinecore::RenderType::Opaque);
@@ -41,7 +41,7 @@ pipelinecore::IFrameGraph* CreateDeferredFrameGraph(uint32_t viewportWidth, uint
     gbuffer->SetExecuteCallback(NoOpPassExecute);
   }
 
-  pipelinecore::IPassBuilder* lighting = graph->AddPass("Lighting");
+  pipelinecore::IPassBuilder* lighting = graph->AddPass("Lighting", pipelinecore::PassKind::Light);
   if (lighting) {
     lighting->SetCullMode(pipelinecore::CullMode::None);
     lighting->SetRenderType(pipelinecore::RenderType::Opaque);

@@ -20,6 +20,12 @@ struct PassData {
   RenderType renderType{RenderType::Opaque};
   PassOutputDesc output{};
   PassExecuteCallback executeCallback{nullptr};
+  PassKind passKind{PassKind::Scene};
+  PassContentSource contentSource{PassContentSource::FromModelComponent};
+  uint32_t colorAttachmentCount{0};
+  PassAttachmentDesc colorAttachments[kMaxPassColorAttachments];
+  bool hasDepthStencil{false};
+  PassAttachmentDesc depthStencilAttachment{};
   std::vector<size_t> depIndices;
   std::vector<uint64_t> readResources;
   std::vector<uint64_t> writeResources;
@@ -40,17 +46,132 @@ class PassBuilderImpl : public IPassBuilder {
   void DeclareWrite(te::rendercore::ResourceHandle const& resource) override {
     if (resource.IsValid()) data_.writeResources.push_back(resource.id);
   }
+  void SetPassKind(PassKind kind) override { data_.passKind = kind; }
+  void SetContentSource(PassContentSource source) override { data_.contentSource = source; }
+  PassKind GetPassKind() const override { return data_.passKind; }
+  PassContentSource GetContentSource() const override { return data_.contentSource; }
+  void AddColorAttachment(PassAttachmentDesc const& desc) override {
+    if (data_.colorAttachmentCount < kMaxPassColorAttachments)
+      data_.colorAttachments[data_.colorAttachmentCount++] = desc;
+  }
+  void SetDepthStencilAttachment(PassAttachmentDesc const& desc) override {
+    data_.hasDepthStencil = true;
+    data_.depthStencilAttachment = desc;
+  }
 
  private:
   PassData& data_;
 };
 
+/// 派生 Builder 实现：复用 PassBuilderImpl，仅类型不同以便 AddPass(name, kind) 返回可转型指针
+class ScenePassBuilderImpl : public IScenePassBuilder, private PassBuilderImpl {
+ public:
+  explicit ScenePassBuilderImpl(PassData& data) : PassBuilderImpl(data) {}
+  void SetScene(ISceneWorld const* scene) override { PassBuilderImpl::SetScene(scene); }
+  void SetCullMode(CullMode mode) override { PassBuilderImpl::SetCullMode(mode); }
+  void SetObjectTypeFilter(void const* f) override { PassBuilderImpl::SetObjectTypeFilter(f); }
+  void SetRenderType(RenderType type) override { PassBuilderImpl::SetRenderType(type); }
+  void SetOutput(PassOutputDesc const& desc) override { PassBuilderImpl::SetOutput(desc); }
+  void SetExecuteCallback(PassExecuteCallback cb) override { PassBuilderImpl::SetExecuteCallback(cb); }
+  void DeclareRead(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareRead(r); }
+  void DeclareWrite(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareWrite(r); }
+  void SetPassKind(PassKind kind) override { PassBuilderImpl::SetPassKind(kind); }
+  void SetContentSource(PassContentSource src) override { PassBuilderImpl::SetContentSource(src); }
+  PassKind GetPassKind() const override { return PassBuilderImpl::GetPassKind(); }
+  PassContentSource GetContentSource() const override { return PassBuilderImpl::GetContentSource(); }
+  void AddColorAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::AddColorAttachment(d); }
+  void SetDepthStencilAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::SetDepthStencilAttachment(d); }
+};
+
+class LightPassBuilderImpl : public ILightPassBuilder, private PassBuilderImpl {
+ public:
+  explicit LightPassBuilderImpl(PassData& data) : PassBuilderImpl(data) {}
+  void SetScene(ISceneWorld const* scene) override { PassBuilderImpl::SetScene(scene); }
+  void SetCullMode(CullMode mode) override { PassBuilderImpl::SetCullMode(mode); }
+  void SetObjectTypeFilter(void const* f) override { PassBuilderImpl::SetObjectTypeFilter(f); }
+  void SetRenderType(RenderType type) override { PassBuilderImpl::SetRenderType(type); }
+  void SetOutput(PassOutputDesc const& desc) override { PassBuilderImpl::SetOutput(desc); }
+  void SetExecuteCallback(PassExecuteCallback cb) override { PassBuilderImpl::SetExecuteCallback(cb); }
+  void DeclareRead(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareRead(r); }
+  void DeclareWrite(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareWrite(r); }
+  void SetPassKind(PassKind kind) override { PassBuilderImpl::SetPassKind(kind); }
+  void SetContentSource(PassContentSource src) override { PassBuilderImpl::SetContentSource(src); }
+  PassKind GetPassKind() const override { return PassBuilderImpl::GetPassKind(); }
+  PassContentSource GetContentSource() const override { return PassBuilderImpl::GetContentSource(); }
+  void AddColorAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::AddColorAttachment(d); }
+  void SetDepthStencilAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::SetDepthStencilAttachment(d); }
+};
+
+class PostProcessPassBuilderImpl : public IPostProcessPassBuilder, private PassBuilderImpl {
+ public:
+  explicit PostProcessPassBuilderImpl(PassData& data) : PassBuilderImpl(data) {}
+  void SetScene(ISceneWorld const* scene) override { PassBuilderImpl::SetScene(scene); }
+  void SetCullMode(CullMode mode) override { PassBuilderImpl::SetCullMode(mode); }
+  void SetObjectTypeFilter(void const* f) override { PassBuilderImpl::SetObjectTypeFilter(f); }
+  void SetRenderType(RenderType type) override { PassBuilderImpl::SetRenderType(type); }
+  void SetOutput(PassOutputDesc const& desc) override { PassBuilderImpl::SetOutput(desc); }
+  void SetExecuteCallback(PassExecuteCallback cb) override { PassBuilderImpl::SetExecuteCallback(cb); }
+  void DeclareRead(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareRead(r); }
+  void DeclareWrite(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareWrite(r); }
+  void SetPassKind(PassKind kind) override { PassBuilderImpl::SetPassKind(kind); }
+  void SetContentSource(PassContentSource src) override { PassBuilderImpl::SetContentSource(src); }
+  PassKind GetPassKind() const override { return PassBuilderImpl::GetPassKind(); }
+  PassContentSource GetContentSource() const override { return PassBuilderImpl::GetContentSource(); }
+  void AddColorAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::AddColorAttachment(d); }
+  void SetDepthStencilAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::SetDepthStencilAttachment(d); }
+};
+
+class EffectPassBuilderImpl : public IEffectPassBuilder, private PassBuilderImpl {
+ public:
+  explicit EffectPassBuilderImpl(PassData& data) : PassBuilderImpl(data) {}
+  void SetScene(ISceneWorld const* scene) override { PassBuilderImpl::SetScene(scene); }
+  void SetCullMode(CullMode mode) override { PassBuilderImpl::SetCullMode(mode); }
+  void SetObjectTypeFilter(void const* f) override { PassBuilderImpl::SetObjectTypeFilter(f); }
+  void SetRenderType(RenderType type) override { PassBuilderImpl::SetRenderType(type); }
+  void SetOutput(PassOutputDesc const& desc) override { PassBuilderImpl::SetOutput(desc); }
+  void SetExecuteCallback(PassExecuteCallback cb) override { PassBuilderImpl::SetExecuteCallback(cb); }
+  void DeclareRead(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareRead(r); }
+  void DeclareWrite(te::rendercore::ResourceHandle const& r) override { PassBuilderImpl::DeclareWrite(r); }
+  void SetPassKind(PassKind kind) override { PassBuilderImpl::SetPassKind(kind); }
+  void SetContentSource(PassContentSource src) override { PassBuilderImpl::SetContentSource(src); }
+  PassKind GetPassKind() const override { return PassBuilderImpl::GetPassKind(); }
+  PassContentSource GetContentSource() const override { return PassBuilderImpl::GetContentSource(); }
+  void AddColorAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::AddColorAttachment(d); }
+  void SetDepthStencilAttachment(PassAttachmentDesc const& d) override { PassBuilderImpl::SetDepthStencilAttachment(d); }
+};
+
+static PassContentSource ContentSourceFromKind(PassKind kind) {
+  switch (kind) {
+    case PassKind::Scene: return PassContentSource::FromModelComponent;
+    case PassKind::Light: return PassContentSource::FromLightComponent;
+    case PassKind::PostProcess:
+    case PassKind::Effect: return PassContentSource::FromPassDefined;
+    default: return PassContentSource::Custom;
+  }
+}
+
+static std::unique_ptr<IPassBuilder> CreateBuilderForKind(PassData& data, PassKind kind) {
+  switch (kind) {
+    case PassKind::Scene: return std::make_unique<ScenePassBuilderImpl>(data);
+    case PassKind::Light: return std::make_unique<LightPassBuilderImpl>(data);
+    case PassKind::PostProcess: return std::make_unique<PostProcessPassBuilderImpl>(data);
+    case PassKind::Effect: return std::make_unique<EffectPassBuilderImpl>(data);
+    default: return std::make_unique<PassBuilderImpl>(data);
+  }
+}
+
 class FrameGraphImpl : public IFrameGraph {
  public:
   IPassBuilder* AddPass(char const* name) override {
+    return AddPass(name, PassKind::Scene);
+  }
+  IPassBuilder* AddPass(char const* name, PassKind kind) override {
     passes_.emplace_back();
-    passes_.back().name = name ? name : "";
-    builders_.push_back(std::make_unique<PassBuilderImpl>(passes_.back()));
+    PassData& data = passes_.back();
+    data.name = name ? name : "";
+    data.passKind = kind;
+    data.contentSource = ContentSourceFromKind(kind);
+    builders_.push_back(CreateBuilderForKind(data, kind));
     return builders_.back().get();
   }
 
@@ -126,10 +247,18 @@ class FrameGraphImpl : public IFrameGraph {
   void GetPassCollectConfig(size_t executionOrder, PassCollectConfig* out) const override {
     if (!out || executionOrder >= sortedIndices_.size()) return;
     size_t idx = sortedIndices_[executionOrder];
-    out->scene = passes_[idx].scene;
-    out->cullMode = passes_[idx].cullMode;
-    out->renderType = passes_[idx].renderType;
-    out->output = passes_[idx].output;
+    PassData const& p = passes_[idx];
+    out->scene = p.scene;
+    out->cullMode = p.cullMode;
+    out->renderType = p.renderType;
+    out->output = p.output;
+    out->passKind = p.passKind;
+    out->contentSource = p.contentSource;
+    out->colorAttachmentCount = p.colorAttachmentCount;
+    for (uint32_t i = 0; i < p.colorAttachmentCount && i < kMaxPassColorAttachments; ++i)
+      out->colorAttachments[i] = p.colorAttachments[i];
+    out->hasDepthStencil = p.hasDepthStencil;
+    out->depthStencilAttachment = p.depthStencilAttachment;
   }
 
   void ExecutePass(size_t executionOrder, PassContext& ctx, te::rhi::ICommandList* cmd) override {
@@ -141,7 +270,7 @@ class FrameGraphImpl : public IFrameGraph {
 
  private:
   std::vector<PassData> passes_;
-  std::vector<std::unique_ptr<PassBuilderImpl>> builders_;
+  std::vector<std::unique_ptr<IPassBuilder>> builders_;
   std::vector<size_t> sortedIndices_;
 };
 

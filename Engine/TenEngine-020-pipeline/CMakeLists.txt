@@ -39,12 +39,16 @@ set(TE_PIPELINE_SOURCES
   src/RenderPipeline.cpp
   src/PipelineImpl.cpp
   src/RenderableCollector.cpp
+  src/BuiltinMeshes.cpp
+  src/BuiltinMaterials.cpp
 )
 
 set(TE_PIPELINE_HEADERS
   include/te/pipeline/FrameContext.h
   include/te/pipeline/RenderingConfig.h
   include/te/pipeline/RenderPipeline.h
+  include/te/pipeline/BuiltinMeshes.h
+  include/te/pipeline/BuiltinMaterials.h
   include/te/pipeline/detail/PipelineImpl.h
   include/te/pipeline/detail/RenderableCollector.h
 )

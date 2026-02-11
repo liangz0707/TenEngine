@@ -1,6 +1,6 @@
 /**
  * @file RenderableCollector.cpp
- * @brief 020-Pipeline: Collect renderables from 029 World, convert to 019 RenderItem (only when loaded).
+ * @brief 020-Pipeline: Collect renderables/lights from 029 World to 019 RenderItem/LightItem lists.
  */
 
 #include <te/pipeline/detail/RenderableCollector.h>
@@ -8,6 +8,11 @@
 #include <te/world/WorldManager.h>
 #include <te/world/WorldTypes.h>
 #include <te/world/ModelResource.h>
+#include <te/world/LightComponent.h>
+#include <te/world/CameraComponent.h>
+#include <te/world/ReflectionProbeComponent.h>
+#include <te/world/DecalComponent.h>
+#include <te/scene/ISceneNode.h>
 #include <te/resource/ResourceManager.h>
 #include <te/resource/MeshResource.h>
 #include <te/resource/MaterialResource.h>
@@ -17,6 +22,7 @@
 #include <te/mesh/Mesh.h>
 #include <te/mesh/MeshResource.h>
 #include <te/core/math.h>
+#include <te/entity/Entity.h>
 #include <cstdint>
 #include <cmath>
 
@@ -80,6 +86,108 @@ void CollectRenderablesToRenderItemList(te::scene::SceneRef sceneRef,
       ri.sortKey = (static_cast<uint64_t>(matIndex) << 32u) | item.submeshIndex;
       out->Push(ri);
     });
+}
+
+static pipelinecore::LightType ToPipelineLightType(te::world::LightType t) {
+  switch (t) {
+    case te::world::LightType::Point: return pipelinecore::LightType::Point;
+    case te::world::LightType::Directional: return pipelinecore::LightType::Directional;
+    case te::world::LightType::Spot: return pipelinecore::LightType::Spot;
+    default: return pipelinecore::LightType::Point;
+  }
+}
+
+void CollectLightsToLightItemList(te::scene::SceneRef sceneRef,
+                                   pipelinecore::ILightItemList* out) {
+  if (!out) return;
+  out->Clear();
+  if (!sceneRef.IsValid()) return;
+  te::world::WorldManager& world = te::world::WorldManager::GetInstance();
+  world.CollectLights(sceneRef, [out](te::scene::ISceneNode* node, te::world::LightComponent const& comp) {
+    pipelinecore::LightItem item;
+    item.type = ToPipelineLightType(comp.type);
+    item.color[0] = comp.color[0];
+    item.color[1] = comp.color[1];
+    item.color[2] = comp.color[2];
+    item.intensity = comp.intensity;
+    item.range = comp.range;
+    item.direction[0] = comp.direction[0];
+    item.direction[1] = comp.direction[1];
+    item.direction[2] = comp.direction[2];
+    item.spotAngle = comp.spotAngle;
+    if (node) {
+      te::core::Matrix4 const& w = node->GetWorldMatrix();
+      item.position[0] = w.m[0][3];
+      item.position[1] = w.m[1][3];
+      item.position[2] = w.m[2][3];
+      item.transform = const_cast<te::core::Matrix4*>(&w);
+    }
+    out->Push(item);
+  });
+}
+
+static pipelinecore::ReflectionProbeItemType ToPipelineReflectionProbeType(te::world::ReflectionProbeType t) {
+  switch (t) {
+    case te::world::ReflectionProbeType::Box: return pipelinecore::ReflectionProbeItemType::Box;
+    case te::world::ReflectionProbeType::Sphere: return pipelinecore::ReflectionProbeItemType::Sphere;
+    default: return pipelinecore::ReflectionProbeItemType::Sphere;
+  }
+}
+
+void CollectCamerasToCameraItemList(te::scene::SceneRef sceneRef,
+                                    pipelinecore::ICameraItemList* out) {
+  if (!out) return;
+  out->Clear();
+  if (!sceneRef.IsValid()) return;
+  te::world::WorldManager& world = te::world::WorldManager::GetInstance();
+  world.CollectCameras(sceneRef, [out](te::scene::ISceneNode* node, te::world::CameraComponent const& comp) {
+    pipelinecore::CameraItem item;
+    item.fovY = comp.fovY;
+    item.nearZ = comp.nearZ;
+    item.farZ = comp.farZ;
+    item.isActive = comp.isActive;
+    if (node)
+      item.transform = const_cast<te::core::Matrix4*>(&node->GetWorldMatrix());
+    out->Push(item);
+  });
+}
+
+void CollectReflectionProbesToReflectionProbeItemList(te::scene::SceneRef sceneRef,
+                                                      pipelinecore::IReflectionProbeItemList* out) {
+  if (!out) return;
+  out->Clear();
+  if (!sceneRef.IsValid()) return;
+  te::world::WorldManager& world = te::world::WorldManager::GetInstance();
+  world.CollectReflectionProbes(sceneRef, [out](te::scene::ISceneNode* node, te::world::ReflectionProbeComponent const& comp) {
+    pipelinecore::ReflectionProbeItem item;
+    item.type = ToPipelineReflectionProbeType(comp.type);
+    item.extent[0] = comp.extent[0];
+    item.extent[1] = comp.extent[1];
+    item.extent[2] = comp.extent[2];
+    item.resolution = comp.resolution;
+    if (node)
+      item.transform = const_cast<te::core::Matrix4*>(&node->GetWorldMatrix());
+    out->Push(item);
+  });
+}
+
+void CollectDecalsToDecalItemList(te::scene::SceneRef sceneRef,
+                                 pipelinecore::IDecalItemList* out) {
+  if (!out) return;
+  out->Clear();
+  if (!sceneRef.IsValid()) return;
+  te::world::WorldManager& world = te::world::WorldManager::GetInstance();
+  world.CollectDecals(sceneRef, [out](te::scene::ISceneNode* node, te::world::DecalComponent const& comp) {
+    pipelinecore::DecalItem item;
+    item.albedoTexture = nullptr;  // 020 可后续按 comp.albedoTextureId 解析
+    item.size[0] = comp.size[0];
+    item.size[1] = comp.size[1];
+    item.size[2] = comp.size[2];
+    item.blend = comp.blend;
+    if (node)
+      item.transform = const_cast<te::core::Matrix4*>(&node->GetWorldMatrix());
+    out->Push(item);
+  });
 }
 
 }  // namespace pipeline

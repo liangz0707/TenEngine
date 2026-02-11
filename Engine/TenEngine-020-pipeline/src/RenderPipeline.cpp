@@ -156,7 +156,9 @@ class RenderPipelineImpl : public IRenderPipeline {
       if (!pipeline) return;
 
       pipelinecore::IRenderItemList* itemList = pipelinecore::CreateRenderItemList();
+      pipelinecore::ILightItemList* lightItemList = pipelinecore::CreateLightItemList();
       if (!itemList) {
+        if (lightItemList) pipelinecore::DestroyLightItemList(lightItemList);
         pipelinecore::DestroyLogicalPipeline(pipeline);
         return;
       }
@@ -172,6 +174,7 @@ class RenderPipelineImpl : public IRenderPipeline {
         CollectRenderablesToRenderItemList(sceneRef,
             static_cast<te::resource::IResourceManager*>(resMgr), itemList, ctxCopy.frustum,
             static_cast<float const*>(ctxCopy.camera));
+        CollectLightsToLightItemList(sceneRef, lightItemList);
       }
       te::resource::IResourceManager* rm = static_cast<te::resource::IResourceManager*>(resMgr);
       for (size_t i = 0; rm && i < itemList->Size(); ++i) {
@@ -182,9 +185,10 @@ class RenderPipelineImpl : public IRenderPipeline {
       }
 
       // 阶段 B：投递到 Device 线程
-      deviceQueue_->Post([dev, itemList, pipeline, graphCapture, slot, vpW, vpH, this]() {
+      deviceQueue_->Post([dev, itemList, lightItemList, pipeline, graphCapture, slot, vpW, vpH, this]() {
       te::rhi::IDevice* rhiDevice = static_cast<te::rhi::IDevice*>(dev);
       if (rhiDevice && itemList && pipeline) {
+        pipelinecore::ILightItemList const* lightListPtr = lightItemList;
         if (slot < static_cast<uint32_t>(slotFences_.size()) && slotFences_[slot])
           te::rhi::Wait(slotFences_[slot]);
         // 多 subpass：有 FrameGraph 且有多 Pass 时构建 RenderPassDesc 并创建 IRenderPass，供 PrepareRenderResources 与录制使用
@@ -231,6 +235,7 @@ class RenderPipelineImpl : public IRenderPipeline {
         if (pipelinecore::ConvertToLogicalCommandBuffer(listToConvert, pipeline, &logicalCB) != te::rendercore::ResultCode::Success || !logicalCB) {
           if (readyList) pipelinecore::DestroyRenderItemList(readyList);
           pipelinecore::DestroyRenderItemList(itemList);
+          if (lightItemList) pipelinecore::DestroyLightItemList(lightItemList);
           pipelinecore::DestroyLogicalPipeline(pipeline);
           return;
         }
@@ -254,6 +259,8 @@ class RenderPipelineImpl : public IRenderPipeline {
             adapter.list = itemList;
             pipelinecore::PassContext passCtx;
             passCtx.SetCollectedObjects(&adapter);
+            passCtx.SetRenderItemList(0, itemList);
+            passCtx.SetLightItemList(lightListPtr);
             if (renderPass) {
               cmd->BeginRenderPass(rpDescMulti, renderPass);
               for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
@@ -346,6 +353,7 @@ class RenderPipelineImpl : public IRenderPipeline {
         }
       }
       pipelinecore::DestroyRenderItemList(itemList);
+      if (lightItemList) pipelinecore::DestroyLightItemList(lightItemList);
       pipelinecore::DestroyLogicalPipeline(pipeline);
       });
     });

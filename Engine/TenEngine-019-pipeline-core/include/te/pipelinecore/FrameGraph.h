@@ -2,13 +2,12 @@
 
 #include <te/pipelinecore/Config.h>
 #include <te/pipelinecore/FrameContext.h>
+#include <te/rendercore/types.hpp>
+#include <cstddef>
+#include <cstdint>
 
 namespace te::rhi {
 struct ICommandList;
-}
-namespace te::rendercore {
-struct PassHandle;
-struct ResourceHandle;
 }
 
 namespace te::pipelinecore {
@@ -34,6 +33,23 @@ enum class RenderType : uint32_t {
   Custom,
 };
 
+/// Pass 类型（用于派生 PassBuilder 与收集分发）
+enum class PassKind : uint32_t {
+  Scene = 0,       // 场景物体（ModelComponent）
+  Light,           // 灯光
+  PostProcess,     // 后处理
+  Effect,          // 特效
+  Custom,
+};
+
+/// Pass 渲染内容来源
+enum class PassContentSource : uint32_t {
+  FromModelComponent = 0,  // 场景模型
+  FromLightComponent,      // 灯光
+  FromPassDefined,         // Pass 内定义（后处理、全屏 quad 等）
+  Custom,
+};
+
 constexpr uint32_t kMaxPassColorAttachments = 8u;
 
 /// Pass 输出描述（渲染目标、深度、多 RT、分辨率、格式等）. 020 据此构建 RHI RenderPassDesc；具体 ITexture* 由 020 从 FrameGraph 资源或 SwapChain 解析填入。
@@ -45,19 +61,52 @@ struct PassOutputDesc {
   uint32_t colorFormats[kMaxPassColorAttachments]{0};  // 0 = infer; 用于校验或创建 RT
 };
 
+/// LoadOp/StoreOp 与 te::rhi::LoadOp/StoreOp 值一致，020 转换时使用
+enum class AttachmentLoadOp : uint32_t { Load = 0, Clear = 1, DontCare = 2 };
+enum class AttachmentStoreOp : uint32_t { Store = 0, DontCare = 1 };
+
+/// 单 Attachment 描述；用于 Pass 级 Attachment 定义与连接
+struct PassAttachmentDesc {
+  te::rendercore::ResourceHandle handle{};
+  uint32_t width{0};
+  uint32_t height{0};
+  uint32_t format{0};  // 0 = infer
+  bool isDepthStencil{false};
+  AttachmentLoadOp loadOp{AttachmentLoadOp::Clear};
+  AttachmentStoreOp storeOp{AttachmentStoreOp::Store};
+  size_t sourcePassIndex{static_cast<size_t>(-1)};  // 上一 Pass 索引，-1 表示无
+  uint32_t sourceAttachmentIndex{0};
+};
+
 /// 收集到的物体列表（只读）；由 Pipeline 在收集阶段填充
 struct IRenderObjectList {
   virtual ~IRenderObjectList() = default;
   virtual size_t Size() const = 0;
 };
 
+struct IRenderItemList;
+struct ILightItemList;
+
+constexpr size_t kMaxPassContextRenderItemSlots = 4u;
+
 /// Pass 执行上下文
 struct PassContext {
   IRenderObjectList const* GetCollectedObjects() const { return collectedObjects_; }
   void SetCollectedObjects(IRenderObjectList const* o) { collectedObjects_ = o; }
 
+  IRenderItemList const* GetRenderItemList(size_t slot) const {
+    return (slot < kMaxPassContextRenderItemSlots) ? renderItemLists_[slot] : nullptr;
+  }
+  ILightItemList const* GetLightItemList() const { return lightItemList_; }
+  void SetRenderItemList(size_t slot, IRenderItemList const* list) {
+    if (slot < kMaxPassContextRenderItemSlots) renderItemLists_[slot] = list;
+  }
+  void SetLightItemList(ILightItemList const* list) { lightItemList_ = list; }
+
  private:
   IRenderObjectList const* collectedObjects_{nullptr};
+  IRenderItemList const* renderItemLists_[kMaxPassContextRenderItemSlots]{};
+  ILightItemList const* lightItemList_{nullptr};
 };
 
 /// Pass 执行回调：void (*)(PassContext& ctx, ICommandList* cmd)
@@ -75,7 +124,37 @@ struct IPassBuilder {
   /// RDG 资源声明；与 009 PassProtocol 对接；Compile 时据此推导执行顺序
   virtual void DeclareRead(te::rendercore::ResourceHandle const& resource) = 0;
   virtual void DeclareWrite(te::rendercore::ResourceHandle const& resource) = 0;
+  /// Pass 类型与内容来源（派生 Builder 可覆盖默认）
+  virtual void SetPassKind(PassKind kind) = 0;
+  virtual void SetContentSource(PassContentSource source) = 0;
+  virtual PassKind GetPassKind() const = 0;
+  virtual PassContentSource GetContentSource() const = 0;
+  virtual void AddColorAttachment(PassAttachmentDesc const& desc) = 0;
+  virtual void SetDepthStencilAttachment(PassAttachmentDesc const& desc) = 0;
 };
+
+/// 场景 Pass Builder（ModelComponent 收集）
+struct IScenePassBuilder : public IPassBuilder {
+  ~IScenePassBuilder() override = default;
+};
+
+/// 灯光 Pass Builder
+struct ILightPassBuilder : public IPassBuilder {
+  ~ILightPassBuilder() override = default;
+};
+
+/// 后处理 Pass Builder（Pass 内定义 quad + material）
+struct IPostProcessPassBuilder : public IPassBuilder {
+  ~IPostProcessPassBuilder() override = default;
+};
+
+/// 特效 Pass Builder
+struct IEffectPassBuilder : public IPassBuilder {
+  ~IEffectPassBuilder() override = default;
+};
+
+/// 保留 ResourceHandle.id 约定：0 表示 SwapChain/BackBuffer
+constexpr uint64_t kResourceHandleIdBackBuffer = 0u;
 
 /// Pass 收集配置；供 BuildLogicalPipeline 使用
 struct PassCollectConfig {
@@ -83,12 +162,21 @@ struct PassCollectConfig {
   CullMode cullMode{CullMode::None};
   RenderType renderType{RenderType::Opaque};
   PassOutputDesc output{};
+  PassKind passKind{PassKind::Scene};
+  PassContentSource contentSource{PassContentSource::FromModelComponent};
+  uint32_t colorAttachmentCount{0};
+  PassAttachmentDesc colorAttachments[kMaxPassColorAttachments];
+  bool hasDepthStencil{false};
+  PassAttachmentDesc depthStencilAttachment{};
 };
 
 /// FrameGraph 入口
 struct IFrameGraph {
   virtual ~IFrameGraph() = default;
+  /// 添加 Pass，返回通用 Builder；kind 决定收集与执行时的分发
   virtual IPassBuilder* AddPass(char const* name) = 0;
+  /// 添加 Pass 并指定类型，返回对应派生 Builder（调用方可转型为 IScenePassBuilder* 等）
+  virtual IPassBuilder* AddPass(char const* name, PassKind kind) = 0;
   virtual bool Compile() = 0;
   /// 编译后可用；executionOrder 0 为第一个执行的 Pass
   virtual size_t GetPassCount() const = 0;

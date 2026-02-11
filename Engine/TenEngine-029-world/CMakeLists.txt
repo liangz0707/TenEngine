@@ -22,6 +22,10 @@ set(WORLD_HEADERS
   include/te/world/ModelAssetDesc.h
   include/te/world/ModelResource.h
   include/te/world/ModelComponent.h
+  include/te/world/LightComponent.h
+  include/te/world/CameraComponent.h
+  include/te/world/ReflectionProbeComponent.h
+  include/te/world/DecalComponent.h
   include/te/world/WorldModuleInit.h
 )
 
