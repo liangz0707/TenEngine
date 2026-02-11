@@ -102,6 +102,8 @@ struct ICommandList {
   virtual void SetIndexBuffer(IBuffer* buffer, size_t offset, uint32_t indexFormat) = 0;  // 0 = 16bit, 1 = 32bit
   virtual void SetGraphicsPSO(IPSO* pso) = 0;
   virtual void BindDescriptorSet(IDescriptorSet* set) = 0;
+  /** Bind descriptor set at given set index (e.g. 0 = material, 1 = skin). When setIndex is 0, equivalent to BindDescriptorSet(set). */
+  virtual void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) = 0;
   virtual void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass = nullptr) = 0;
   virtual void NextSubpass() = 0;
   virtual void EndRenderPass() = 0;

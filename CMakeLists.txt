@@ -1,0 +1,71 @@
+# TenEngine root: build mesh, material, texture, pipeline and their dependencies.
+# Usage: from repo root:
+#   cmake -B build -S .
+#   cmake --build build [--config Debug|Release]
+cmake_minimum_required(VERSION 3.16)
+project(TenEngine LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Repo root = parent of Engine/
+set(TENENGINE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
+
+# Point each module to Engine/TenEngine-xxx (helper default is TENENGINE_ROOT/TenEngine-xxx)
+set(TENENGINE_001_CORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-001-core")
+set(TENENGINE_002_OBJECT_DIR "${TENENGINE_ROOT}/Engine/TenEngine-002-object")
+set(TENENGINE_004_SCENE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-004-scene")
+set(TENENGINE_005_ENTITY_DIR "${TENENGINE_ROOT}/Engine/TenEngine-005-entity")
+set(TENENGINE_008_RHI_DIR "${TENENGINE_ROOT}/Engine/TenEngine-008-rhi")
+set(TENENGINE_009_RENDERCORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-009-render-core")
+set(TENENGINE_010_SHADER_DIR "${TENENGINE_ROOT}/Engine/TenEngine-010-shader")
+set(TENENGINE_013_RESOURCE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-013-resource")
+set(TENENGINE_019_PIPELINECORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-019-pipeline-core")
+set(TENENGINE_028_TEXTURE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-028-texture")
+set(TENENGINE_029_WORLD_DIR "${TENENGINE_ROOT}/Engine/TenEngine-029-world")
+set(TENENGINE_011_MATERIAL_DIR "${TENENGINE_ROOT}/Engine/TenEngine-011-material")
+set(TENENGINE_012_MESH_DIR "${TENENGINE_ROOT}/Engine/TenEngine-012-mesh")
+set(TENENGINE_020_PIPELINE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-020-pipeline")
+
+# Optional: build only mesh, material, texture, pipeline (no tests from other modules)
+option(TENENGINE_BUILD_MESH "Build 012-mesh" ON)
+option(TENENGINE_BUILD_MATERIAL "Build 011-material" ON)
+option(TENENGINE_BUILD_TEXTURE "Build 028-texture" ON)
+option(TENENGINE_BUILD_PIPELINE "Build 020-pipeline" ON)
+
+# Dependency order: 001 -> 002 -> 008 -> 009 -> 004 -> 005 -> 013 -> 010 -> 019 -> 029 -> 028 -> 011 -> 012 -> 020
+# Mark each as added so downstream resolve_dependency() does not add again.
+add_subdirectory(Engine/TenEngine-001-core)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_001-core TRUE)
+add_subdirectory(Engine/TenEngine-002-object)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_002-object TRUE)
+add_subdirectory(Engine/TenEngine-008-rhi)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_008-rhi TRUE)
+add_subdirectory(Engine/TenEngine-009-render-core)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_009-rendercore TRUE)
+add_subdirectory(Engine/TenEngine-004-scene)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_004-scene TRUE)
+add_subdirectory(Engine/TenEngine-005-entity)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_005-entity TRUE)
+add_subdirectory(Engine/TenEngine-013-resource)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_013-resource TRUE)
+add_subdirectory(Engine/TenEngine-010-shader)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_010-shader TRUE)
+add_subdirectory(Engine/TenEngine-019-pipeline-core)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_019-pipelinecore TRUE)
+add_subdirectory(Engine/TenEngine-029-world)
+set_property(GLOBAL PROPERTY TENENGINE_ADDED_029-world TRUE)
+
+if(TENENGINE_BUILD_TEXTURE)
+  add_subdirectory(Engine/TenEngine-028-texture)
+endif()
+if(TENENGINE_BUILD_MATERIAL)
+  add_subdirectory(Engine/TenEngine-011-material)
+endif()
+if(TENENGINE_BUILD_MESH)
+  add_subdirectory(Engine/TenEngine-012-mesh)
+endif()
+if(TENENGINE_BUILD_PIPELINE)
+  add_subdirectory(Engine/TenEngine-020-pipeline)
+endif()

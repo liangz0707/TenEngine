@@ -12,20 +12,47 @@ set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency modu
 
 set(MY_DEPS "")
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-# 009/019 目录名与模块 id 不一致，需显式指定
+# When building from 020 directory, deps live in Engine as siblings. Set *_DIR so resolve finds them
+# even if another dep (e.g. 028) sets TENENGINE_ROOT to repo root (which would otherwise break 012-mesh path).
+set(_ENGINE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+if(NOT DEFINED TENENGINE_001_CORE_DIR)
+  set(TENENGINE_001_CORE_DIR "${_ENGINE}/TenEngine-001-core")
+endif()
+if(NOT DEFINED TENENGINE_002_OBJECT_DIR)
+  set(TENENGINE_002_OBJECT_DIR "${_ENGINE}/TenEngine-002-object")
+endif()
+if(NOT DEFINED TENENGINE_004_SCENE_DIR)
+  set(TENENGINE_004_SCENE_DIR "${_ENGINE}/TenEngine-004-scene")
+endif()
+if(NOT DEFINED TENENGINE_005_ENTITY_DIR)
+  set(TENENGINE_005_ENTITY_DIR "${_ENGINE}/TenEngine-005-entity")
+endif()
+if(NOT DEFINED TENENGINE_008_RHI_DIR)
+  set(TENENGINE_008_RHI_DIR "${_ENGINE}/TenEngine-008-rhi")
+endif()
 if(NOT DEFINED TENENGINE_009_RENDERCORE_DIR)
-  if(DEFINED TENENGINE_ROOT)
-    set(TENENGINE_009_RENDERCORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-009-render-core")
-  else()
-    set(TENENGINE_009_RENDERCORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-009-render-core")
-  endif()
+  set(TENENGINE_009_RENDERCORE_DIR "${_ENGINE}/TenEngine-009-render-core")
+endif()
+if(NOT DEFINED TENENGINE_010_SHADER_DIR)
+  set(TENENGINE_010_SHADER_DIR "${_ENGINE}/TenEngine-010-shader")
+endif()
+if(NOT DEFINED TENENGINE_013_RESOURCE_DIR)
+  set(TENENGINE_013_RESOURCE_DIR "${_ENGINE}/TenEngine-013-resource")
 endif()
 if(NOT DEFINED TENENGINE_019_PIPELINECORE_DIR)
-  if(DEFINED TENENGINE_ROOT)
-    set(TENENGINE_019_PIPELINECORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-019-pipeline-core")
-  else()
-    set(TENENGINE_019_PIPELINECORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-019-pipeline-core")
-  endif()
+  set(TENENGINE_019_PIPELINECORE_DIR "${_ENGINE}/TenEngine-019-pipeline-core")
+endif()
+if(NOT DEFINED TENENGINE_028_TEXTURE_DIR)
+  set(TENENGINE_028_TEXTURE_DIR "${_ENGINE}/TenEngine-028-texture")
+endif()
+if(NOT DEFINED TENENGINE_029_WORLD_DIR)
+  set(TENENGINE_029_WORLD_DIR "${_ENGINE}/TenEngine-029-world")
+endif()
+if(NOT DEFINED TENENGINE_011_MATERIAL_DIR)
+  set(TENENGINE_011_MATERIAL_DIR "${_ENGINE}/TenEngine-011-material")
+endif()
+if(NOT DEFINED TENENGINE_012_MESH_DIR)
+  set(TENENGINE_012_MESH_DIR "${_ENGINE}/TenEngine-012-mesh")
 endif()
 if(EXISTS "${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake")
   include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
@@ -42,7 +69,6 @@ set(TE_PIPELINE_SOURCES
   src/BuiltinMeshes.cpp
   src/BuiltinMaterials.cpp
   src/FrameGraphResources.cpp
-  src/MaterialRuntime.cpp
 )
 
 set(TE_PIPELINE_HEADERS
@@ -54,7 +80,6 @@ set(TE_PIPELINE_HEADERS
   include/te/pipeline/detail/PipelineImpl.h
   include/te/pipeline/detail/RenderableCollector.h
   include/te/pipeline/detail/FrameGraphResources.h
-  include/te/pipeline/detail/MaterialRuntime.h
 )
 
 add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})
@@ -66,7 +91,6 @@ source_group("Header Files\\Detail" FILES
   include/te/pipeline/detail/PipelineImpl.h
   include/te/pipeline/detail/RenderableCollector.h
   include/te/pipeline/detail/FrameGraphResources.h
-  include/te/pipeline/detail/MaterialRuntime.h
 )
 set_target_properties(te_pipeline PROPERTIES PUBLIC_HEADER "${TE_PIPELINE_HEADERS}")
 

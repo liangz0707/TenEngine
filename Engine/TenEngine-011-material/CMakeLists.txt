@@ -44,6 +44,7 @@ set(TE_MATERIAL_HEADERS
   include/te/material/material_def.hpp
   include/te/material/material_json.hpp
   include/te/material/MaterialModuleInit.h
+  include/te/material/MaterialParam.hpp
   include/te/material/MaterialResource.h
   include/te/material/parameters.hpp
   include/te/material/storage_format.hpp

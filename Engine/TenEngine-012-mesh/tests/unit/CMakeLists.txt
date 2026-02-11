@@ -19,11 +19,3 @@ tenengine_add_module_test(
   SOURCES test_mesh_resource.cpp
   ENABLE_CTEST
 )
-
-# Test mesh device (GPU resource creation)
-tenengine_add_module_test(
-  NAME test_mesh_device
-  MODULE_TARGET te_mesh
-  SOURCES test_mesh_device.cpp
-  ENABLE_CTEST
-)

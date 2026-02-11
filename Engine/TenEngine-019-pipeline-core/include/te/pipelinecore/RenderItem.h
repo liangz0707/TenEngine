@@ -6,16 +6,19 @@
 namespace te::rhi {
 struct IDevice;
 struct IRenderPass;
+struct IDescriptorSetLayout;
 }
 
 namespace te::rendercore {
 enum class ResultCode : uint32_t;
+struct IRenderElement;
+}
+
+namespace te::resource {
+class IResourceManager;
 }
 
 namespace te::pipelinecore {
-
-struct IMaterialHandle;  // 011-Material / 020 提供
-struct IMeshHandle;      // 012-Mesh / 020 提供
 
 /// 可选世界矩阵与边界，用于按 Pass 与合批
 struct RenderItemBounds {
@@ -23,15 +26,15 @@ struct RenderItemBounds {
   float max[3]{0.f, 0.f, 0.f};
 };
 
-/// 单条渲染项；场景模型、UI、材质、排序 key 等
+/// 单条渲染项：仅以 element 为单元；收集时收集 element 或更新/设置 element 内数据
 struct RenderItem {
-  IMeshHandle const* mesh{nullptr};
-  IMaterialHandle const* material{nullptr};
+  te::rendercore::IRenderElement* element{nullptr};
   uint64_t sortKey{0u};
-  /// 世界矩阵行主序 4x4，可选；020 收集时可从 RenderableItem 填充
+  uint32_t submeshIndex{0};
   void* transform{nullptr};  // te::core::Matrix4 const* 或 nullptr
-  /// 世界空间 AABB，可选；用于按 Pass 与合批
   RenderItemBounds bounds{};
+  void* skinMatrixBuffer{nullptr};
+  uint32_t skinMatrixOffset{0};
 };
 
 /// 合并后的 RenderItem 列表接口
@@ -58,11 +61,10 @@ struct LightItem {
   float color[3]{1.f, 1.f, 1.f};
   float intensity{1.f};
   float range{10.f};
-  float spotAngle{0.f};  // 聚光锥角等
+  float spotAngle{0.f};
   void* transform{nullptr};  // te::core::Matrix4 const* 或 nullptr
 };
 
-/// 灯光项列表接口
 struct ILightItemList {
   virtual ~ILightItemList() = default;
   virtual size_t Size() const = 0;
@@ -76,13 +78,12 @@ void DestroyLightItem(LightItem* r);
 ILightItemList* CreateLightItemList();
 void DestroyLightItemList(ILightItemList* l);
 
-/// 单条相机项；由 CollectCamerasToCameraItemList 填充
 struct CameraItem {
   float fovY{1.0472f};
   float nearZ{0.1f};
   float farZ{1000.f};
   bool isActive{false};
-  void* transform{nullptr};  // te::core::Matrix4 const*
+  void* transform{nullptr};
 };
 
 struct ICameraItemList {
@@ -98,11 +99,7 @@ void DestroyCameraItem(CameraItem* r);
 ICameraItemList* CreateCameraItemList();
 void DestroyCameraItemList(ICameraItemList* l);
 
-/// 反射探针类型（与 029 ReflectionProbeType 对应）
-enum class ReflectionProbeItemType : uint32_t {
-  Box = 0,
-  Sphere,
-};
+enum class ReflectionProbeItemType : uint32_t { Box = 0, Sphere };
 
 struct ReflectionProbeItem {
   ReflectionProbeItemType type{ReflectionProbeItemType::Sphere};
@@ -124,9 +121,8 @@ void DestroyReflectionProbeItem(ReflectionProbeItem* r);
 IReflectionProbeItemList* CreateReflectionProbeItemList();
 void DestroyReflectionProbeItemList(IReflectionProbeItemList* l);
 
-/// 贴花项；albedoTexture 由 020 解析 ResourceId 后填入
 struct DecalItem {
-  void* albedoTexture{nullptr};  // 020: ITexture* 或 IMaterialHandle*
+  void* albedoTexture{nullptr};
   float size[3]{2.f, 2.f, 2.f};
   float blend{1.f};
   void* transform{nullptr};
@@ -150,20 +146,26 @@ void DestroyRenderItem(RenderItem* r);
 IRenderItemList* CreateRenderItemList();
 void DestroyRenderItemList(IRenderItemList* l);
 
-/// 必须在线程 D 调用；遇 RHI 失败返回 ResultCode
 te::rendercore::ResultCode PrepareRenderResources(IRenderItemList const* items,
                                                   te::rhi::IDevice* device);
 te::rendercore::ResultCode PrepareRenderResources(IRenderItemList const* items,
                                                   te::rhi::IDevice* device,
                                                   te::rhi::IRenderPass* renderPass,
-                                                  uint32_t subpassCount);
-te::rendercore::ResultCode PrepareRenderMaterial(IMaterialHandle const* material,
-                                                 te::rhi::IDevice* device);
-te::rendercore::ResultCode PrepareRenderMaterial(IMaterialHandle const* material,
-                                                 te::rhi::IDevice* device,
-                                                 te::rhi::IRenderPass* renderPass,
-                                                 uint32_t subpassCount);
-te::rendercore::ResultCode PrepareRenderMesh(IMeshHandle const* mesh,
-                                             te::rhi::IDevice* device);
+                                                  uint32_t subpassCount,
+                                                  te::rhi::IDescriptorSetLayout* skinLayout = nullptr);
+te::rendercore::ResultCode PrepareRenderResources(IRenderItemList const* items,
+                                                  te::rhi::IDevice* device,
+                                                  te::rhi::IRenderPass* renderPass,
+                                                  uint32_t subpassCount,
+                                                  te::rhi::IDescriptorSetLayout* skinLayout,
+                                                  te::resource::IResourceManager* resourceManager);
+
+te::rendercore::ResultCode PrepareRenderElement(te::rendercore::IRenderElement* element,
+                                                te::rhi::IDevice* device);
+te::rendercore::ResultCode PrepareRenderElement(te::rendercore::IRenderElement* element,
+                                                te::rhi::IDevice* device,
+                                                te::rhi::IRenderPass* renderPass,
+                                                uint32_t subpassCount,
+                                                te::rhi::IDescriptorSetLayout* skinLayout = nullptr);
 
 }  // namespace te::pipelinecore

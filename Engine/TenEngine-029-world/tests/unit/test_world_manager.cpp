@@ -1,18 +1,12 @@
 /**
  * @file test_world_manager.cpp
- * @brief Unit tests for WorldManager: CreateLevelFromDesc, UnloadLevel, GetSceneRef, Traverse, CollectRenderables
+ * @brief Unit tests for WorldManager: CreateLevelFromDesc, UnloadLevel, GetSceneRef, Traverse
  */
 
 #include <te/world/WorldManager.h>
 #include <te/world/WorldTypes.h>
 #include <te/world/LevelAssetDesc.h>
-#include <te/world/ModelComponent.h>
-#include <te/scene/SceneManager.h>
 #include <te/scene/SceneTypes.h>
-#include <te/entity/Entity.h>
-#include <te/entity/EntityManager.h>
-#include <te/resource/ResourceId.h>
-#include <te/object/Guid.h>
 #include <te/core/math.h>
 #include <cassert>
 #include <vector>
@@ -94,50 +88,6 @@ static int test_traverse() {
     return 0;
 }
 
-static int test_collect_renderables() {
-    WorldManager& wm = WorldManager::GetInstance();
-    te::core::AABB bounds;
-    bounds.min.x = bounds.min.y = bounds.min.z = 0.f;
-    bounds.max.x = bounds.max.y = bounds.max.z = 100.f;
-
-    LevelAssetDesc desc;
-    desc.roots.resize(1);
-    desc.roots[0].name = "NoModel";
-    desc.roots[0].modelGuid = te::resource::ResourceId();
-
-    LevelHandle h = wm.CreateLevelFromDesc(te::scene::SpatialIndexType::None, bounds, desc);
-    assert(h.IsValid());
-
-    int callbackCount = 0;
-    wm.CollectRenderables(h, [&callbackCount](te::scene::ISceneNode*, RenderableItem const&) {
-        ++callbackCount;
-    });
-    assert(callbackCount == 0);
-
-    desc.roots[0].modelGuid = te::resource::ResourceId(te::object::GUID::Generate());
-    wm.UnloadLevel(h);
-    h = wm.CreateLevelFromDesc(te::scene::SpatialIndexType::None, bounds, desc);
-    assert(h.IsValid());
-
-    callbackCount = 0;
-    wm.CollectRenderables(h, [&callbackCount](te::scene::ISceneNode* n, RenderableItem const& item) {
-        ++callbackCount;
-        assert(n != nullptr);
-        (void)item;
-    });
-    assert(callbackCount == 1);
-
-    te::scene::SceneRef sr = wm.GetSceneRef(h);
-    callbackCount = 0;
-    wm.CollectRenderables(sr, [&callbackCount](te::scene::ISceneNode*, RenderableItem const&) {
-        ++callbackCount;
-    });
-    assert(callbackCount == 1);
-
-    wm.UnloadLevel(h);
-    return 0;
-}
-
 static int test_unload_order() {
     WorldManager& wm = WorldManager::GetInstance();
     te::core::AABB bounds;
@@ -161,7 +111,6 @@ int test_world_manager() {
     r |= test_create_level_from_desc();
     r |= test_get_scene_ref_and_current();
     r |= test_traverse();
-    r |= test_collect_renderables();
     r |= test_unload_order();
     return r;
 }

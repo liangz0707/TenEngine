@@ -5,9 +5,12 @@
 #include <te/shader/ShaderModuleInit.h>
 #include <te/shader/ShaderResource.h>
 #include <te/shader/ShaderAssetDesc.h>
+#include <te/shader/ShaderCollection.h>
+#include <te/shader/factory.hpp>
 #include <te/shader/types.hpp>
 #include <te/resource/ResourceManager.h>
 #include <te/resource/ResourceTypes.h>
+#include <te/resource/ShaderResource.h>
 #include <te/object/TypeRegistry.h>
 #include <te/object/TypeId.h>
 #include <te/core/platform.h>
@@ -118,11 +121,68 @@ bool LoadAllShaders(resource::IResourceManager* manager, char const* manifestPat
   if (!line.empty()) {
     lines.push_back(line);
   }
+  ShaderCollection* collection = ShaderCollection::GetInstance();
+  collection->Clear();
+
   for (std::string const& path : lines) {
     resource::IResource* res = manager->LoadSync(path.c_str(), resource::ResourceType::Shader);
     if (!res) {
       return false;
     }
+    resource::IShaderResource* shaderRes = dynamic_cast<resource::IShaderResource*>(res);
+    IShaderHandle* handle = shaderRes ? static_cast<IShaderHandle*>(shaderRes->GetShaderHandle()) : nullptr;
+    if (!handle) {
+      res->Release();
+      return false;
+    }
+
+    IShaderCompiler* compiler = CreateShaderCompiler();
+    if (!compiler) {
+      res->Release();
+      return false;
+    }
+
+    CompileOptions opts{};
+    opts.targetBackend = BackendType::SPIRV;
+
+    ShaderCollectionEntry entry{};
+    opts.stage = ShaderStage::Vertex;
+    if (compiler->Compile(handle, opts)) {
+      size_t vsSize = 0;
+      void const* vsPtr = compiler->GetBytecodeForStage(handle, ShaderStage::Vertex, &vsSize);
+      if (vsPtr && vsSize > 0) {
+        entry.vertexBytecode.assign(static_cast<uint8_t const*>(vsPtr), static_cast<uint8_t const*>(vsPtr) + vsSize);
+      }
+      rendercore::VertexFormatDesc vertexInputDesc{};
+      if (compiler->GetVertexInputReflection(handle, &vertexInputDesc)) {
+        CopyVertexInputInto(vertexInputDesc, entry);
+      }
+      rendercore::ShaderReflectionDesc vertexRefl{};
+      if (compiler->GetShaderReflection(handle, &vertexRefl)) {
+        CopyVertexReflectionInto(vertexRefl, entry);
+      }
+    }
+    opts.stage = ShaderStage::Fragment;
+    if (compiler->Compile(handle, opts)) {
+      size_t fsSize = 0;
+      void const* fsPtr = compiler->GetBytecodeForStage(handle, ShaderStage::Fragment, &fsSize);
+      if (fsPtr && fsSize > 0) {
+        entry.fragmentBytecode.assign(static_cast<uint8_t const*>(fsPtr), static_cast<uint8_t const*>(fsPtr) + fsSize);
+      }
+      rendercore::ShaderReflectionDesc fragmentRefl{};
+      if (compiler->GetShaderReflection(handle, &fragmentRefl)) {
+        CopyFragmentReflectionInto(fragmentRefl, entry);
+      }
+    }
+
+    if (entry.vertexBytecode.empty() && entry.fragmentBytecode.empty()) {
+      DestroyShaderCompiler(compiler);
+      res->Release();
+      return false;
+    }
+
+    collection->Add(res->GetResourceId(), std::move(entry));
+    DestroyShaderCompiler(compiler);
     res->Release();
   }
   return true;

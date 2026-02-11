@@ -244,7 +244,8 @@ struct CommandListMetal final : ICommandList {
     if (renderEncoder && boundGraphicsPSO)
       [renderEncoder setRenderPipelineState:boundGraphicsPSO];
   }
-  void BindDescriptorSet(IDescriptorSet* set) override { (void)set; /* TODO: Metal descriptor set binding */ }
+  void BindDescriptorSet(IDescriptorSet* set) override { BindDescriptorSet(0u, set); }
+  void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) override { (void)setIndex; (void)set; /* TODO: Metal descriptor set binding */ }
 
   void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override { (void)desc; (void)pass; }
   void NextSubpass() override {}
@@ -452,10 +453,12 @@ struct DeviceMetal final : IDevice {
     return CreateGraphicsPSO(desc, layout, nullptr, 0);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
-                          IRenderPass* pass, uint32_t subpassIndex) override {
+                          IRenderPass* pass, uint32_t subpassIndex,
+                          IDescriptorSetLayout* layoutSet1) override {
     (void)pass;
     (void)subpassIndex;
     (void)layout;
+    (void)layoutSet1;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
       return nullptr;

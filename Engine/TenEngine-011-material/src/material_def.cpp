@@ -24,7 +24,6 @@ MaterialInstanceHandle MaterialSystemImpl::CreateInstance(MaterialHandle) { retu
 void MaterialSystemImpl::ReleaseInstance(MaterialInstanceHandle) {}
 
 te::shader::VariantKey MaterialSystemImpl::GetVariantKey(MaterialHandle) { return te::shader::VariantKey{}; }
-void MaterialSystemImpl::BindToPSO(MaterialInstanceHandle, te::rhi::ICommandList*, uint32_t) {}
 void MaterialSystemImpl::SubmitToPipeline(MaterialInstanceHandle, void*) {}
 
 }  // namespace material

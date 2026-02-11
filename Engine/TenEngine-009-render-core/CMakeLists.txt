@@ -25,6 +25,14 @@ set(TE_RENDERCORE_SOURCES
   src/render_core/resource_desc.cpp
   src/render_core/uniform_buffer.cpp
   src/render_core/uniform_layout.cpp
+  src/rendercore/PipelineStateDesc.cpp
+  src/rendercore/RenderPipelineStateImpl.cpp
+  src/rendercore/ShaderEntryImpl.cpp
+  src/rendercore/ShadingStateImpl.cpp
+  src/rendercore/RenderMaterialImpl.cpp
+  src/rendercore/RenderMeshImpl.cpp
+  src/rendercore/RenderElementImpl.cpp
+  src/rendercore/RenderResourceFactory.cpp
 )
 
 set(TE_RENDERCORE_HEADERS
@@ -35,6 +43,22 @@ set(TE_RENDERCORE_HEADERS
   include/te/rendercore/types.hpp
   include/te/rendercore/uniform_buffer.hpp
   include/te/rendercore/uniform_layout.hpp
+  include/te/rendercore/PipelineStateDesc.hpp
+  include/te/rendercore/IRenderPipelineState.hpp
+  include/te/rendercore/IShaderEntry.hpp
+  include/te/rendercore/IShadingState.hpp
+  include/te/rendercore/IRenderMaterial.hpp
+  include/te/rendercore/IRenderMesh.hpp
+  include/te/rendercore/IRenderElement.hpp
+  include/te/rendercore/IRenderTexture.hpp
+  include/te/rendercore/ShaderBytecodeDesc.hpp
+  include/te/rendercore/impl/RenderPipelineStateImpl.hpp
+  include/te/rendercore/impl/ShaderEntryImpl.hpp
+  include/te/rendercore/impl/ShadingStateImpl.hpp
+  include/te/rendercore/impl/RenderMaterialImpl.hpp
+  include/te/rendercore/impl/RenderMeshImpl.hpp
+  include/te/rendercore/impl/RenderElementImpl.hpp
+  include/te/rendercore/RenderResourceFactory.hpp
 )
 
 add_library(te_rendercore STATIC ${TE_RENDERCORE_SOURCES} ${TE_RENDERCORE_HEADERS})

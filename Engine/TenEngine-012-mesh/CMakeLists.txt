@@ -9,43 +9,38 @@ set(CMAKE_CXX_STANDARD 17)
 # 跳过上游依赖模块的测试，只构建本模块的测试
 set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
 
-# 上游 worktree 根目录：所有依赖模块都在 Engine/ 目录下
-# TENENGINE_ROOT 应该指向包含 Engine 目录的父目录（即 TenEngine 仓库根目录）
+# 上游 worktree：依赖模块在 Engine/ 下。从 012 目录构建时用兄弟路径；否则用 TENENGINE_ROOT/Engine/...
 if(NOT DEFINED TENENGINE_ROOT)
-  # 从当前模块路径推导：Engine/TenEngine-012-mesh -> Engine -> TenEngine
   get_filename_component(_CURRENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
-  get_filename_component(_ENGINE_DIR "${_CURRENT_DIR}" DIRECTORY)
-  set(TENENGINE_ROOT "${_ENGINE_DIR}")
+  get_filename_component(TENENGINE_ROOT "${_CURRENT_DIR}" DIRECTORY)
+endif()
+set(_ENGINE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+
+# 为 012 及下游（009 会解析 008-rhi）设置 *_DIR，避免 TENENGINE_ROOT 导致路径变成 repo_root/TenEngine-xxx
+if(NOT DEFINED TENENGINE_001_CORE_DIR)
+  set(TENENGINE_001_CORE_DIR "${_ENGINE}/TenEngine-001-core")
+endif()
+if(NOT DEFINED TENENGINE_002_OBJECT_DIR)
+  set(TENENGINE_002_OBJECT_DIR "${_ENGINE}/TenEngine-002-object")
+endif()
+if(NOT DEFINED TENENGINE_008_RHI_DIR)
+  set(TENENGINE_008_RHI_DIR "${_ENGINE}/TenEngine-008-rhi")
+endif()
+if(NOT DEFINED TENENGINE_009_RENDERCORE_DIR)
+  set(TENENGINE_009_RENDERCORE_DIR "${_ENGINE}/TenEngine-009-render-core")
+endif()
+if(NOT DEFINED TENENGINE_013_RESOURCE_DIR)
+  set(TENENGINE_013_RESOURCE_DIR "${_ENGINE}/TenEngine-013-resource")
 endif()
 
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
 
-# --- 012-Mesh 依赖：001-core, 008-rhi, 009-rendercore, 013-resource, 030-device-resource-manager（源码，自 TENENGINE_ROOT/Engine 解析）---
-# 所有依赖模块都在 ${TENENGINE_ROOT}/Engine/ 目录下
-# 设置正确的依赖模块路径
-if(NOT DEFINED TENENGINE_001_CORE_DIR)
-  set(TENENGINE_001_CORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-001-core")
-endif()
-if(NOT DEFINED TENENGINE_002_OBJECT_DIR)
-  set(TENENGINE_002_OBJECT_DIR "${TENENGINE_ROOT}/Engine/TenEngine-002-object")
-endif()
-if(NOT DEFINED TENENGINE_008_RHI_DIR)
-  set(TENENGINE_008_RHI_DIR "${TENENGINE_ROOT}/Engine/TenEngine-008-rhi")
-endif()
-if(NOT DEFINED TENENGINE_009_RENDERCORE_DIR)
-  set(TENENGINE_009_RENDERCORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-009-render-core")
-endif()
-if(NOT DEFINED TENENGINE_013_RESOURCE_DIR)
-  set(TENENGINE_013_RESOURCE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-013-resource")
-endif()
-if(NOT DEFINED TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR)
-  set(TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR "${TENENGINE_ROOT}/Engine/TenEngine-030-device-resource-manager")
-endif()
+# --- 012-Mesh 依赖：001-core, 009-rendercore, 013-resource（CPU-only）---
 
 # 解析依赖（按依赖顺序）
-# 先解析013-resource，因为它会创建te_core（001-core）和te_object（002-object）
 tenengine_resolve_dependency(013-resource RES_TARGET)
+tenengine_resolve_dependency(009-rendercore RENDERCORE_TARGET)
 
 # 检查te_core是否已由013-resource创建，如果没有则单独解析001-core
 if(NOT TARGET te_core)
@@ -69,22 +64,13 @@ else()
   set(OBJECT_TARGET te_object)
 endif()
 
-# 解析其他依赖
-tenengine_resolve_dependency(008-rhi RHI_TARGET)
-tenengine_resolve_dependency(009-rendercore RENDERCORE_TARGET)
-tenengine_resolve_dependency(030-device-resource-manager DEVICERESOURCE_TARGET)
-# Fix: Ensure the correct target name is used (te_deviceresource, not te_device_resource_manager)
-if(NOT TARGET ${DEVICERESOURCE_TARGET} AND TARGET te_deviceresource)
-  set(DEVICERESOURCE_TARGET te_deviceresource)
-endif()
-
 # --- 012-Mesh library ---
 set(MESH_SOURCES
   src/Mesh.cpp
   src/MeshAssetDesc.cpp
   src/MeshFactory.cpp
-  src/MeshDevice.cpp
   src/MeshResource.cpp
+  src/BuiltinMeshes.cpp
   src/MeshLoader.cpp
   src/MeshDeserializer.cpp
   src/MeshSerialize.cpp
@@ -96,8 +82,8 @@ set(MESH_HEADERS
   include/te/mesh/Mesh.h
   include/te/mesh/MeshAssetDesc.h
   include/te/mesh/MeshFactory.h
-  include/te/mesh/MeshDevice.h
   include/te/mesh/MeshResource.h
+  include/te/mesh/BuiltinMeshes.h
   include/te/mesh/MeshLoader.h
   include/te/mesh/MeshDeserializer.h
   include/te/mesh/MeshSerialize.h
@@ -161,13 +147,9 @@ add_library(te_mesh STATIC
   ${MESH_HEADERS}
 )
 target_include_directories(te_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-# Explicitly add deviceresource include directory
-if(DEFINED TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR)
-  target_include_directories(te_mesh PRIVATE "${TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR}/include")
-endif()
-target_link_libraries(te_mesh 
+target_link_libraries(te_mesh
   PRIVATE ${CORE_TARGET}
-  PUBLIC ${RHI_TARGET} ${RENDERCORE_TARGET} ${RES_TARGET} ${DEVICERESOURCE_TARGET})
+  PUBLIC ${RENDERCORE_TARGET} ${RES_TARGET})
 
 # Link 002-object if available
 if(OBJECT_TARGET AND TARGET ${OBJECT_TARGET})

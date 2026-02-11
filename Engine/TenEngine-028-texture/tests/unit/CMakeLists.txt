@@ -5,7 +5,3 @@ add_test(NAME test_texture_api COMMAND test_texture_api)
 add_executable(test_texture_resource test_texture_resource.cpp)
 target_link_libraries(test_texture_resource PRIVATE te_texture)
 add_test(NAME test_texture_resource COMMAND test_texture_resource)
-
-add_executable(test_texture_device test_texture_device.cpp)
-target_link_libraries(test_texture_device PRIVATE te_texture)
-add_test(NAME test_texture_device COMMAND test_texture_device)

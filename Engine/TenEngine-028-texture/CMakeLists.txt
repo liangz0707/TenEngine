@@ -1,5 +1,5 @@
-# 028-Texture module (contract: specs/_contracts/028-texture-ABI.md).
-# Dependencies: 001-core, 008-rhi, 009-rendercore, 013-resource, 030-device-resource-manager.
+# 028-Texture module (contract: specs/_contracts/028-texture-ABI.md). CPU-only: Load/Save/Import, no GPU.
+# Dependencies: 001-core, 002-object, 009-rendercore, 013-resource.
 cmake_minimum_required(VERSION 3.16)
 project(TenEngine-028-texture LANGUAGES CXX)
 
@@ -17,10 +17,8 @@ include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
 
 set(TENENGINE_001_CORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-001-core")
 set(TENENGINE_002_OBJECT_DIR "${TENENGINE_ROOT}/Engine/TenEngine-002-object")
-set(TENENGINE_008_RHI_DIR "${TENENGINE_ROOT}/Engine/TenEngine-008-rhi")
 set(TENENGINE_009_RENDERCORE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-009-render-core")
 set(TENENGINE_013_RESOURCE_DIR "${TENENGINE_ROOT}/Engine/TenEngine-013-resource")
-set(TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR "${TENENGINE_ROOT}/Engine/TenEngine-030-device-resource-manager")
 
 tenengine_resolve_dependency(013-resource RES_TARGET)
 if(NOT TARGET te_core)
@@ -33,14 +31,7 @@ if(NOT TARGET te_object)
 else()
   set(OBJECT_TARGET te_object)
 endif()
-tenengine_resolve_dependency(008-rhi RHI_TARGET)
 tenengine_resolve_dependency(009-rendercore RENDERCORE_TARGET)
-# Do not build 030's tests (te_deviceresource_test) when 028 is the top-level project
-set(TENENGINE_030_SKIP_OWN_TESTS ON CACHE BOOL "Skip 030 own tests when built as dependency")
-tenengine_resolve_dependency(030-device-resource-manager DEVICERESOURCE_TARGET)
-if(NOT TARGET ${DEVICERESOURCE_TARGET} AND TARGET te_deviceresource)
-  set(DEVICERESOURCE_TARGET te_deviceresource)
-endif()
 
 # Optional image import libraries (docs/third_party)
 option(TENENGINE_USE_LIBPNG "Use libpng for PNG import" OFF)
@@ -81,7 +72,7 @@ endif()
 set(TEXTURE_SOURCES
   src/Texture.cpp
   src/TextureFactory.cpp
-  src/TextureDevice.cpp
+  src/TextureModule.cpp
   src/TextureResource.cpp
   src/TextureSerialize.cpp
   src/TextureModuleInit.cpp
@@ -102,8 +93,8 @@ endif()
 set(TEXTURE_HEADERS
   include/te/texture/Texture.h
   include/te/texture/TextureAssetDesc.h
-  include/te/texture/TextureDevice.h
   include/te/texture/TextureFactory.h
+  include/te/texture/TextureModule.h
   include/te/texture/TextureModuleInit.h
   include/te/texture/TextureResource.h
   include/te/texture/TextureSerialize.h
@@ -122,7 +113,7 @@ target_include_directories(te_texture
   PRIVATE ${stb_SOURCE_DIR}
 )
 target_link_libraries(te_texture
-  PUBLIC ${RHI_TARGET} ${RENDERCORE_TARGET} ${RES_TARGET} ${DEVICERESOURCE_TARGET}
+  PUBLIC ${RENDERCORE_TARGET} ${RES_TARGET}
   PRIVATE ${CORE_TARGET} stb
 )
 if(TENENGINE_USE_LIBPNG)
@@ -153,10 +144,6 @@ source_group("Header Files\\Import" FILES
   include/te/texture/import/StbImageImporter.h
 )
 set_target_properties(te_texture PROPERTIES PUBLIC_HEADER "${TEXTURE_HEADERS}")
-
-if(DEFINED TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR)
-  target_include_directories(te_texture PRIVATE "${TENENGINE_030_DEVICE_RESOURCE_MANAGER_DIR}/include")
-endif()
 
 # 作为上游被引用时不加入测试
 if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)

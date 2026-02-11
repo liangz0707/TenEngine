@@ -57,6 +57,7 @@ endif()
 option(TE_RHI_D3D12 "Enable D3D12 backend (HLSL->DXIL via DXC)" OFF)
 
 set(TE_SHADER_SOURCES
+  src/ShaderCollection.cpp
   src/ShaderModuleInit.cpp
   src/ShaderResource.cpp
   src/shader/compiler_impl.cpp
@@ -79,6 +80,7 @@ set(TE_SHADER_HEADERS
   include/te/shader/handle.hpp
   include/te/shader/hot_reload.hpp
   include/te/shader/ShaderAssetDesc.h
+  include/te/shader/ShaderCollection.h
   include/te/shader/ShaderModuleInit.h
   include/te/shader/ShaderResource.h
   include/te/shader/types.hpp

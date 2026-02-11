@@ -23,14 +23,6 @@ struct LevelHandle {
     bool operator!=(LevelHandle const& o) const { return value != o.value; }
 };
 
-/** One renderable item for Pipeline: world matrix + model/mesh/material refs. */
-struct RenderableItem {
-    te::core::Matrix4 worldMatrix;
-    void* modelResource = nullptr;  // IModelResource*; 029 owns type
-    uint32_t submeshIndex = 0;
-    RenderableItem() = default;
-};
-
 }  // namespace world
 }  // namespace te
 

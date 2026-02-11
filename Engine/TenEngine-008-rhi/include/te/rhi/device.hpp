@@ -42,9 +42,10 @@ struct IDevice {
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc) = 0;
   /** Create PSO with custom descriptor set layout (set 0). When null, uses device default layout. */
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) = 0;
-  /** Create PSO for a specific render pass and subpass. When pass is null, uses default single-subpass render pass and subpass 0. */
+  /** Create PSO for a specific render pass and subpass. When pass is null, uses default single-subpass render pass and subpass 0. When layoutSet1 is non-null, pipeline layout has two descriptor sets (set 0 = layout, set 1 = layoutSet1, e.g. for skin). */
   virtual IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
-                                  IRenderPass* pass, uint32_t subpassIndex) = 0;
+                                  IRenderPass* pass, uint32_t subpassIndex,
+                                  IDescriptorSetLayout* layoutSet1 = nullptr) = 0;
   virtual IRenderPass* CreateRenderPass(RenderPassDesc const& desc) = 0;
   virtual void DestroyRenderPass(IRenderPass* pass) = 0;
   virtual IPSO* CreateComputePSO(ComputePSODesc const& desc) = 0;

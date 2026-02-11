@@ -7,7 +7,6 @@
 
 #include <te/texture/TextureAssetDesc.h>
 #include <te/rendercore/resource_desc.hpp>
-#include <te/rhi/resources.hpp>
 #include <te/core/alloc.h>
 #include <cstdint>
 #include <cstddef>
@@ -28,7 +27,7 @@ struct CoreAllocDeleter {
 
 /**
  * Internal texture data structure.
- * Stores pixel data, format/size, and optional RHI texture handle.
+ * Stores pixel data and format/size only (CPU-only; no device texture).
  */
 struct TextureData {
   std::unique_ptr<uint8_t[], CoreAllocDeleter> pixelData;
@@ -40,9 +39,6 @@ struct TextureData {
   uint32_t depth = 1;
   uint32_t mipLevels = 1;
   bool isHDR = false;
-
-  /** GPU texture created by EnsureDeviceResources; not owned by 030 after creation. */
-  rhi::ITexture* deviceTexture = nullptr;
 
   uint32_t refCount = 1;
 

@@ -22,8 +22,7 @@ TextureHandle CreateTexture(TextureAssetDesc const* desc);
 
 /**
  * Release texture handle and free associated memory.
- * Does not destroy GPU texture; callers must call EnsureDeviceResources cleanup
- * or TextureResource::Release before releasing the handle.
+ * Frees CPU pixel data only (CPU-only module).
  *
  * @param h Texture handle to release
  */

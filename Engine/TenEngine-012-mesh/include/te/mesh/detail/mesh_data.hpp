@@ -7,7 +7,6 @@
 
 #include <te/mesh/Mesh.h>
 #include <te/mesh/MeshAssetDesc.h>
-#include <te/rhi/resources.hpp>
 #include <te/core/alloc.h>
 #include <te/core/math.h>
 #include <vector>
@@ -21,7 +20,7 @@ namespace detail {
 
 /**
  * Internal mesh data structure.
- * Stores all mesh data including vertices, indices, submeshes, LOD, and GPU resources.
+ * Stores all mesh data: vertices, indices, submeshes, LOD (CPU-only; no device buffers).
  */
 struct MeshData {
   // Custom deleter for te::core::Alloc memory
@@ -51,10 +50,6 @@ struct MeshData {
   
   // Skinning data (optional)
   std::unique_ptr<SkinningData> skinningData;
-  
-  // GPU resources (created by EnsureDeviceResources)
-  rhi::IBuffer* deviceVertexBuffer = nullptr;
-  rhi::IBuffer* deviceIndexBuffer = nullptr;
   
   // Reference count (for resource management)
   uint32_t refCount = 1;

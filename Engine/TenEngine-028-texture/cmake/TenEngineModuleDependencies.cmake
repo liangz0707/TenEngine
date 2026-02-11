@@ -6,7 +6,7 @@ set(TENENGINE_003_APPLICATION_DEPS "001-core")
 set(TENENGINE_008_RHI_DEPS "001-core")
 set(TENENGINE_009_RENDERCORE_DEPS "001-core" "008-rhi")
 set(TENENGINE_013_RESOURCE_DEPS "001-core" "002-object")
-set(TENENGINE_028_TEXTURE_DEPS "001-core" "008-rhi" "009-rendercore" "013-resource" "030-device-resource-manager")
+set(TENENGINE_028_TEXTURE_DEPS "001-core" "002-object" "009-rendercore" "013-resource")
 set(TENENGINE_030_DEVICE_RESOURCE_MANAGER_DEPS "001-core" "008-rhi")
 
 function(tenengine_module_id_to_target mod_id out_var)

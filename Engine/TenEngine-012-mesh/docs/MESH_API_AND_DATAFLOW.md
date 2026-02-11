@@ -74,48 +74,11 @@
   3. 保存 `.mesh` 文件（AssetDesc），通过 002-Object 序列化
   4. 保存 `.meshdata` 文件（顶点/索引数据）
 
-### 1.5 GPU 资源创建接口
+### 1.5 EnsureDeviceResources（空实现）
 
-#### EnsureDeviceResources（同步创建）
-- **头文件**: `te/mesh/MeshDevice.h`
-- **函数签名**: `bool EnsureDeviceResources(MeshHandle h, rhi::IDevice* device)`
-- **说明**: 同步创建 GPU 顶点和索引缓冲
-- **数据流**:
-  1. 检查是否已创建
-  2. 创建顶点缓冲（通过 030-DeviceResourceManager::CreateDeviceBuffer）
-  3. 创建索引缓冲（通过 030-DeviceResourceManager::CreateDeviceBuffer）
-  4. 返回成功/失败
-
-#### EnsureDeviceResourcesAsync（异步创建）
-- **头文件**: `te/mesh/MeshDevice.h`
-- **函数签名**: `void EnsureDeviceResourcesAsync(MeshHandle h, rhi::IDevice* device, void (*on_done)(void*), void* user_data)`
-- **说明**: 异步创建 GPU 顶点和索引缓冲
-- **数据流**:
-  1. 检查是否已创建
-  2. 异步创建顶点缓冲（通过 030-DeviceResourceManager::CreateDeviceBufferAsync）
-  3. 顶点缓冲创建完成后，异步创建索引缓冲
-  4. 索引缓冲创建完成后，调用完成回调
-
-#### MeshResource::EnsureDeviceResources（同步）
-- **头文件**: `te/mesh/MeshResource.h`
-- **类**: `MeshResource`
-- **函数签名**: `void EnsureDeviceResources() override`
-- **说明**: 同步创建 GPU 资源（内部调用 MeshDevice::EnsureDeviceResources）
-
-#### MeshResource::EnsureDeviceResourcesAsync（异步）
-- **头文件**: `te/mesh/MeshResource.h`
-- **类**: `MeshResource`
-- **函数签名**: `void EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) override`
-- **说明**: 异步创建 GPU 资源（内部调用 MeshDevice::EnsureDeviceResourcesAsync）
+- **MeshResource** 仅持 CPU 数据（MeshHandle）。`EnsureDeviceResources` / `EnsureDeviceResourcesAsync` 为实现 IResource 而保留，当前为空实现（CPU-only，不创建设备缓冲）。
 
 ### 1.6 查询接口
-
-#### GetVertexBufferHandle / GetIndexBufferHandle
-- **头文件**: `te/mesh/MeshDevice.h`
-- **函数签名**: 
-  - `rhi::IBuffer* GetVertexBufferHandle(MeshHandle h)`
-  - `rhi::IBuffer* GetIndexBufferHandle(MeshHandle h)`
-- **说明**: 获取 GPU 缓冲句柄（EnsureDeviceResources 后可用）
 
 #### GetSubmeshCount / GetSubmesh
 - **头文件**: `te/mesh/Mesh.h`
@@ -132,6 +95,12 @@
 #### GetSkinningData
 - **头文件**: `te/mesh/Mesh.h`
 - **函数签名**: `SkinningData const* GetSkinningData(MeshHandle h)`
+
+### 1.7 内置几何体（BuiltinMeshes）
+
+- **头文件**: `te/mesh/BuiltinMeshes.h`
+- **说明**: 与 MeshResource 同级；返回 `MeshResource const*`（内部缓存，调用方勿 delete）。
+- **接口**: GetFullscreenQuadMesh、GetSphereMesh、GetHemisphereMesh、GetPlaneMesh、GetQuadMesh、GetTriangleMesh、GetCubeMesh、GetConeMesh。
 
 ## 2. 数据流图
 
@@ -196,48 +165,7 @@ flowchart TD
     Cache --> End[返回 MeshResource]
 ```
 
-### 2.4 GPU 资源创建流程（同步）
-
-```mermaid
-flowchart TD
-    Start[MeshHandle<br/>内存数据] --> Check{已创建?}
-    Check -->|是| End1[直接返回]
-    Check -->|否| CreateVB[CreateDeviceBuffer<br/>创建顶点缓冲<br/>030-DeviceResourceManager]
-    
-    CreateVB --> SuccessVB{成功?}
-    SuccessVB -->|否| Fail1[返回失败]
-    SuccessVB -->|是| CreateIB[CreateDeviceBuffer<br/>创建索引缓冲<br/>030-DeviceResourceManager]
-    
-    CreateIB --> SuccessIB{成功?}
-    SuccessIB -->|否| Cleanup[清理顶点缓冲]
-    SuccessIB -->|是| End2[返回成功<br/>GPU 资源就绪]
-    Cleanup --> Fail2[返回失败]
-```
-
-### 2.5 GPU 资源创建流程（异步）
-
-```mermaid
-flowchart TD
-    Start[MeshHandle<br/>内存数据] --> Check{已创建?}
-    Check -->|是| Callback1[立即调用回调]
-    Check -->|否| CreateVBAsync[CreateDeviceBufferAsync<br/>异步创建顶点缓冲]
-    
-    CreateVBAsync --> CallbackVB[顶点缓冲回调]
-    CallbackVB --> SuccessVB{成功?}
-    SuccessVB -->|否| CallbackFail[调用失败回调]
-    SuccessVB -->|是| CreateIBAsync[CreateDeviceBufferAsync<br/>异步创建索引缓冲]
-    
-    CreateIBAsync --> CallbackIB[索引缓冲回调]
-    CallbackIB --> SuccessIB{成功?}
-    SuccessIB -->|否| Cleanup[清理顶点缓冲]
-    SuccessIB -->|是| CallbackSuccess[调用成功回调]
-    
-    Cleanup --> CallbackFail
-    CallbackSuccess --> End[GPU 资源就绪]
-    CallbackFail --> End
-```
-
-### 2.6 保存流程
+### 2.4 保存流程
 
 ```mermaid
 flowchart TD
@@ -256,13 +184,12 @@ flowchart TD
 
 ## 3. 数据形态转换
 
-### 3.1 资源三态
+### 3.1 资源三态（CPU-only）
 
 | 形态 | 名称 | 存储位置 | 数据内容 | 转换接口 |
 |------|------|----------|----------|----------|
 | **FResource** | 硬盘形态 | `.mesh` + `.meshdata` | MeshAssetDesc（序列化）+ 二进制数据 | Import / Save |
-| **RResource** | 内存形态 | MeshResource 对象 | MeshHandle + MeshAssetDesc | Load / CreateMesh |
-| **DResource** | GPU 形态 | GPU 显存 | IBuffer* (顶点/索引) | EnsureDeviceResources |
+| **RResource** | 内存形态 | MeshResource 对象 | MeshHandle（CPU 顶点/索引） | Load / CreateMesh |
 
 ### 3.2 数据流转换链
 
@@ -276,8 +203,6 @@ MeshAssetDesc (内存) + 原始数据
 MeshAssetDesc (内存) + 数据指针
     ↓ CreateMesh
 MeshHandle (内存，包含复制的数据)
-    ↓ EnsureDeviceResources
-GPU 缓冲 (IBuffer*)
 ```
 
 ## 4. 关键数据结构
@@ -307,7 +232,7 @@ struct MeshAssetDesc {
   - 子网格列表
   - LOD 级别列表
   - 蒙皮数据（可选）
-  - GPU 缓冲句柄（IBuffer*）
+  - CPU-only：无设备缓冲
 
 ## 5. 文件格式
 
@@ -329,14 +254,12 @@ struct MeshAssetDesc {
 
 ### 6.1 上游依赖
 - **001-Core**: 内存分配（Alloc/Free）、文件 I/O
-- **002-Object**: 类型注册、序列化/反序列化
-- **008-RHI**: GPU 设备、缓冲创建接口
+- **002-Object**: 类型注册、序列化/反序列化（若使用）
 - **009-RenderCore**: 顶点格式、索引格式定义
 - **013-Resource**: 资源管理、加载/保存流程
-- **030-DeviceResourceManager**: GPU 资源创建（同步/异步）
 
 ### 6.2 下游使用
-- **020-Pipeline**: 渲染时使用 MeshHandle 和 GPU 缓冲
+- **020-Pipeline**: 使用 MeshHandle（CPU 数据）；设备缓冲由其他模块负责（若有）
 - **023-Terrain**: 地形网格数据
 - **015-Animation**: 蒙皮数据对接
 - **013-Resource**: 通过 MeshResourceLoader 创建资源
@@ -368,24 +291,10 @@ LoadRequestId id = manager->RequestLoadAsync(
   nullptr);
 ```
 
-### 7.3 创建 GPU 资源
-```cpp
-// 同步创建
-mesh->SetDevice(device);
-mesh->EnsureDeviceResources();
-rhi::IBuffer* vb = mesh->GetDeviceVertexBuffer();
-rhi::IBuffer* ib = mesh->GetDeviceIndexBuffer();
-
-// 异步创建
-mesh->EnsureDeviceResourcesAsync(
-  [](void* user_data) {
-    // GPU 资源创建完成
-  },
-  nullptr);
-```
-
-### 7.4 保存资源
+### 7.3 保存资源
 ```cpp
 mesh->Save("output.mesh", manager);
 // 保存 output.mesh 和 output.meshdata
 ```
+
+CPU-only：本模块不提供 GetDeviceVertexBuffer/GetDeviceIndexBuffer；设备缓冲由下游在独立模块中创建。

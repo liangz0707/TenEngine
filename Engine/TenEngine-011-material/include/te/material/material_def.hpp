@@ -1,4 +1,4 @@
-// 011-Material IMaterialSystem: Load, Get*, Set*, CreateInstance, ReleaseInstance, GetVariantKey, BindToPSO, SubmitToPipeline
+// 011-Material IMaterialSystem: Load, Get*, Set*, CreateInstance, ReleaseInstance, GetVariantKey, SubmitToPipeline
 #ifndef TE_MATERIAL_MATERIAL_DEF_HPP
 #define TE_MATERIAL_MATERIAL_DEF_HPP
 
@@ -15,9 +15,6 @@ struct VariantKey;
 namespace rendercore {
 struct UniformMember;
 class IUniformLayout;
-}
-namespace rhi {
-class ICommandList;
 }
 namespace material {
 
@@ -41,7 +38,6 @@ public:
   virtual void ReleaseInstance(MaterialInstanceHandle inst) = 0;
 
   virtual te::shader::VariantKey GetVariantKey(MaterialHandle h) = 0;
-  virtual void BindToPSO(MaterialInstanceHandle inst, te::rhi::ICommandList* cmd, uint32_t firstSet) = 0;
   virtual void SubmitToPipeline(MaterialInstanceHandle inst, void* pipelineContext) = 0;
 };
 

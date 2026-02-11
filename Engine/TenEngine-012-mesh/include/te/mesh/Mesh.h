@@ -141,14 +141,14 @@ te::core::AABB GetMeshAABB(MeshHandle h);
 te::core::AABB GetSubmeshAABB(MeshHandle h, uint32_t submeshIndex);
 
 /**
- * Get vertex stride in bytes for the mesh (for RHI SetVertexBuffer).
+ * Get vertex stride in bytes for the mesh.
  * @param h Mesh handle
  * @return Vertex stride, or 32 if not set
  */
 uint32_t GetVertexStride(MeshHandle h);
 
 /**
- * Get index format for RHI SetIndexBuffer: 0 = 16bit, 1 = 32bit.
+ * Get index format: 0 = 16bit, 1 = 32bit.
  * @param h Mesh handle
  * @return 0 for UInt16, 1 for UInt32
  */

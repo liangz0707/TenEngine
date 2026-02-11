@@ -9,27 +9,25 @@
 #include <te/pipeline/detail/PipelineImpl.h>
 #include <te/pipeline/detail/RenderableCollector.h>
 #include <te/pipeline/detail/FrameGraphResources.h>
-#include <te/pipeline/detail/MaterialRuntime.h>
 #include <te/pipelinecore/FrameGraph.h>
 #include <te/pipelinecore/LogicalPipeline.h>
 #include <te/pipelinecore/LogicalCommandBuffer.h>
 #include <te/pipelinecore/RenderItem.h>
 #include <te/rendercore/uniform_buffer.hpp>
+#include <te/rendercore/IRenderElement.hpp>
+#include <te/rendercore/IRenderMesh.hpp>
 #include <te/material/MaterialResource.h>
 #include <te/resource/Resource.h>
 #include <te/resource/ResourceManager.h>
 #include <te/rhi/device.hpp>
 #include <te/rhi/command_list.hpp>
+#include <te/rhi/descriptor_set.hpp>
 #include <te/rhi/queue.hpp>
 #include <te/rhi/sync.hpp>
 #include <te/rhi/swapchain.hpp>
 #include <te/scene/SceneTypes.h>
 #include <te/world/WorldManager.h>
-#include <te/mesh/Mesh.h>
-#include <te/mesh/MeshResource.h>
-#include <te/mesh/MeshDevice.h>
 #include <te/pipeline/BuiltinMaterials.h>
-#include <te/pipeline/BuiltinMeshes.h>
 #include <te/pipelinecore/LogicalCommandBuffer.h>
 #include <te/rendercore/types.hpp>
 #include <condition_variable>
@@ -110,6 +108,8 @@ class RenderPipelineImpl : public IRenderPipeline {
   ~RenderPipelineImpl() override {
     te::rhi::IDevice* rhiDevice = static_cast<te::rhi::IDevice*>(device_);
     if (rhiDevice) {
+      if (skinDescriptorSet_) { rhiDevice->DestroyDescriptorSet(skinDescriptorSet_); skinDescriptorSet_ = nullptr; }
+      if (skinSetLayout_) { rhiDevice->DestroyDescriptorSetLayout(skinSetLayout_); skinSetLayout_ = nullptr; }
       detail::DestroyFrameGraphPersistentCache(&persistentCache_, rhiDevice);
       for (te::rhi::IFence* f : slotFences_)
         if (f) rhiDevice->DestroyFence(f);
@@ -182,15 +182,9 @@ class RenderPipelineImpl : public IRenderPipeline {
       if (sceneRef.IsValid()) {
         CollectRenderablesToRenderItemList(sceneRef,
             static_cast<te::resource::IResourceManager*>(resMgr), itemList, ctxCopy.frustum,
-            static_cast<float const*>(ctxCopy.camera));
+            static_cast<float const*>(ctxCopy.camera),
+            static_cast<te::rhi::IDevice*>(dev));
         CollectLightsToLightItemList(sceneRef, lightItemList);
-      }
-      te::resource::IResourceManager* rm = static_cast<te::resource::IResourceManager*>(resMgr);
-      for (size_t i = 0; rm && i < itemList->Size(); ++i) {
-        pipelinecore::RenderItem const* r = itemList->At(i);
-        if (!r || !r->mesh) continue;
-        te::mesh::MeshResource const* mesh012 = reinterpret_cast<te::mesh::MeshResource const*>(r->mesh);
-        if (mesh012) rm->RequestStreaming(mesh012->GetResourceId(), 0);
       }
 
       // 阶段 B：投递到 Device 线程
@@ -212,16 +206,26 @@ class RenderPipelineImpl : public IRenderPipeline {
           }
         }
         te::rhi::IRenderPass* renderPass = resourceSet.renderPass;
-        // Mesh/Material Ensure 由 019 PrepareRenderResources 统一完成；多 subpass 时传入 renderPass 与 subpassCount
-        pipelinecore::PrepareRenderResources(itemList, rhiDevice, renderPass, subpassCount);
+        if (!skinSetLayout_) {
+          te::rhi::DescriptorSetLayoutDesc layoutDesc = {};
+          layoutDesc.bindingCount = 1;
+          layoutDesc.bindings[0].binding = 0;
+          layoutDesc.bindings[0].descriptorType = static_cast<std::uint32_t>(te::rhi::DescriptorType::UniformBuffer);
+          layoutDesc.bindings[0].descriptorCount = 1;
+          skinSetLayout_ = rhiDevice->CreateDescriptorSetLayout(layoutDesc);
+          if (skinSetLayout_)
+            skinDescriptorSet_ = rhiDevice->AllocateDescriptorSet(skinSetLayout_);
+        }
+        pipelinecore::PrepareRenderResources(itemList, rhiDevice, renderPass, subpassCount, skinSetLayout_,
+                                             resourceManager_ ? static_cast<te::resource::IResourceManager*>(resourceManager_) : nullptr);
         pipelinecore::IRenderItemList* readyList = pipelinecore::CreateRenderItemList();
         if (readyList) {
           for (size_t i = 0; i < itemList->Size(); ++i) {
             pipelinecore::RenderItem const* r = itemList->At(i);
-            if (!r) continue;
-            te::resource::IResource const* meshRes = reinterpret_cast<te::resource::IResource const*>(r->mesh);
-            te::resource::IResource const* matRes = reinterpret_cast<te::resource::IResource const*>(r->material);
-            if (meshRes && matRes && meshRes->IsDeviceReady() && matRes->IsDeviceReady())
+            if (!r || !r->element) continue;
+            te::rendercore::IRenderMaterial const* mat = r->element->GetMaterial();
+            te::rendercore::IRenderMesh const* mesh = r->element->GetMesh();
+            if (mat && mat->IsDeviceReady() && mesh && mesh->GetVertexBuffer())
               readyList->Push(*r);
           }
         }
@@ -271,43 +275,6 @@ class RenderPipelineImpl : public IRenderPipeline {
                 if (pipeline->GetPassConfig(i, &passConfig)) {
                   if (passConfig.passKind == pipelinecore::PassKind::Scene)
                     ExecuteLogicalCommandBufferOnDeviceThread(cmd, logicalCB, slot, static_cast<uint32_t>(i));
-                  else if (passConfig.passKind == pipelinecore::PassKind::PostProcess) {
-                    pipelinecore::IMaterialHandle const* matHandle = passConfig.materialName
-                        ? GetPostProcessMaterial(passConfig.materialName) : nullptr;
-                    if (matHandle && passConfig.readResourceCount > 0u) {
-                      auto it = resourceSet.idToTexture.find(passConfig.readResourceIds[0]);
-                      te::rhi::ITexture* inputTex = (it != resourceSet.idToTexture.end()) ? it->second : nullptr;
-                      if (inputTex) {
-                        detail::MaterialRuntimeBindTexture(matHandle, 0, inputTex);
-                        detail::MaterialRuntimeCommit(matHandle, rhiDevice, slot);
-                        te::rhi::IPSO* pso = detail::MaterialRuntimeGetPSO(matHandle, static_cast<uint32_t>(i));
-                        if (pso) cmd->SetGraphicsPSO(pso);
-                        te::rhi::IDescriptorSet* ds = detail::MaterialRuntimeGetDescriptorSet(matHandle);
-                        if (ds) cmd->BindDescriptorSet(ds);
-                        pipelinecore::IMeshHandle const* meshHandle = nullptr;
-                        if (passConfig.meshName && std::strcmp(passConfig.meshName, "fullscreen_quad") == 0)
-                          meshHandle = GetFullscreenQuadMesh();
-                        if (meshHandle) {
-                          te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(meshHandle);
-                          te::mesh::MeshHandle mh = meshRes->GetMeshHandle();
-                          if (mh) {
-                            te::mesh::SubmeshDesc const* sub = te::mesh::GetSubmesh(mh, 0);
-                            if (sub) {
-                              te::rhi::IBuffer* vb = te::mesh::GetVertexBufferHandle(mh);
-                              te::rhi::IBuffer* ib = te::mesh::GetIndexBufferHandle(mh);
-                              if (vb && ib) {
-                                uint32_t vertexStride = te::mesh::GetVertexStride(mh);
-                                uint32_t indexFormat = te::mesh::GetIndexFormat(mh);
-                                cmd->SetVertexBuffer(0, vb, 0, vertexStride);
-                                cmd->SetIndexBuffer(ib, 0, indexFormat);
-                                cmd->DrawIndexed(sub->count, 1, sub->offset, 0, 0);
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
                 }
                 graphCapture->ExecutePass(i, passCtx, cmd);
                 cmd->EndOcclusionQuery(0);
@@ -357,7 +324,7 @@ class RenderPipelineImpl : public IRenderPipeline {
     });
   }
 
-  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd（viewport 由调用方设置）；不 End/Submit。每条 Draw 前按 material 先 UpdateDescriptorSetForFrame 再 SetGraphicsPSO(subpassIndex)、BindDescriptorSet。
+  /// 将 logicalCB 的 Draw 录制到已 Begin 的 cmd；仅使用 element->GetMaterial/GetMesh。
   void ExecuteLogicalCommandBufferOnDeviceThread(te::rhi::ICommandList* cmd,
                                                  pipelinecore::ILogicalCommandBuffer* logicalCB,
                                                  uint32_t frameSlot,
@@ -368,29 +335,50 @@ class RenderPipelineImpl : public IRenderPipeline {
     for (size_t i = 0; i < drawCount; ++i) {
       pipelinecore::LogicalDraw d;
       logicalCB->GetDraw(i, &d);
-      if (d.material && rhiDevice) {
-        te::material::MaterialResource* matRes =
-            const_cast<te::material::MaterialResource*>(reinterpret_cast<te::material::MaterialResource const*>(d.material));
-        matRes->UpdateDescriptorSetForFrame(rhiDevice, frameSlot);
-        te::rhi::IPSO* pso = matRes->GetGraphicsPSO(subpassIndex);
+      if (!d.element || !rhiDevice) continue;
+      te::rendercore::IRenderMaterial* mat = d.element->GetMaterial();
+      if (mat) {
+        mat->UpdateDeviceResource(rhiDevice, frameSlot);
+        te::rhi::IPSO* pso = mat->GetGraphicsPSO(subpassIndex);
         if (pso) cmd->SetGraphicsPSO(pso);
-        te::rhi::IDescriptorSet* ds = matRes->GetDescriptorSet();
-        if (ds) cmd->BindDescriptorSet(ds);
+        te::rhi::IDescriptorSet* ds = mat->GetDescriptorSet();
+        if (ds) cmd->BindDescriptorSet(0u, ds);
       }
-      if (!d.mesh) continue;
-      te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(d.mesh);
-      te::mesh::MeshHandle mh = meshRes->GetMeshHandle();
-      if (!mh) continue;
-      te::mesh::SubmeshDesc const* sub = te::mesh::GetSubmesh(mh, d.submeshIndex);
-      if (!sub) continue;
-      te::rhi::IBuffer* vb = te::mesh::GetVertexBufferHandle(mh);
-      te::rhi::IBuffer* ib = te::mesh::GetIndexBufferHandle(mh);
+      if (d.skinMatrixBuffer && rhiDevice) {
+        if (!skinSetLayout_ || !skinDescriptorSet_) {
+          te::rhi::DescriptorSetLayoutDesc layoutDesc = {};
+          layoutDesc.bindingCount = 1;
+          layoutDesc.bindings[0].binding = 0;
+          layoutDesc.bindings[0].descriptorType = static_cast<std::uint32_t>(te::rhi::DescriptorType::UniformBuffer);
+          layoutDesc.bindings[0].descriptorCount = 1;
+          skinSetLayout_ = rhiDevice->CreateDescriptorSetLayout(layoutDesc);
+          if (skinSetLayout_)
+            skinDescriptorSet_ = rhiDevice->AllocateDescriptorSet(skinSetLayout_);
+        }
+        if (skinDescriptorSet_) {
+          te::rhi::DescriptorWrite w = {};
+          w.dstSet = skinDescriptorSet_;
+          w.binding = 0;
+          w.type = static_cast<std::uint32_t>(te::rhi::DescriptorType::UniformBuffer);
+          w.buffer = static_cast<te::rhi::IBuffer*>(d.skinMatrixBuffer);
+          w.bufferOffset = d.skinMatrixOffset;
+          w.texture = nullptr;
+          w.sampler = nullptr;
+          rhiDevice->UpdateDescriptorSet(skinDescriptorSet_, &w, 1);
+          cmd->BindDescriptorSet(1u, skinDescriptorSet_);
+        }
+      }
+      te::rendercore::IRenderMesh const* reMesh = d.element->GetMesh();
+      if (!reMesh) continue;
+      te::rendercore::SubmeshRange range;
+      if (!reMesh->GetSubmesh(d.submeshIndex, &range)) continue;
+      te::rhi::IBuffer* vb = reMesh->GetVertexBuffer();
+      te::rhi::IBuffer* ib = reMesh->GetIndexBuffer();
       if (!vb || !ib) continue;
-      uint32_t vertexStride = te::mesh::GetVertexStride(mh);
-      uint32_t indexFormat = te::mesh::GetIndexFormat(mh);
-      cmd->SetVertexBuffer(0, vb, 0, vertexStride);
+      uint32_t indexFormat = 1u;  // 0=uint16, 1=uint32; 009 IRenderMesh does not expose IndexType getter
+      cmd->SetVertexBuffer(0, vb, 0, 0);
       cmd->SetIndexBuffer(ib, 0, indexFormat);
-      cmd->DrawIndexed(sub->count, d.instanceCount, sub->offset, 0, d.firstInstance);
+      cmd->DrawIndexed(range.indexCount, d.instanceCount, range.indexOffset, 0, d.firstInstance);
     }
   }
 
@@ -430,6 +418,8 @@ class RenderPipelineImpl : public IRenderPipeline {
   detail::FrameGraphPersistentCache persistentCache_;
   std::unique_ptr<SingleThreadQueue> renderQueue_;
   std::unique_ptr<SingleThreadQueue> deviceQueue_;
+  te::rhi::IDescriptorSetLayout* skinSetLayout_ = nullptr;
+  te::rhi::IDescriptorSet* skinDescriptorSet_ = nullptr;
 };
 
 IRenderPipeline* CreateRenderPipeline(RenderPipelineDesc const& desc) {

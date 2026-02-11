@@ -23,7 +23,7 @@ MeshHandle CreateMesh(MeshAssetDesc const* desc);
 /**
  * Release mesh handle.
  * Frees all memory associated with the mesh, including vertex/index data.
- * Does NOT release GPU resources (those are managed by MeshResource).
+ * Does not release any resources outside this module.
  * 
  * @param h Mesh handle to release
  */

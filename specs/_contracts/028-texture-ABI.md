@@ -18,14 +18,22 @@
 | 028-Texture | te::texture | CreateTexture(TextureAssetDesc const*) | 从资产描述创建句柄（仅内存） | te/texture/TextureFactory.h |
 | 028-Texture | te::texture | ReleaseTexture(TextureHandle) | 释放句柄及关联内存 | te/texture/TextureFactory.h |
 
-### 设备资源（GPU 纹理）
+### 设备资源（GPU 纹理）与 TextureModule
 
 | 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
 |--------|----------|------|------|--------|
-| 028-Texture | te::texture | EnsureDeviceResources(TextureHandle, IDevice*) | 同步创建 GPU 纹理（经 030） | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | EnsureDeviceResourcesAsync(...) | 异步创建 GPU 纹理 | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | GetTextureHandle(TextureHandle) | 取 RHI 纹理句柄 | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | DestroyDeviceTexture(TextureHandle, IDevice*) | 销毁 GPU 纹理 | te/texture/TextureDevice.h |
+| 028-Texture | te::texture | IRenderTexture | 继承 rhi::ITexture；GetRHITexture()、GetResourceId() | te/texture/IRenderTexture.h |
+| 028-Texture | te::texture | RenderTextureImpl | IRenderTexture 实现类 | te/texture/IRenderTexture.h |
+| 028-Texture | te::texture | TextureModule::GetInstance() | 全局单例 | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::GetOrCreate(ResourceId, IResourceManager*, IDevice*) | 按 id 获取或创建；内部 FlushPendingResources | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::RegisterPendingTexture(TextureHandle, ResourceId) | 注册待创建贴图 | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::FlushPendingResources(IDevice*) | 批量创建 GPU 资源并填入缓存 | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::GetCached(ResourceId) | 按 id 查找缓存 | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::ReleaseTexture(ResourceId) | 从缓存移除并销毁 GPU 纹理 | te/texture/TextureModule.h |
+| 028-Texture | te::texture | EnsureDeviceResources(TextureHandle, IDevice*) | 保留签名；实际创建由 TextureModule 完成 | te/texture/TextureDevice.h |
+| 028-Texture | te::texture | EnsureDeviceResourcesAsync(...) | 异步占位 | te/texture/TextureDevice.h |
+| 028-Texture | te::texture | GetTextureHandle(TextureHandle) | 保留签名；返回 nullptr，RHI 句柄经 TextureResource::GetDeviceTexture 或 TextureModule::GetCached(id)->GetRHITexture() | te/texture/TextureDevice.h |
+| 028-Texture | te::texture | DestroyDeviceTexture(TextureHandle, IDevice*) | 保留签名；实际释放经 TextureModule::ReleaseTexture(id) | te/texture/TextureDevice.h |
 
 ### 资产描述与序列化
 
@@ -39,7 +47,7 @@
 
 | 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
 |--------|----------|------|------|--------|
-| 028-Texture | te::texture | TextureResource | 实现 ITextureResource；Load/Save/Import、EnsureDeviceResources | te/texture/TextureResource.h |
+| 028-Texture | te::texture | TextureResource | 实现 ITextureResource；Load/Save/Import 后 RegisterPendingTexture；EnsureDeviceResources 经 TextureModule::GetOrCreate；SetResourceManager | te/texture/TextureResource.h |
 | 028-Texture | te::texture | InitializeTextureModule(IResourceManager*) | 注册 002 类型与 013 资源工厂 | te/texture/TextureModuleInit.h |
 
 ### 图像导入（import 子命名空间）

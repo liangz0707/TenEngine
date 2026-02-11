@@ -10,9 +10,6 @@ namespace shader {
 class IShaderCompiler;
 struct VariantKey;
 }
-namespace rhi {
-class ICommandList;
-}
 namespace material {
 
 class MaterialSystemImpl : public IMaterialSystem {
@@ -36,7 +33,6 @@ public:
   void ReleaseInstance(MaterialInstanceHandle inst) override;
 
   te::shader::VariantKey GetVariantKey(MaterialHandle h) override;
-  void BindToPSO(MaterialInstanceHandle inst, te::rhi::ICommandList* cmd, uint32_t firstSet) override;
   void SubmitToPipeline(MaterialInstanceHandle inst, void* pipelineContext) override;
 
 private:

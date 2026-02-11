@@ -141,8 +141,7 @@ void ReleaseMesh(MeshHandle h) {
   data->vertexData.reset();
   data->indexData.reset();
   
-  // Note: GPU resources (deviceVertexBuffer, deviceIndexBuffer) should be
-  // destroyed by MeshResource or MeshDevice, not here.
+  // CPU-only: no device buffers to release.
   
   // Delete MeshData structure
   delete data;

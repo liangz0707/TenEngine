@@ -9,10 +9,6 @@
 
 #include <te/world/WorldTypes.h>
 #include <te/world/LevelAssetDesc.h>
-#include <te/world/LightComponent.h>
-#include <te/world/CameraComponent.h>
-#include <te/world/ReflectionProbeComponent.h>
-#include <te/world/DecalComponent.h>
 #include <te/scene/SceneTypes.h>
 #include <te/resource/ResourceId.h>
 #include <te/scene/SceneManager.h>
@@ -68,43 +64,6 @@ public:
 
     /** Traverse level (delegate to 004). */
     void Traverse(LevelHandle handle, std::function<void(te::scene::ISceneNode*)> const& callback) const;
-
-    /** Collect renderables: traverse scene, for each Entity with ModelComponent call callback with RenderableItem. */
-    void CollectRenderables(LevelHandle handle,
-                            std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
-
-    /**
-     * Collect renderables with optional resource resolution.
-     * When resourceManager is non-null, modelResourceId is resolved to IModelResource* and item.modelResource is set.
-     */
-    void CollectRenderables(LevelHandle handle,
-                            te::resource::IResourceManager* resourceManager,
-                            std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
-
-    /** Collect renderables by SceneRef (e.g. when caller only has SceneRef from GetCurrentLevelScene). */
-    void CollectRenderables(te::scene::SceneRef sceneRef,
-                            std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
-
-    /** Collect renderables by SceneRef with optional resource resolution. */
-    void CollectRenderables(te::scene::SceneRef sceneRef,
-                            te::resource::IResourceManager* resourceManager,
-                            std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
-
-    /** Collect lights by SceneRef; for each Entity with LightComponent calls callback(node, lightComponent). */
-    void CollectLights(te::scene::SceneRef sceneRef,
-                       std::function<void(te::scene::ISceneNode*, LightComponent const&)> const& callback) const;
-
-    /** Collect cameras by SceneRef; for each Entity with CameraComponent calls callback(node, cameraComponent). */
-    void CollectCameras(te::scene::SceneRef sceneRef,
-                        std::function<void(te::scene::ISceneNode*, CameraComponent const&)> const& callback) const;
-
-    /** Collect reflection probes by SceneRef; for each Entity with ReflectionProbeComponent calls callback(node, comp). */
-    void CollectReflectionProbes(te::scene::SceneRef sceneRef,
-                                 std::function<void(te::scene::ISceneNode*, ReflectionProbeComponent const&)> const& callback) const;
-
-    /** Collect decals by SceneRef; for each Entity with DecalComponent calls callback(node, comp). */
-    void CollectDecals(te::scene::SceneRef sceneRef,
-                      std::function<void(te::scene::ISceneNode*, DecalComponent const&)> const& callback) const;
 
 private:
     WorldManager() = default;

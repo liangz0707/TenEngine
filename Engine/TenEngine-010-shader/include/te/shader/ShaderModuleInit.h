@@ -24,7 +24,7 @@ namespace shader {
 void InitializeShaderModule(resource::IResourceManager* manager);
 
 /**
- * Load all shaders from a manifest file.
+ * Load all shaders from a manifest file and fill the global ShaderCollection.
  * Each line is a path to a .shader file. If any load fails, stops and returns false.
  *
  * @param manager Resource manager

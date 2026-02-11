@@ -5,15 +5,11 @@
 #include <te/mesh/MeshResource.h>
 #include <te/mesh/MeshFactory.h>
 #include <te/mesh/MeshAssetDesc.h>
-#include <te/mesh/MeshDevice.h>
 #include <te/mesh/MeshImporters.h>
 #include <te/mesh/detail/mesh_data.hpp>
 #include <te/resource/Resource.h>
 #include <te/resource/Resource.inl>
 #include <te/resource/ResourceManager.h>
-#include <te/deviceresource/DeviceResourceManager.h>
-#include <te/rendercore/resource_desc.hpp>
-#include <te/rhi/resources.hpp>
 #include <te/resource/ResourceId.h>
 #include <te/core/alloc.h>
 #include <cstring>
@@ -37,7 +33,6 @@ MeshResource::MeshResource() {
 }
 
 MeshResource::~MeshResource() {
-  CleanupGPUResources();
   if (m_meshHandle) {
     ReleaseMesh(m_meshHandle);
     m_meshHandle = nullptr;
@@ -110,9 +105,7 @@ bool MeshResource::Load(char const* path, resource::IResourceManager* manager) {
   // CreateMesh copies the data, so we need to free the original buffer
   te::core::Free(dataFileBuffer);
   
-  // Call OnLoadComplete hook
   OnLoadComplete();
-  
   return true;
 }
 
@@ -302,119 +295,8 @@ bool MeshResource::Import(char const* sourcePath, resource::IResourceManager* ma
   return true;
 }
 
-void MeshResource::EnsureDeviceResources() {
-  if (!m_meshHandle || (m_deviceVertexBuffer && m_deviceIndexBuffer)) {
-    return;  // Already created or no mesh
-  }
-  
-  if (!m_device) {
-    return;  // No device set
-  }
-  
-  // Get data from mesh handle
-  detail::MeshData* data = static_cast<detail::MeshData*>(m_meshHandle);
-  
-  // Create vertex buffer
-  if (!m_deviceVertexBuffer && data->vertexDataSize > 0) {
-    rhi::BufferDesc rhiBufferDesc{};
-    rhiBufferDesc.size = data->vertexDataSize;
-    rhiBufferDesc.usage = static_cast<uint32_t>(rhi::BufferUsage::Vertex) | static_cast<uint32_t>(rhi::BufferUsage::CopyDst);
-    
-    m_deviceVertexBuffer = deviceresource::DeviceResourceManager::CreateDeviceBuffer(
-      data->vertexData.get(), data->vertexDataSize, rhiBufferDesc, m_device);
-    
-    if (m_deviceVertexBuffer) {
-      data->deviceVertexBuffer = m_deviceVertexBuffer;
-    }
-  }
-  
-  // Create index buffer
-  if (!m_deviceIndexBuffer && data->indexDataSize > 0) {
-    rhi::BufferDesc rhiBufferDesc{};
-    rhiBufferDesc.size = data->indexDataSize;
-    rhiBufferDesc.usage = static_cast<uint32_t>(rhi::BufferUsage::Index) | static_cast<uint32_t>(rhi::BufferUsage::CopyDst);
-    
-    m_deviceIndexBuffer = deviceresource::DeviceResourceManager::CreateDeviceBuffer(
-      data->indexData.get(), data->indexDataSize, rhiBufferDesc, m_device);
-    
-    if (m_deviceIndexBuffer) {
-      data->deviceIndexBuffer = m_deviceIndexBuffer;
-    }
-  }
-}
-
-namespace {
-  // Context for MeshResource async callback
-  struct MeshResourceAsyncContext {
-    MeshResource* resource;
-    void (*on_done)(void*);
-    void* user_data;
-  };
-}
-
-void MeshResource::EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) {
-  if (!m_meshHandle || (m_deviceVertexBuffer && m_deviceIndexBuffer)) {
-    // Already created or no mesh
-    if (on_done) {
-      on_done(user_data);
-    }
-    return;
-  }
-  
-  if (!m_device) {
-    // No device set
-    if (on_done) {
-      on_done(user_data);
-    }
-    return;
-  }
-
-  // Create callback context
-  MeshResourceAsyncContext* ctx = new MeshResourceAsyncContext();
-  if (!ctx) {
-    if (on_done) {
-      on_done(user_data);
-    }
-    return;
-  }
-  ctx->resource = this;
-  ctx->on_done = on_done;
-  ctx->user_data = user_data;
-
-  // Use MeshDevice async API with callback wrapper
-  mesh::EnsureDeviceResourcesAsync(m_meshHandle, m_device, 
-    [](void* user_data) {
-      MeshResourceAsyncContext* ctx = static_cast<MeshResourceAsyncContext*>(user_data);
-      if (!ctx || !ctx->resource) {
-        return;
-      }
-
-      // Update MeshResource state from MeshData
-      if (ctx->resource->m_meshHandle) {
-        detail::MeshData* data = static_cast<detail::MeshData*>(ctx->resource->m_meshHandle);
-        ctx->resource->m_deviceVertexBuffer = data->deviceVertexBuffer;
-        ctx->resource->m_deviceIndexBuffer = data->deviceIndexBuffer;
-      }
-
-      // Call user callback
-      if (ctx->on_done) {
-        ctx->on_done(ctx->user_data);
-      }
-
-      // Cleanup context
-      delete ctx;
-    },
-    ctx);
-}
-
-void MeshResource::OnLoadComplete() {
-  // Mesh-specific initialization after load
-  // For now, nothing to do
-}
-
-void MeshResource::OnPrepareSave() {
-  // Prepare save data
-  // For now, nothing to do
+bool MeshResource::IsDeviceReady() const {
+  return m_meshHandle != nullptr;
 }
 
 bool MeshResource::OnConvertSourceFile(char const* sourcePath, void** outData, std::size_t* outSize) {
@@ -464,15 +346,8 @@ size_t MeshResource::GetIndexDataSize() const {
   return data->indexDataSize;
 }
 
-void MeshResource::CleanupGPUResources() {
-  if (m_deviceVertexBuffer && m_device) {
-    deviceresource::DeviceResourceManager::DestroyDeviceBuffer(m_deviceVertexBuffer, m_device);
-    m_deviceVertexBuffer = nullptr;
-  }
-  if (m_deviceIndexBuffer && m_device) {
-    deviceresource::DeviceResourceManager::DestroyDeviceBuffer(m_deviceIndexBuffer, m_device);
-    m_deviceIndexBuffer = nullptr;
-  }
+void MeshResource::SetMeshHandle(MeshHandle handle) {
+  m_meshHandle = handle;
 }
 
 }  // namespace mesh

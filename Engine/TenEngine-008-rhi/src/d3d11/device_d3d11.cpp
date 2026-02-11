@@ -155,8 +155,18 @@ struct CommandListD3D11 final : ICommandList {
     PSOD3D11* d = pso ? static_cast<PSOD3D11*>(pso) : nullptr;
     deferredCtx->VSSetShader(d ? d->vs : nullptr, nullptr, 0);
     deferredCtx->PSSetShader(d ? d->ps : nullptr, nullptr, 0);
+    if (d) {
+      const float blendFactor[4] = { 0.f, 0.f, 0.f, 0.f };
+      deferredCtx->OMSetBlendState(d->blendState, blendFactor, 0xFFFFFFFFu);
+      deferredCtx->OMSetDepthStencilState(d->depthStencilState, 0);
+      deferredCtx->RSSetState(d->rasterizerState);
+    }
   }
   void BindDescriptorSet(IDescriptorSet* set) override {
+    BindDescriptorSet(0u, set);
+  }
+  void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) override {
+    if (setIndex != 0u) return;  /* D3D11 path only binds set 0 for now */
     if (!deferredCtx || !recording) return;
     if (!set) return;
     DescriptorSetD3D11* ds = static_cast<DescriptorSetD3D11*>(set);
@@ -278,10 +288,16 @@ struct PSOD3D11 final : IPSO {
   ID3D11VertexShader* vs = nullptr;
   ID3D11PixelShader* ps = nullptr;
   ID3D11ComputeShader* cs = nullptr;
+  ID3D11BlendState* blendState = nullptr;
+  ID3D11DepthStencilState* depthStencilState = nullptr;
+  ID3D11RasterizerState* rasterizerState = nullptr;
   ~PSOD3D11() override {
     if (vs) { vs->Release(); vs = nullptr; }
     if (ps) { ps->Release(); ps = nullptr; }
     if (cs) { cs->Release(); cs = nullptr; }
+    if (blendState) { blendState->Release(); blendState = nullptr; }
+    if (depthStencilState) { depthStencilState->Release(); depthStencilState = nullptr; }
+    if (rasterizerState) { rasterizerState->Release(); rasterizerState = nullptr; }
   }
 };
 
@@ -424,10 +440,12 @@ struct DeviceD3D11 final : IDevice {
     return CreateGraphicsPSO(desc, layout, nullptr, 0);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
-                          IRenderPass* pass, uint32_t subpassIndex) override {
+                          IRenderPass* pass, uint32_t subpassIndex,
+                          IDescriptorSetLayout* layoutSet1) override {
     (void)pass;
     (void)subpassIndex;
     (void)layout;
+    (void)layoutSet1;
     if (!device) return nullptr;
     if ((!desc.vertex_shader || desc.vertex_shader_size == 0) && (!desc.fragment_shader || desc.fragment_shader_size == 0))
       return nullptr;
@@ -436,6 +454,84 @@ struct DeviceD3D11 final : IDevice {
       device->CreateVertexShader(desc.vertex_shader, desc.vertex_shader_size, nullptr, &p->vs);
     if (desc.fragment_shader && desc.fragment_shader_size > 0)
       device->CreatePixelShader(desc.fragment_shader, desc.fragment_shader_size, nullptr, &p->ps);
+    if (desc.pipelineState) {
+      auto toD3D11Blend = [](BlendFactor f) {
+        switch (f) {
+          case BlendFactor::Zero: return D3D11_BLEND_ZERO;
+          case BlendFactor::One: return D3D11_BLEND_ONE;
+          case BlendFactor::SrcColor: return D3D11_BLEND_SRC_COLOR;
+          case BlendFactor::OneMinusSrcColor: return D3D11_BLEND_INV_SRC_COLOR;
+          case BlendFactor::DstColor: return D3D11_BLEND_DEST_COLOR;
+          case BlendFactor::OneMinusDstColor: return D3D11_BLEND_INV_DEST_COLOR;
+          case BlendFactor::SrcAlpha: return D3D11_BLEND_SRC_ALPHA;
+          case BlendFactor::OneMinusSrcAlpha: return D3D11_BLEND_INV_SRC_ALPHA;
+          case BlendFactor::DstAlpha: return D3D11_BLEND_DEST_ALPHA;
+          case BlendFactor::OneMinusDstAlpha: return D3D11_BLEND_INV_DEST_ALPHA;
+          default: return D3D11_BLEND_ONE;
+        }
+      };
+      auto toD3D11BlendOp = [](BlendOp o) {
+        switch (o) {
+          case BlendOp::Add: return D3D11_BLEND_OP_ADD;
+          case BlendOp::Subtract: return D3D11_BLEND_OP_SUBTRACT;
+          case BlendOp::ReverseSubtract: return D3D11_BLEND_OP_REVERSE_SUBTRACT;
+          case BlendOp::Min: return D3D11_BLEND_OP_MIN;
+          case BlendOp::Max: return D3D11_BLEND_OP_MAX;
+          default: return D3D11_BLEND_OP_ADD;
+        }
+      };
+      auto toD3D11Compare = [](CompareOp o) {
+        switch (o) {
+          case CompareOp::Never: return D3D11_COMPARISON_NEVER;
+          case CompareOp::Less: return D3D11_COMPARISON_LESS;
+          case CompareOp::Equal: return D3D11_COMPARISON_EQUAL;
+          case CompareOp::LessOrEqual: return D3D11_COMPARISON_LESS_EQUAL;
+          case CompareOp::Greater: return D3D11_COMPARISON_GREATER;
+          case CompareOp::NotEqual: return D3D11_COMPARISON_NOT_EQUAL;
+          case CompareOp::GreaterOrEqual: return D3D11_COMPARISON_GREATER_EQUAL;
+          case CompareOp::Always: return D3D11_COMPARISON_ALWAYS;
+          default: return D3D11_COMPARISON_LESS;
+        }
+      };
+      if (desc.pipelineState->blendAttachmentCount > 0) {
+        D3D11_BLEND_DESC bd = {};
+        bd.AlphaToCoverageEnable = FALSE;
+        bd.RenderTarget[0].BlendEnable = desc.pipelineState->blendAttachments[0].blendEnable ? TRUE : FALSE;
+        bd.RenderTarget[0].SrcBlend = toD3D11Blend(desc.pipelineState->blendAttachments[0].srcColorBlend);
+        bd.RenderTarget[0].DestBlend = toD3D11Blend(desc.pipelineState->blendAttachments[0].dstColorBlend);
+        bd.RenderTarget[0].BlendOp = toD3D11BlendOp(desc.pipelineState->blendAttachments[0].colorBlendOp);
+        bd.RenderTarget[0].SrcBlendAlpha = toD3D11Blend(desc.pipelineState->blendAttachments[0].srcAlphaBlend);
+        bd.RenderTarget[0].DestBlendAlpha = toD3D11Blend(desc.pipelineState->blendAttachments[0].dstAlphaBlend);
+        bd.RenderTarget[0].BlendOpAlpha = toD3D11BlendOp(desc.pipelineState->blendAttachments[0].alphaBlendOp);
+        bd.RenderTarget[0].RenderTargetWriteMask = desc.pipelineState->blendAttachments[0].colorWriteMask & 0xFu;
+        if (SUCCEEDED(device->CreateBlendState(&bd, &p->blendState))) { /* ok */ }
+      }
+      D3D11_DEPTH_STENCIL_DESC dsd = {};
+      dsd.DepthEnable = desc.pipelineState->depthStencil.depthTestEnable ? TRUE : FALSE;
+      dsd.DepthWriteMask = desc.pipelineState->depthStencil.depthWriteEnable ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+      dsd.DepthFunc = toD3D11Compare(desc.pipelineState->depthStencil.depthCompareOp);
+      dsd.StencilEnable = FALSE;
+      if (SUCCEEDED(device->CreateDepthStencilState(&dsd, &p->depthStencilState))) { /* ok */ }
+      D3D11_RASTERIZER_DESC rd = {};
+      rd.FillMode = D3D11_FILL_SOLID;
+      rd.CullMode = D3D11_CULL_NONE;
+      switch (desc.pipelineState->rasterization.cullMode) {
+        case CullMode::None: rd.CullMode = D3D11_CULL_NONE; break;
+        case CullMode::Front: rd.CullMode = D3D11_CULL_FRONT; break;
+        case CullMode::Back: rd.CullMode = D3D11_CULL_BACK; break;
+        case CullMode::FrontAndBack: rd.CullMode = D3D11_CULL_BACK; break;
+        default: rd.CullMode = D3D11_CULL_BACK; break;
+      }
+      rd.FrontCounterClockwise = (desc.pipelineState->rasterization.frontFace == FrontFace::CounterClockwise) ? TRUE : FALSE;
+      rd.DepthBias = 0;
+      rd.SlopeScaledDepthBias = 0.f;
+      rd.DepthBiasClamp = 0.f;
+      rd.DepthClipEnable = TRUE;
+      rd.ScissorEnable = FALSE;
+      rd.MultisampleEnable = FALSE;
+      rd.AntialiasedLineEnable = FALSE;
+      if (SUCCEEDED(device->CreateRasterizerState(&rd, &p->rasterizerState))) { /* ok */ }
+    }
     return p;
   }
   IPSO* CreateComputePSO(ComputePSODesc const& desc) override {

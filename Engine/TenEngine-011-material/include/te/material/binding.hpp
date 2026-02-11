@@ -1,4 +1,4 @@
-// 011-Material GetVariantKey, BindToPSO, SubmitToPipeline (IMaterialSystem members in material_def.hpp)
+// 011-Material GetVariantKey, SubmitToPipeline (IMaterialSystem members in material_def.hpp)
 #ifndef TE_MATERIAL_BINDING_HPP
 #define TE_MATERIAL_BINDING_HPP
 

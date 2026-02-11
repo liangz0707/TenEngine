@@ -10,8 +10,6 @@
 #include <te/resource/ResourceId.h>
 #include <te/texture/Texture.h>
 #include <te/texture/TextureAssetDesc.h>
-#include <te/rhi/resources.hpp>
-#include <te/rhi/device.hpp>
 #include <memory>
 #include <string>
 #include <cstddef>
@@ -25,7 +23,7 @@ namespace texture {
 
 /**
  * TextureResource: implements ITextureResource (inherits IResource).
- * Manages texture data lifecycle: Load, Save, Import, EnsureDeviceResources.
+ * Manages texture data lifecycle: Load, Save, Import. CPU-only.
  */
 class TextureResource : public resource::ITextureResource {
  public:
@@ -41,8 +39,7 @@ class TextureResource : public resource::ITextureResource {
                  resource::LoadCompleteCallback on_done, void* user_data) override;
   bool Save(char const* path, resource::IResourceManager* manager) override;
   bool Import(char const* sourcePath, resource::IResourceManager* manager) override;
-  void EnsureDeviceResources() override;
-  void EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) override;
+  /** True when Load succeeded (CPU data ready). */
   bool IsDeviceReady() const override;
 
   TextureHandle GetTextureHandle() const { return m_textureHandle; }
@@ -53,23 +50,18 @@ class TextureResource : public resource::ITextureResource {
   uint32_t GetMipCount() const;
   te::rendercore::TextureFormat GetFormat() const;
 
-  void SetDevice(rhi::IDevice* device) { m_device = device; }
-  rhi::ITexture* GetDeviceTexture() const;
+  void SetResourceManager(resource::IResourceManager* manager) { m_resourceManager = manager; }
   void SetTextureHandle(TextureHandle handle) { m_textureHandle = handle; }
 
  protected:
-  void OnLoadComplete() override;
-  void OnPrepareSave() override;
   bool OnConvertSourceFile(char const* sourcePath, void** outData, std::size_t* outSize) override;
   void* OnCreateAssetDesc() override;
 
  private:
   TextureHandle m_textureHandle = nullptr;
   resource::ResourceId m_resourceId;
-  rhi::IDevice* m_device = nullptr;
+  resource::IResourceManager* m_resourceManager = nullptr;
   uint32_t m_refCount = 1;
-
-  void CleanupGPUResources();
 };
 
 }  // namespace texture

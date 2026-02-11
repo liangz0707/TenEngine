@@ -5,7 +5,6 @@
 #include <te/texture/TextureResource.h>
 #include <te/texture/TextureFactory.h>
 #include <te/texture/TextureAssetDesc.h>
-#include <te/texture/TextureDevice.h>
 #include <te/texture/TextureSerialize.h>
 #include <te/texture/detail/texture_data.hpp>
 #include <te/texture/import/ImageImporterRegistry.h>
@@ -69,7 +68,6 @@ TextureResource::TextureResource() {
 }
 
 TextureResource::~TextureResource() {
-  CleanupGPUResources();
   if (m_textureHandle) {
     ReleaseTexture(m_textureHandle);
     m_textureHandle = nullptr;
@@ -113,6 +111,7 @@ bool TextureResource::Load(char const* path, resource::IResourceManager* manager
   te::core::Free(dataFileBuffer);
   if (!m_textureHandle) return false;
 
+  m_resourceManager = manager;
   OnLoadComplete();
   return true;
 }
@@ -213,34 +212,14 @@ bool TextureResource::Import(char const* sourcePath, resource::IResourceManager*
 
   m_textureHandle = CreateTexture(&desc);
   te::core::Free(result.pixelData);
-  return m_textureHandle != nullptr;
-}
-
-void TextureResource::EnsureDeviceResources() {
-  if (!m_textureHandle || !m_device) return;
-  if (::te::texture::GetTextureHandle(m_textureHandle)) return;
-  texture::EnsureDeviceResources(m_textureHandle, m_device);
-}
-
-void TextureResource::EnsureDeviceResourcesAsync(void (*on_done)(void*), void* user_data) {
-  if (!m_textureHandle || !m_device) {
-    if (on_done) on_done(user_data);
-    return;
-  }
-  if (::te::texture::GetTextureHandle(m_textureHandle)) {
-    if (on_done) on_done(user_data);
-    return;
-  }
-  texture::EnsureDeviceResourcesAsync(m_textureHandle, m_device, on_done, user_data);
+  if (!m_textureHandle) return false;
+  m_resourceManager = manager;
+  return true;
 }
 
 bool TextureResource::IsDeviceReady() const {
-  return GetDeviceTexture() != nullptr;
+  return m_textureHandle != nullptr;
 }
-
-void TextureResource::OnLoadComplete() {}
-
-void TextureResource::OnPrepareSave() {}
 
 bool TextureResource::OnConvertSourceFile(char const* sourcePath, void** outData, std::size_t* outSize) {
   if (!sourcePath || !outData || !outSize) return false;
@@ -283,16 +262,6 @@ uint32_t TextureResource::GetMipCount() const {
 
 te::rendercore::TextureFormat TextureResource::GetFormat() const {
   return texture::GetFormat(m_textureHandle);
-}
-
-rhi::ITexture* TextureResource::GetDeviceTexture() const {
-  return ::te::texture::GetTextureHandle(m_textureHandle);
-}
-
-void TextureResource::CleanupGPUResources() {
-  if (m_textureHandle && m_device) {
-    DestroyDeviceTexture(m_textureHandle, m_device);
-  }
 }
 
 }  // namespace texture

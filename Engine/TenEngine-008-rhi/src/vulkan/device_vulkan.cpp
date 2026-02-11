@@ -221,12 +221,15 @@ struct CommandListVulkan final : ICommandList {
       vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
   }
   void BindDescriptorSet(IDescriptorSet* set) override {
+    BindDescriptorSet(0u, set);
+  }
+  void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) override {
     if (cmd == VK_NULL_HANDLE || !recording || pipelineLayout == VK_NULL_HANDLE) return;
     if (!set) return;
     DescriptorSetVulkan* ds = static_cast<DescriptorSetVulkan*>(set);
     if (ds->set == VK_NULL_HANDLE) return;
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &ds->set, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setIndex, 1, &ds->set, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, setIndex, 1, &ds->set, 0, nullptr);
   }
   void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override {
     if (cmd == VK_NULL_HANDLE || !recording || desc.colorAttachmentCount == 0) return;
@@ -693,10 +696,11 @@ struct DeviceVulkan final : IDevice {
     return CreateGraphicsPSO(desc, nullptr);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout) override {
-    return CreateGraphicsPSO(desc, layout, nullptr, 0);
+    return CreateGraphicsPSO(desc, layout, nullptr, 0, nullptr);
   }
   IPSO* CreateGraphicsPSO(GraphicsPSODesc const& desc, IDescriptorSetLayout* layout,
-                          IRenderPass* pass, uint32_t subpassIndex) override {
+                          IRenderPass* pass, uint32_t subpassIndex,
+                          IDescriptorSetLayout* layoutSet1) override {
     VkRenderPass rp = defaultRenderPass;
     if (pass) {
       RenderPassVulkan* rpv = static_cast<RenderPassVulkan*>(pass);
@@ -714,8 +718,15 @@ struct DeviceVulkan final : IDevice {
       DescriptorSetLayoutVulkan* dsl = static_cast<DescriptorSetLayoutVulkan*>(layout);
       VkPipelineLayoutCreateInfo plCi = {};
       plCi.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-      plCi.setLayoutCount = 1;
-      plCi.pSetLayouts = &dsl->layout;
+      if (layoutSet1) {
+        DescriptorSetLayoutVulkan* dsl1 = static_cast<DescriptorSetLayoutVulkan*>(layoutSet1);
+        VkDescriptorSetLayout layouts[2] = { dsl->layout, dsl1->layout };
+        plCi.setLayoutCount = 2;
+        plCi.pSetLayouts = layouts;
+      } else {
+        plCi.setLayoutCount = 1;
+        plCi.pSetLayouts = &dsl->layout;
+      }
       if (vkCreatePipelineLayout(device, &plCi, nullptr, &p->pipelineLayout) != VK_SUCCESS) {
         delete p;
         return nullptr;
@@ -770,17 +781,69 @@ struct DeviceVulkan final : IDevice {
     VkPipelineRasterizationStateCreateInfo rs = {};
     rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_BACK_BIT;
-    rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rs.lineWidth = 1.0f;
+    if (desc.pipelineState) {
+      switch (desc.pipelineState->rasterization.cullMode) {
+        case CullMode::None: rs.cullMode = VK_CULL_MODE_NONE; break;
+        case CullMode::Front: rs.cullMode = VK_CULL_MODE_FRONT_BIT; break;
+        case CullMode::Back: rs.cullMode = VK_CULL_MODE_BACK_BIT; break;
+        case CullMode::FrontAndBack: rs.cullMode = VK_CULL_MODE_FRONT_AND_BACK; break;
+        default: rs.cullMode = VK_CULL_MODE_BACK_BIT; break;
+      }
+      rs.frontFace = (desc.pipelineState->rasterization.frontFace == FrontFace::Clockwise)
+          ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    } else {
+      rs.cullMode = VK_CULL_MODE_BACK_BIT;
+      rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    }
     VkPipelineMultisampleStateCreateInfo ms = {};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     uint32_t colorBlendCount = pass ? pass->GetSubpassColorAttachmentCount(subpassIndex) : 1u;
     if (colorBlendCount > kMaxColorAttachments) colorBlendCount = kMaxColorAttachments;
     VkPipelineColorBlendAttachmentState blendAtts[kMaxColorAttachments] = {};
+    auto toVkBlendFactor = [](BlendFactor f) {
+      switch (f) {
+        case BlendFactor::Zero: return VK_BLEND_FACTOR_ZERO;
+        case BlendFactor::One: return VK_BLEND_FACTOR_ONE;
+        case BlendFactor::SrcColor: return VK_BLEND_FACTOR_SRC_COLOR;
+        case BlendFactor::OneMinusSrcColor: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+        case BlendFactor::DstColor: return VK_BLEND_FACTOR_DST_COLOR;
+        case BlendFactor::OneMinusDstColor: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+        case BlendFactor::SrcAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+        case BlendFactor::OneMinusSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        case BlendFactor::DstAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
+        case BlendFactor::OneMinusDstAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+        default: return VK_BLEND_FACTOR_ONE;
+      }
+    };
+    auto toVkBlendOp = [](BlendOp o) {
+      switch (o) {
+        case BlendOp::Add: return VK_BLEND_OP_ADD;
+        case BlendOp::Subtract: return VK_BLEND_OP_SUBTRACT;
+        case BlendOp::ReverseSubtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+        case BlendOp::Min: return VK_BLEND_OP_MIN;
+        case BlendOp::Max: return VK_BLEND_OP_MAX;
+        default: return VK_BLEND_OP_ADD;
+      }
+    };
     for (uint32_t i = 0; i < colorBlendCount; ++i) {
-      blendAtts[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      if (desc.pipelineState && i < desc.pipelineState->blendAttachmentCount) {
+        BlendAttachmentDesc const& b = desc.pipelineState->blendAttachments[i];
+        blendAtts[i].blendEnable = b.blendEnable ? VK_TRUE : VK_FALSE;
+        blendAtts[i].srcColorBlendFactor = toVkBlendFactor(b.srcColorBlend);
+        blendAtts[i].dstColorBlendFactor = toVkBlendFactor(b.dstColorBlend);
+        blendAtts[i].colorBlendOp = toVkBlendOp(b.colorBlendOp);
+        blendAtts[i].srcAlphaBlendFactor = toVkBlendFactor(b.srcAlphaBlend);
+        blendAtts[i].dstAlphaBlendFactor = toVkBlendFactor(b.dstAlphaBlend);
+        blendAtts[i].alphaBlendOp = toVkBlendOp(b.alphaBlendOp);
+        blendAtts[i].colorWriteMask = (b.colorWriteMask & 1u ? VK_COLOR_COMPONENT_R_BIT : 0u) |
+            (b.colorWriteMask & 2u ? VK_COLOR_COMPONENT_G_BIT : 0u) |
+            (b.colorWriteMask & 4u ? VK_COLOR_COMPONENT_B_BIT : 0u) |
+            (b.colorWriteMask & 8u ? VK_COLOR_COMPONENT_A_BIT : 0u);
+      } else {
+        blendAtts[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+      }
     }
     VkPipelineColorBlendStateCreateInfo cb = {};
     cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -791,6 +854,30 @@ struct DeviceVulkan final : IDevice {
     dyn.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dyn.dynamicStateCount = 2;
     dyn.pDynamicStates = dynStates;
+    auto toVkCompareOp = [](CompareOp o) {
+      switch (o) {
+        case CompareOp::Never: return VK_COMPARE_OP_NEVER;
+        case CompareOp::Less: return VK_COMPARE_OP_LESS;
+        case CompareOp::Equal: return VK_COMPARE_OP_EQUAL;
+        case CompareOp::LessOrEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case CompareOp::Greater: return VK_COMPARE_OP_GREATER;
+        case CompareOp::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+        case CompareOp::GreaterOrEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case CompareOp::Always: return VK_COMPARE_OP_ALWAYS;
+        default: return VK_COMPARE_OP_LESS;
+      }
+    };
+    VkPipelineDepthStencilStateCreateInfo ds = {};
+    ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    if (desc.pipelineState) {
+      ds.depthTestEnable = desc.pipelineState->depthStencil.depthTestEnable ? VK_TRUE : VK_FALSE;
+      ds.depthWriteEnable = desc.pipelineState->depthStencil.depthWriteEnable ? VK_TRUE : VK_FALSE;
+      ds.depthCompareOp = toVkCompareOp(desc.pipelineState->depthStencil.depthCompareOp);
+    } else {
+      ds.depthTestEnable = VK_TRUE;
+      ds.depthWriteEnable = VK_TRUE;
+      ds.depthCompareOp = VK_COMPARE_OP_LESS;
+    }
     VkGraphicsPipelineCreateInfo gpCi = {};
     gpCi.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     gpCi.stageCount = stageCount;
@@ -800,6 +887,7 @@ struct DeviceVulkan final : IDevice {
     gpCi.pViewportState = &vp;
     gpCi.pRasterizationState = &rs;
     gpCi.pMultisampleState = &ms;
+    gpCi.pDepthStencilState = &ds;
     gpCi.pColorBlendState = &cb;
     gpCi.pDynamicState = &dyn;
     gpCi.layout = p->pipelineLayout;

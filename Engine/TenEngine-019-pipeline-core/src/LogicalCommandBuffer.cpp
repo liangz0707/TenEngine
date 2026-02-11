@@ -1,8 +1,8 @@
 #include <te/pipelinecore/LogicalCommandBuffer.h>
 #include <te/pipelinecore/RenderItem.h>
 #include <te/rendercore/types.hpp>
-#include <te/mesh/Mesh.h>
-#include <te/mesh/MeshResource.h>
+#include <te/rendercore/IRenderElement.hpp>
+#include <te/rendercore/IRenderMesh.hpp>
 #include <algorithm>
 #include <vector>
 
@@ -32,28 +32,29 @@ te::rendercore::ResultCode ConvertToLogicalCommandBuffer(IRenderItemList const* 
     impl->draws.reserve(items->Size());
     for (size_t i = 0; i < items->Size(); ++i) {
       RenderItem const* r = items->At(i);
-      if (!r || !r->mesh) continue;
+      if (!r || !r->element) continue;
       LogicalDraw d;
-      d.mesh = r->mesh;
-      d.material = r->material;
-      d.submeshIndex = static_cast<uint32_t>(r->sortKey & 0xFFFFFFFFu);
+      d.element = r->element;
+      d.submeshIndex = r->submeshIndex;
       d.instanceCount = 1;
       d.firstInstance = 0;
-      te::mesh::MeshResource const* meshRes = reinterpret_cast<te::mesh::MeshResource const*>(r->mesh);
-      te::mesh::MeshHandle mh = meshRes ? meshRes->GetMeshHandle() : te::mesh::MeshHandle{};
-      if (mh) {
-        te::mesh::SubmeshDesc const* sub = te::mesh::GetSubmesh(mh, d.submeshIndex);
-        if (sub) {
-          d.indexCount = sub->count;
-          d.firstIndex = sub->offset;
+      d.skinMatrixBuffer = r->skinMatrixBuffer;
+      d.skinMatrixOffset = r->skinMatrixOffset;
+
+      te::rendercore::IRenderMesh const* reMesh = r->element->GetMesh();
+      if (reMesh) {
+        te::rendercore::SubmeshRange range;
+        if (reMesh->GetSubmesh(d.submeshIndex, &range)) {
+          d.indexCount = range.indexCount;
+          d.firstIndex = range.indexOffset;
         }
       }
       impl->draws.push_back(d);
     }
     if (!impl->draws.empty()) {
       std::sort(impl->draws.begin(), impl->draws.end(), [](LogicalDraw const& a, LogicalDraw const& b) {
-        if (a.material != b.material) return a.material < b.material;
-        if (a.mesh != b.mesh) return a.mesh < b.mesh;
+        if (a.element != b.element) return a.element < b.element;
+        if (a.skinMatrixBuffer != b.skinMatrixBuffer) return a.skinMatrixBuffer < b.skinMatrixBuffer;
         return a.submeshIndex < b.submeshIndex;
       });
       std::vector<LogicalDraw> merged;
@@ -62,8 +63,9 @@ te::rendercore::ResultCode ConvertToLogicalCommandBuffer(IRenderItemList const* 
         LogicalDraw d = impl->draws[i];
         size_t j = i + 1;
         while (j < impl->draws.size() &&
-               impl->draws[j].material == d.material &&
-               impl->draws[j].mesh == d.mesh &&
+               impl->draws[j].element == d.element &&
+               impl->draws[j].skinMatrixBuffer == d.skinMatrixBuffer &&
+               impl->draws[j].skinMatrixOffset == d.skinMatrixOffset &&
                impl->draws[j].submeshIndex == d.submeshIndex) {
           d.instanceCount += impl->draws[j].instanceCount;
           ++j;
