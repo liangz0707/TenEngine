@@ -6,10 +6,9 @@
 #ifndef TE_PIPELINE_DETAIL_RENDERABLE_COLLECTOR_H
 #define TE_PIPELINE_DETAIL_RENDERABLE_COLLECTOR_H
 
+#include <te/scene/SceneTypes.h>
+
 namespace te {
-namespace scene {
-struct SceneRef;
-}
 namespace resource {
 struct IResourceManager;
 }

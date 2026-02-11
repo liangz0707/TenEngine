@@ -225,7 +225,7 @@ class RenderPipelineImpl : public IRenderPipeline {
             cmd->SetScissor(0, 1, &scissor);
           }
           // 按 Pass：BeginRenderPass -> SetCollectedObjects -> ExecuteCallback -> EndRenderPass
-          if (graph && graph->GetPassCount() > 0u) {
+          if (graphCapture && graphCapture->GetPassCount() > 0u) {
             struct Adapter : pipelinecore::IRenderObjectList {
               pipelinecore::IRenderItemList const* list{nullptr};
               size_t Size() const override { return list ? list->Size() : 0; }
@@ -235,10 +235,10 @@ class RenderPipelineImpl : public IRenderPipeline {
             pipelinecore::PassContext passCtx;
             passCtx.SetCollectedObjects(&adapter);
             te::rhi::RenderPassDesc rpDesc = {};
-            for (size_t i = 0; i < graph->GetPassCount(); ++i) {
+            for (size_t i = 0; i < graphCapture->GetPassCount(); ++i) {
               cmd->BeginRenderPass(rpDesc);
               cmd->BeginOcclusionQuery(0);
-              graph->ExecutePass(i, passCtx, cmd);
+              graphCapture->ExecutePass(i, passCtx, cmd);
               cmd->EndOcclusionQuery(0);
               cmd->EndRenderPass();
             }
