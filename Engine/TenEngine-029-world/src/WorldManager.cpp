@@ -13,6 +13,7 @@
 #include <te/scene/SceneWorld.h>
 #include <te/scene/ISceneNode.h>
 #include <te/scene/SceneDesc.h>
+#include <te/resource/Resource.h>
 #include <te/resource/ResourceManager.h>
 #include <te/resource/ResourceTypes.h>
 #include <algorithm>

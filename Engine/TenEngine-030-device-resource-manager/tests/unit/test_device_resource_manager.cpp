@@ -4,7 +4,7 @@
 #include <te/deviceresource/DeviceResourceManager.h>
 #include <te/rhi/device.hpp>
 #include <te/rhi/resources.hpp>
-#include <te/core/log.h>
+
 #include <cassert>
 #include <cstring>
 

@@ -1,39 +1,24 @@
 /**
  * @file test_abi_contract.cpp
- * @brief Minimal ABI contract test: CreateRenderPipeline, IRenderPipeline API, CheckWarning/CheckError, TriggerRender one frame.
+ * @brief Minimal ABI contract test: SingleThreadQueue.
  */
 
-#include <te/pipeline/RenderPipeline.h>
-#include <te/pipeline/FrameContext.h>
-#include <te/pipeline/RenderingConfig.h>
+#include <te/pipeline/ThreadQueue.h>
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 int main() {
-  te::pipeline::RenderingConfig config;
-  config.validationLevel = te::pipeline::ValidationLevel::Debug;
-  te::pipeline::CheckWarning(config, "test warning");
-  te::pipeline::CheckError(config, "test error");
-  config.validationLevel = te::pipeline::ValidationLevel::Resource;
-  te::pipeline::CheckWarning(config, "no-op");
-  te::pipeline::CheckError(config, "no-op");
+  te::pipeline::SingleThreadQueue queue;
 
-  te::pipeline::RenderPipelineDesc desc;
-  desc.frameInFlightCount = 2u;
-  desc.device = nullptr;
+  std::atomic<int> counter{0};
+  queue.Post([&counter]() { counter = 1; });
+  queue.Post([&counter]() { counter = 2; });
 
-  te::pipeline::IRenderPipeline* p = te::pipeline::CreateRenderPipeline(desc);
-  if (!p) return 1;
+  // Wait for tasks to complete (simple polling)
+  for (int i = 0; i < 50 && counter.load() < 2; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
 
-  te::pipeline::FrameContext ctx;
-  p->RenderFrame(ctx);
-  p->TriggerRender(ctx);
-  p->TickPipeline(ctx);
-  (void)p->GetCurrentSlot();
-  p->SetRenderingConfig(te::pipeline::RenderingConfig{});
-  (void)p->GetRenderingConfig();
-  (void)p->GetFrameGraph();
-  p->SetFrameGraph(nullptr);
-  p->SubmitLogicalCommandBuffer(nullptr);
-
-  delete p;
-  return 0;
+  return (counter.load() == 2) ? 0 : 1;
 }

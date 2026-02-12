@@ -1,19 +1,15 @@
-# 020-Pipeline; C++17, contract-first (specs/_contracts/020-pipeline-public-api.md).
+# 020-Pipeline; C++17, thread scheduling only.
 cmake_minimum_required(VERSION 3.16)
 project(te_pipeline LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 避免依赖链中 FetchContent 在配置阶段执行 git update（无 origin 时报错）
 set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "Skip FetchContent update step")
-
 set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
 
 set(MY_DEPS "")
 set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-# When building from 020 directory, deps live in Engine as siblings. Set *_DIR so resolve finds them
-# even if another dep (e.g. 028) sets TENENGINE_ROOT to repo root (which would otherwise break 012-mesh path).
 set(_ENGINE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 if(NOT DEFINED TENENGINE_001_CORE_DIR)
   set(TENENGINE_001_CORE_DIR "${_ENGINE}/TenEngine-001-core")
@@ -63,23 +59,11 @@ if(NOT MY_DEPS)
 endif()
 
 set(TE_PIPELINE_SOURCES
-  src/RenderPipeline.cpp
-  src/PipelineImpl.cpp
-  src/RenderableCollector.cpp
-  src/BuiltinMeshes.cpp
-  src/BuiltinMaterials.cpp
-  src/FrameGraphResources.cpp
+  src/ThreadQueue.cpp
 )
 
 set(TE_PIPELINE_HEADERS
-  include/te/pipeline/FrameContext.h
-  include/te/pipeline/RenderingConfig.h
-  include/te/pipeline/RenderPipeline.h
-  include/te/pipeline/BuiltinMeshes.h
-  include/te/pipeline/BuiltinMaterials.h
-  include/te/pipeline/detail/PipelineImpl.h
-  include/te/pipeline/detail/RenderableCollector.h
-  include/te/pipeline/detail/FrameGraphResources.h
+  include/te/pipeline/ThreadQueue.h
 )
 
 add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})
@@ -87,15 +71,9 @@ target_include_directories(te_pipeline PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includ
 target_link_libraries(te_pipeline PUBLIC ${MY_DEPS})
 
 source_group("Header Files" FILES ${TE_PIPELINE_HEADERS})
-source_group("Header Files\\Detail" FILES
-  include/te/pipeline/detail/PipelineImpl.h
-  include/te/pipeline/detail/RenderableCollector.h
-  include/te/pipeline/detail/FrameGraphResources.h
-)
 set_target_properties(te_pipeline PROPERTIES PUBLIC_HEADER "${TE_PIPELINE_HEADERS}")
 
 option(BUILD_TESTS "Build unit tests" ON)
-# 作为上游被引用时不加入测试
 if(BUILD_TESTS AND NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
   enable_testing()
   add_subdirectory(tests)

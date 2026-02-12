@@ -20,7 +20,7 @@ set(TENENGINE_016_AUDIO_DEPS "001-core" "013-resource")
 set(TENENGINE_017_UICORE_DEPS "001-core" "003-application" "006-input")
 set(TENENGINE_018_UI_DEPS "017-uicore")
 set(TENENGINE_019_PIPELINECORE_DEPS "008-rhi" "009-rendercore")
-# 020-Pipeline: Core, Scene, Entity, World, PipelineCore, RenderCore, Shader, Material, Mesh, Texture, Resource, 008-RHI
+# 020-Pipeline: thread scheduling only (code); deps below for project config / doc alignment
 set(TENENGINE_020_PIPELINE_DEPS "001-core" "004-scene" "005-entity" "029-world" "019-pipelinecore" "009-rendercore" "010-shader" "011-material" "012-mesh" "028-texture" "013-resource" "008-rhi")
 set(TENENGINE_021_EFFECTS_DEPS "019-pipelinecore" "009-rendercore" "010-shader" "028-texture")
 set(TENENGINE_022_2D_DEPS "001-core" "013-resource" "014-physics" "020-pipeline" "009-rendercore" "028-texture")

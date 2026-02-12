@@ -3,22 +3,36 @@ cmake_minimum_required(VERSION 3.16)
 project(te_shader LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Must depend on upstream modules; standalone build is not allowed.
-# Do not introduce upstream modules' tests when building this module.
+set(FETCHCONTENT_UPDATES_DISCONNECTED ON CACHE BOOL "Skip FetchContent update step")
 set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency module tests")
 
 set(MY_DEPS "")
-if(NOT DEFINED TENENGINE_CMAKE_DIR)
-  set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/cmake")
+set(TENENGINE_CMAKE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(_ENGINE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+if(NOT DEFINED TENENGINE_001_CORE_DIR)
+  set(TENENGINE_001_CORE_DIR "${_ENGINE}/TenEngine-001-core")
+endif()
+if(NOT DEFINED TENENGINE_002_OBJECT_DIR)
+  set(TENENGINE_002_OBJECT_DIR "${_ENGINE}/TenEngine-002-object")
+endif()
+if(NOT DEFINED TENENGINE_008_RHI_DIR)
+  set(TENENGINE_008_RHI_DIR "${_ENGINE}/TenEngine-008-rhi")
+endif()
+if(NOT DEFINED TENENGINE_009_RENDERCORE_DIR)
+  set(TENENGINE_009_RENDERCORE_DIR "${_ENGINE}/TenEngine-009-render-core")
+endif()
+if(NOT DEFINED TENENGINE_013_RESOURCE_DIR)
+  set(TENENGINE_013_RESOURCE_DIR "${_ENGINE}/TenEngine-013-resource")
 endif()
 if(EXISTS "${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake")
   include(${TENENGINE_CMAKE_DIR}/TenEngineHelpers.cmake)
   tenengine_resolve_my_dependencies("010-shader" OUT_DEPS MY_DEPS)
 endif()
 if(NOT MY_DEPS)
-  message(FATAL_ERROR "te_shader: Upstream modules (001-core, 008-rhi, 009-rendercore) are required. "
-    "TenEngineHelpers not found at TENENGINE_CMAKE_DIR=${TENENGINE_CMAKE_DIR} or dependencies could not be resolved.")
+  message(FATAL_ERROR "te_shader: Upstream (001-core, 008-rhi, 009-rendercore, 013-resource, 002-object) required. "
+    "TenEngineHelpers not found or deps unresolved. Set TENENGINE_ROOT.")
 endif()
 
 # Third-party: vulkan-headers (shared with 008-RHI), glslang, spirv-cross
@@ -94,16 +108,8 @@ set(TE_SHADER_HEADERS
 )
 
 add_library(te_shader STATIC ${TE_SHADER_SOURCES} ${TE_SHADER_HEADERS})
-target_include_directories(te_shader PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-# 013, 001, 002 includes (001 before 002 so te::core is 001-core, not 002's stub)
-target_include_directories(te_shader PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-013-resource/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-001-core/include
-  ${CMAKE_CURRENT_SOURCE_DIR}/../TenEngine-002-object/include
-)
-target_link_libraries(te_shader PRIVATE
+target_include_directories(te_shader PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(te_shader PUBLIC
   ${MY_DEPS}
   Vulkan::Headers
   glslang
