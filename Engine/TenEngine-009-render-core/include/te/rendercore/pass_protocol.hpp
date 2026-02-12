@@ -18,9 +18,19 @@ struct PassResourceDecl {
   bool IsValid() const { return pass.IsValid() && resource.IsValid(); }
 };
 
-void DeclareRead(PassHandle pass, ResourceHandle resource);
-void DeclareWrite(PassHandle pass, ResourceHandle resource);
-void SetResourceLifetime(PassResourceDecl& decl, ResourceLifetime lifetime);
+inline void DeclareRead(PassHandle pass, ResourceHandle resource) {
+  (void)pass;
+  (void)resource;
+}
+
+inline void DeclareWrite(PassHandle pass, ResourceHandle resource) {
+  (void)pass;
+  (void)resource;
+}
+
+inline void SetResourceLifetime(PassResourceDecl& decl, ResourceLifetime lifetime) {
+  decl.lifetime = lifetime;
+}
 
 }  // namespace rendercore
 }  // namespace te

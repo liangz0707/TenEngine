@@ -107,10 +107,47 @@ struct BufferDescParams {
   uint32_t alignment = 0;
 };
 
-VertexFormat CreateVertexFormat(VertexFormatDesc const& desc);
-IndexFormat CreateIndexFormat(IndexFormatDesc const& desc);
-TextureDesc CreateTextureDesc(TextureDescParams const& params);
-BufferDesc CreateBufferDesc(BufferDescParams const& params);
+inline VertexFormat CreateVertexFormat(VertexFormatDesc const& desc) {
+  VertexFormat result{};
+  if (!desc.attributes || desc.attributeCount == 0 || desc.attributeCount > kMaxVertexAttributes || desc.stride == 0)
+    return result;
+  for (uint32_t i = 0; i < desc.attributeCount; ++i) {
+    if (desc.attributes[i].format == VertexAttributeFormat::Unknown) return VertexFormat{};
+    result.attributes[i] = desc.attributes[i];
+  }
+  result.attributeCount = desc.attributeCount;
+  result.stride = desc.stride;
+  return result;
+}
+
+inline IndexFormat CreateIndexFormat(IndexFormatDesc const& desc) {
+  IndexFormat result{};
+  if (desc.type == IndexType::Unknown) return result;
+  result.type = desc.type;
+  return result;
+}
+
+inline TextureDesc CreateTextureDesc(TextureDescParams const& params) {
+  TextureDesc result{};
+  if (params.width == 0 || params.height == 0 || params.format == TextureFormat::Unknown || params.mipLevels == 0)
+    return result;
+  result.width = params.width;
+  result.height = params.height;
+  result.depth = params.depth == 0 ? 1 : params.depth;
+  result.mipLevels = params.mipLevels;
+  result.format = params.format;
+  result.usage = params.usage;
+  return result;
+}
+
+inline BufferDesc CreateBufferDesc(BufferDescParams const& params) {
+  BufferDesc result{};
+  if (params.size == 0) return result;
+  result.size = params.size;
+  result.usage = params.usage;
+  result.alignment = params.alignment;
+  return result;
+}
 
 }  // namespace rendercore
 }  // namespace te

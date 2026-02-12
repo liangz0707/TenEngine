@@ -3,13 +3,12 @@
  */
 #pragma once
 
+#include <te/rendercore/resource_desc.hpp>
+#include <te/rendercore/shader_reflection.hpp>
 #include <cstddef>
 
 namespace te {
 namespace rendercore {
-
-struct VertexFormatDesc;
-struct ShaderReflectionDesc;
 
 /** Shader entry: bytecode and reflection per stage. Caller guarantees bytecode format matches device backend. */
 struct IShaderEntry {

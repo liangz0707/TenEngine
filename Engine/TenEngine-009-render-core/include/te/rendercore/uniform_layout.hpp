@@ -37,8 +37,14 @@ struct IUniformLayout {
   virtual ~IUniformLayout() = default;
 };
 
-IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc);
-void ReleaseUniformLayout(IUniformLayout* layout);
+inline IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc) {
+  (void)desc;
+  return nullptr;
+}
+
+inline void ReleaseUniformLayout(IUniformLayout* layout) {
+  (void)layout;
+}
 
 }  // namespace rendercore
 }  // namespace te

@@ -1,5 +1,5 @@
 /** @file api.hpp
- *  009-RenderCore public API aggregate.
+ *  009-RenderCore public API aggregate (interfaces only).
  */
 #pragma once
 
@@ -9,7 +9,6 @@
 #include <te/rendercore/shader_reflection.hpp>
 #include <te/rendercore/pass_protocol.hpp>
 #include <te/rendercore/uniform_buffer.hpp>
-#include <te/rendercore/PipelineStateDesc.hpp>
 #include <te/rendercore/IRenderPipelineState.hpp>
 #include <te/rendercore/IShaderEntry.hpp>
 #include <te/rendercore/IShadingState.hpp>
@@ -17,5 +16,3 @@
 #include <te/rendercore/IRenderMesh.hpp>
 #include <te/rendercore/IRenderElement.hpp>
 #include <te/rendercore/IRenderTexture.hpp>
-#include <te/rendercore/ShaderBytecodeDesc.hpp>
-#include <te/rendercore/RenderResourceFactory.hpp>

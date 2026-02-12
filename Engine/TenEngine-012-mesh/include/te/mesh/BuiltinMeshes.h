@@ -5,6 +5,8 @@
 #ifndef TE_MESH_BUILTIN_MESHES_H
 #define TE_MESH_BUILTIN_MESHES_H
 
+#include <cstdint>
+
 namespace te {
 namespace mesh {
 
