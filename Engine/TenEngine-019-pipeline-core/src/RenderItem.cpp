@@ -1,6 +1,8 @@
 #include <te/pipelinecore/RenderItem.h>
 #include <te/rendercore/types.hpp>
 #include <te/rendercore/IRenderElement.hpp>
+#include <te/rendercore/IRenderMaterial.hpp>
+#include <te/rendercore/IRenderMesh.hpp>
 #include <te/rhi/command_list.hpp>
 #include <memory>
 #include <vector>

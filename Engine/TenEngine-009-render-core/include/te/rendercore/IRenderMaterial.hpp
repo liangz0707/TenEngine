@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include <te/rendercore/IShadingState.hpp>
 #include <cstdint>
 
 namespace te {
@@ -16,7 +17,6 @@ struct ITexture;
 }
 namespace rendercore {
 
-struct IShadingState;
 struct IUniformBuffer;
 
 /** Material: shading state, UB, descriptor set, PSO. Set CPU data via SetData*, CreateDeviceResource, UpdateDeviceResource. */

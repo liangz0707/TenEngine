@@ -3,10 +3,11 @@
  */
 #pragma once
 
+#include <te/rendercore/IRenderPipelineState.hpp>
+
 namespace te {
 namespace rendercore {
 
-struct IRenderPipelineState;
 struct IShaderEntry;
 
 /** Pipeline state plus shader entry; used to create PSO. */

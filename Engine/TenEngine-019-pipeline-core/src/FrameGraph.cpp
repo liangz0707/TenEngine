@@ -161,11 +161,11 @@ static PassContentSource ContentSourceFromKind(PassKind kind) {
 
 static std::unique_ptr<IPassBuilder> CreateBuilderForKind(PassData& data, PassKind kind) {
   switch (kind) {
-    case PassKind::Scene: return std::make_unique<ScenePassBuilderImpl>(data);
-    case PassKind::Light: return std::make_unique<LightPassBuilderImpl>(data);
-    case PassKind::PostProcess: return std::make_unique<PostProcessPassBuilderImpl>(data);
-    case PassKind::Effect: return std::make_unique<EffectPassBuilderImpl>(data);
-    default: return std::make_unique<PassBuilderImpl>(data);
+    case PassKind::Scene: return std::unique_ptr<IPassBuilder>(static_cast<IScenePassBuilder*>(new ScenePassBuilderImpl(data)));
+    case PassKind::Light: return std::unique_ptr<IPassBuilder>(static_cast<ILightPassBuilder*>(new LightPassBuilderImpl(data)));
+    case PassKind::PostProcess: return std::unique_ptr<IPassBuilder>(static_cast<IPostProcessPassBuilder*>(new PostProcessPassBuilderImpl(data)));
+    case PassKind::Effect: return std::unique_ptr<IPassBuilder>(static_cast<IEffectPassBuilder*>(new EffectPassBuilderImpl(data)));
+    default: return std::unique_ptr<IPassBuilder>(new PassBuilderImpl(data));
   }
 }
 

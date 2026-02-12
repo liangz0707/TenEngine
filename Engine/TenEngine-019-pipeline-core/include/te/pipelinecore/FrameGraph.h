@@ -76,7 +76,7 @@ struct PassAttachmentDesc {
   uint32_t format{0};  // 0 = infer
   bool isDepthStencil{false};
   AttachmentLoadOp loadOp{AttachmentLoadOp::Clear};
-  AttachmentStoreOp storeOp{AttachmentStoreOp::Store};
+  AttachmentStoreOp storeOp{AttachmentStoreOp::StoreOp_Store};
   AttachmentLifetime lifetime{AttachmentLifetime::Transient};
   size_t sourcePassIndex{static_cast<size_t>(-1)};  // 上一 Pass 索引，-1 表示无
   uint32_t sourceAttachmentIndex{0};
