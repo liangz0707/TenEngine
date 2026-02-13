@@ -3,12 +3,11 @@ import { invoke } from '@tauri-apps/api/core';
 import ReactFlow, {
   addEdge,
   Background,
-  Connection,
   Controls,
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import type { Edge, Node } from 'reactflow';
+import type { Connection, Edge, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './App.css';
 
@@ -204,7 +203,7 @@ function App() {
   const [graphText, setGraphText] = useState<string>(FALLBACK_EXAMPLE);
   const [compileResult, setCompileResult] = useState<CompileResult | null>(null);
   const [message, setMessage] = useState<string>('Ready');
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<FlowNodeData>>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [filePath, setFilePath] = useState<string>('tools/te-graph/examples/minimal.graph.json');
   const [newNodeKind, setNewNodeKind] = useState<string>('frame.begin_pass');
@@ -358,8 +357,8 @@ function App() {
         <h2>TE Graph Editor (Tauri + React Flow)</h2>
         <div className="button-row">
           <button onClick={loadExample}>Load Example</button>
-          <button onClick={parseAndRender}>JSON -> Canvas</button>
-          <button onClick={syncGraphTextFromCanvas}>Canvas -> JSON</button>
+          <button onClick={parseAndRender}>JSON -&gt; Canvas</button>
+          <button onClick={syncGraphTextFromCanvas}>Canvas -&gt; JSON</button>
           <button onClick={compileGraph}>Compile (Rust)</button>
         </div>
 
