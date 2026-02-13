@@ -52,6 +52,13 @@ set(TE_MATERIAL_HEADERS
 )
 
 add_library(te_material STATIC ${TE_MATERIAL_SOURCES} ${TE_MATERIAL_HEADERS})
+if(MSVC)
+  target_compile_options(te_material PRIVATE $<$<CONFIG:Debug>:/Zi /Od /FS>)
+  set_target_properties(te_material PROPERTIES
+    COMPILE_PDB_NAME te_material
+    COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+  )
+endif()
 
 target_include_directories(te_material PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

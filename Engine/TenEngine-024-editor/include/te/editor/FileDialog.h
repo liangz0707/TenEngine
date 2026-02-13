@@ -14,9 +14,11 @@ namespace editor {
 /**
  * Open a multi-select file dialog. Returns selected file paths (full path).
  * Empty if cancelled or unsupported platform.
+ * initialDir: optional starting directory (e.g. import target); null to use shell default.
  */
 std::vector<std::string> OpenFileDialogMulti(char const* filterDesc = nullptr,
-                                             char const* filterSpec = nullptr);
+                                             char const* filterSpec = nullptr,
+                                             char const* initialDir = nullptr);
 
 }  // namespace editor
 }  // namespace te

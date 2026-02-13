@@ -3,6 +3,8 @@
  * @brief Open file dialog implementation (Windows GetOpenFileName).
  */
 #include <te/editor/FileDialog.h>
+#include <te/editor/ImGuiBackend.h>
+#include <te/core/platform.h>
 #include <string>
 #include <vector>
 
@@ -18,20 +20,33 @@
 namespace te {
 namespace editor {
 
-std::vector<std::string> OpenFileDialogMulti(char const* filterDesc, char const* filterSpec) {
+std::vector<std::string> OpenFileDialogMulti(char const* filterDesc, char const* filterSpec,
+                                             char const* initialDir) {
   std::vector<std::string> result;
 #if TE_PLATFORM_WINDOWS
   if (!filterDesc) filterDesc = "All supported";
   if (!filterSpec) filterSpec = "*.png;*.jpg;*.jpeg;*.tga;*.bmp;*.hdr;*.obj;*.fbx;*.gltf;*.*";
-  std::string filter = std::string(filterDesc) + '\0' + filterSpec + '\0';
+
+  std::vector<wchar_t> initialDirWide;
+  if (initialDir && initialDir[0] != '\0') {
+    int len = MultiByteToWideChar(CP_UTF8, 0, initialDir, -1, nullptr, 0);
+    if (len > 0) {
+      initialDirWide.resize(static_cast<size_t>(len), 0);
+      MultiByteToWideChar(CP_UTF8, 0, initialDir, -1, initialDirWide.data(), len);
+    }
+  }
 
   std::vector<wchar_t> buf(32768, 0);
   OPENFILENAMEW ofn = {};
   ofn.lStructSize = sizeof(ofn);
+  ofn.hwndOwner = static_cast<HWND>(ImGuiBackend_GetWindowHandle());
   ofn.lpstrFilter = L"Image files (*.png;*.jpg;*.tga;*.bmp;*.hdr)\0*.png;*.jpg;*.jpeg;*.tga;*.bmp;*.hdr\0Mesh (*.obj;*.fbx;*.gltf)\0*.obj;*.fbx;*.gltf\0All files (*.*)\0*.*\0";
   ofn.lpstrFile = buf.data();
   ofn.nMaxFile = static_cast<DWORD>(buf.size());
   ofn.Flags = OFN_EXPLORER | OFN_ALLOWMULTISELECT | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+  if (!initialDirWide.empty()) {
+    ofn.lpstrInitialDir = initialDirWide.data();
+  }
 
   if (!GetOpenFileNameW(&ofn))
     return result;
@@ -70,6 +85,7 @@ std::vector<std::string> OpenFileDialogMulti(char const* filterDesc, char const*
 #else
   (void)filterDesc;
   (void)filterSpec;
+  (void)initialDir;
 #endif
   return result;
 }

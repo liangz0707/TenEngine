@@ -146,6 +146,13 @@ add_library(te_mesh STATIC
   ${MESH_SOURCES}
   ${MESH_HEADERS}
 )
+if(MSVC)
+  target_compile_options(te_mesh PRIVATE $<$<CONFIG:Debug>:/Zi /Od /FS>)
+  set_target_properties(te_mesh PROPERTIES
+    COMPILE_PDB_NAME te_mesh
+    COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+  )
+endif()
 target_include_directories(te_mesh PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(te_mesh
   PRIVATE ${CORE_TARGET}

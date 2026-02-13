@@ -141,9 +141,18 @@ if(TENENGINE_BUILD_EDITOR)
   set_property(GLOBAL PROPERTY TENENGINE_ADDED_018-ui TRUE)
   add_subdirectory(Engine/TenEngine-024-editor)
 
-  # tenengine_editor executable
+  # tenengine_editor executable (link texture/material/mesh so debugger can resolve symbols and Import works)
   add_executable(tenengine_editor Engine/TenEngine-024-editor/src/main_editor.cpp)
   target_link_libraries(tenengine_editor PRIVATE te_editor te_application te_core te_resource)
+  if(TARGET te_texture)
+    target_link_libraries(tenengine_editor PRIVATE te_texture)
+  endif()
+  if(TARGET te_material)
+    target_link_libraries(tenengine_editor PRIVATE te_material)
+  endif()
+  if(TARGET te_mesh)
+    target_link_libraries(tenengine_editor PRIVATE te_mesh)
+  endif()
   target_include_directories(tenengine_editor PRIVATE
     ${TENENGINE_ROOT}/Engine/TenEngine-024-editor/include
     ${TENENGINE_ROOT}/Engine/TenEngine-003-application/include

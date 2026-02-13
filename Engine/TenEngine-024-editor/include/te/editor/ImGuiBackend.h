@@ -23,6 +23,9 @@ bool ImGuiBackend_IsInitialized();
 /** Return and clear paths from OS drag-drop (WM_DROPFILES). Empty on non-Windows or when none. */
 std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths();
 
+/** Main window handle (e.g. HWND on Windows) for modal dialogs. Null if not initialized. */
+void* ImGuiBackend_GetWindowHandle();
+
 }  // namespace editor
 }  // namespace te
 

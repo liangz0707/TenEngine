@@ -17,8 +17,14 @@ namespace core {
 
 namespace fs = std::filesystem;
 
+/** Interpret path as UTF-8 for correct handling of non-ASCII (e.g. drag-drop paths on Windows). */
+static fs::path PathUtf8(std::string const& path) {
+  return fs::u8path(path);
+}
+
 std::optional<std::vector<std::uint8_t>> FileRead(std::string const& path) {
-  std::ifstream f(path, std::ios::binary | std::ios::ate);
+  fs::path p = PathUtf8(path);
+  std::ifstream f(p, std::ios::binary | std::ios::ate);
   if (!f) return std::nullopt;
   auto size = f.tellg();
   if (size <= 0) return std::nullopt;
@@ -29,7 +35,8 @@ std::optional<std::vector<std::uint8_t>> FileRead(std::string const& path) {
 }
 
 static bool EnsureParentDirectoryExists(std::string const& path) {
-  std::string dir = fs::path(path).parent_path().generic_string();
+  fs::path p = PathUtf8(path);
+  fs::path dir = p.parent_path();
   if (dir.empty()) return true;
   std::error_code ec;
   fs::create_directories(dir, ec);
@@ -38,14 +45,16 @@ static bool EnsureParentDirectoryExists(std::string const& path) {
 
 bool FileWrite(std::string const& path, std::vector<std::uint8_t> const& data) {
   if (!EnsureParentDirectoryExists(path)) return false;
-  std::ofstream f(path, std::ios::binary);
+  fs::path p = PathUtf8(path);
+  std::ofstream f(p, std::ios::binary);
   if (!f) return false;
   return static_cast<bool>(f.write(reinterpret_cast<char const*>(data.data()), data.size()));
 }
 
 bool FileWrite(std::string const& path, std::string const& data) {
   if (!EnsureParentDirectoryExists(path)) return false;
-  std::ofstream f(path);
+  fs::path p = PathUtf8(path);
+  std::ofstream f(p);
   if (!f) return false;
   return static_cast<bool>(f << data);
 }
@@ -53,10 +62,11 @@ bool FileWrite(std::string const& path, std::string const& data) {
 std::vector<DirEntry> DirectoryEnumerate(std::string const& path) {
   std::vector<DirEntry> out;
   std::error_code ec;
-  fs::directory_iterator it(path, ec);
+  fs::path p = PathUtf8(path);
+  fs::directory_iterator it(p, ec);
   if (ec) return {};
   for (; it != fs::directory_iterator(); ++it) {
-    out.push_back(it->path().filename().generic_string());
+    out.push_back(it->path().filename().u8string());
   }
   return out;
 }
@@ -83,7 +93,8 @@ std::string PathNormalize(std::string const& path) {
 }
 
 bool FileReadBinary(std::string const& path, void* outData, std::size_t* outSize, std::size_t offset, std::size_t size) {
-  std::ifstream f(path, std::ios::binary);
+  fs::path p = PathUtf8(path);
+  std::ifstream f(p, std::ios::binary);
   if (!f) return false;
   f.seekg(static_cast<std::streamoff>(offset), std::ios::beg);
   if (!f) return false;
@@ -101,7 +112,8 @@ bool FileWriteBinary(std::string const& path, void const* data, std::size_t size
   if (offset == SIZE_MAX) {
     mode |= std::ios::app;
   }
-  std::ofstream f(path, mode);
+  fs::path p = PathUtf8(path);
+  std::ofstream f(p, mode);
   if (!f) return false;
   if (offset != SIZE_MAX) {
     f.seekp(static_cast<std::streamoff>(offset), std::ios::beg);
@@ -112,14 +124,16 @@ bool FileWriteBinary(std::string const& path, void const* data, std::size_t size
 
 std::size_t FileGetSize(std::string const& path) {
   std::error_code ec;
-  auto size = fs::file_size(path, ec);
+  fs::path p = PathUtf8(path);
+  auto size = fs::file_size(p, ec);
   if (ec) return 0;
   return static_cast<std::size_t>(size);
 }
 
 bool FileExists(std::string const& path) {
   std::error_code ec;
-  return fs::exists(path, ec) && !ec;
+  fs::path p = PathUtf8(path);
+  return fs::exists(p, ec) && !ec;
 }
 
 std::string PathJoin(std::string const& path1, std::string const& path2) {

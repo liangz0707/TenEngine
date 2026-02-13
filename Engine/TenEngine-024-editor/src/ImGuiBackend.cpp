@@ -31,6 +31,7 @@ struct ImGuiBackendData {
   ID3D11DeviceContext* ctx = nullptr;
   IDXGISwapChain* swapChain = nullptr;
   ID3D11RenderTargetView* rtv = nullptr;
+  void* hwnd = nullptr;  // Main window for modal dialogs (e.g. file open)
   bool imguiInitialized = false;
   int width = 0;
   int height = 0;
@@ -116,6 +117,7 @@ static void CleanupDeviceD3D() {
 
 bool ImGuiBackend_Init(void* hwnd, int width, int height) {
   if (!hwnd) return false;
+  g_data.hwnd = hwnd;
   if (!CreateDeviceD3D(static_cast<HWND>(hwnd), width, height)) return false;
 
   IMGUI_CHECKVERSION();
@@ -182,6 +184,10 @@ std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths() {
   return out;
 }
 
+void* ImGuiBackend_GetWindowHandle() {
+  return g_data.hwnd;
+}
+
 }  // namespace editor
 }  // namespace te
 
@@ -194,6 +200,10 @@ void ImGuiBackend_RegisterWndProcHandler(void* /*application*/) {}
 
 std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths() {
   return std::vector<std::string>();
+}
+
+void* ImGuiBackend_GetWindowHandle() {
+  return nullptr;
 }
 
 }  // namespace editor

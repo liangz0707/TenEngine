@@ -26,6 +26,8 @@
 #include <te/entity/EntityId.h>
 #include <string>
 #include <vector>
+#include <exception>
+#include <filesystem>
 
 namespace te {
 namespace editor {
@@ -95,6 +97,7 @@ public:
 
     if (m_phase == Phase::Launcher) {
       DrawLauncherUI();
+      if (m_showNewSceneModal) DrawNewSceneModal();
     } else {
       DrawMainEditorUI();
     }
@@ -112,7 +115,8 @@ public:
       ImGui::Separator();
 
       if (ImGui::Button("New Scene")) {
-        OnNewScene();
+        m_showNewSceneModal = true;
+        m_newSceneNameBuf[0] = '\0';
       }
       ImGui::SameLine();
       bool canOpen = (g_editorCtx.resourceManager != nullptr) || (te::resource::GetResourceManager() != nullptr);
@@ -149,11 +153,12 @@ public:
         ImGui::Text("Loading...");
       }
       if (canOpen && m_selectedLevelIndex >= 0 && m_selectedLevelIndex < static_cast<int>(levels.size())) {
-        if (m_isLoadingLevel) ImGui::BeginDisabled();
+        bool loading = m_isLoadingLevel;
+        if (loading) ImGui::BeginDisabled();
         if (ImGui::Button("Open Selected")) {
           OpenLevel(levels[static_cast<size_t>(m_selectedLevelIndex)]);
         }
-        if (m_isLoadingLevel) ImGui::EndDisabled();
+        if (loading) ImGui::EndDisabled();
       }
 
       if (ImGui::BeginPopup("OpenLevelPopup")) {
@@ -178,7 +183,7 @@ public:
                          ImGuiWindowFlags_MenuBar)) {
       if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-          if (ImGui::MenuItem("New Scene")) OnNewScene();
+          if (ImGui::MenuItem("New Scene")) { m_showNewSceneModal = true; m_newSceneNameBuf[0] = '\0'; }
           if (ImGui::MenuItem("Open Scene")) { m_showOpenModal = true; }
           ImGui::Separator();
           if (ImGui::MenuItem("Save")) { OnSave(); }
@@ -190,8 +195,8 @@ public:
         ImGui::EndMenuBar();
       }
 
-      float w = ImGui::GetIO().DisplaySize.x;
-      float totalH = ImGui::GetIO().DisplaySize.y - 60.f;
+      float w = ImGui::GetWindowSize().x;
+      float totalH = ImGui::GetWindowSize().y - 60.f;
       if (totalH < 1.f) totalH = 1.f;
       if (w < 1.f) w = 1.f;
 
@@ -270,7 +275,7 @@ public:
       if (ImGui::InvisibleButton("SplitH", ImVec2(w, splitterW))) {}
       if (ImGui::IsItemActive()) {
         float my = ImGui::GetIO().MousePos.y;
-        float winBottom = ImGui::GetWindowPos().y + ImGui::GetIO().DisplaySize.y;
+        float winBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
         float newBottomH = winBottom - my - splitterW;
         if (newBottomH >= minBottom && newBottomH <= totalH - splitterW)
           m_mainBottomH = newBottomH;
@@ -281,8 +286,37 @@ public:
       ImGui::EndChild();
 
       if (m_showOpenModal) DrawOpenLevelModal();
+      if (m_showNewSceneModal) DrawNewSceneModal();
     }
     ImGui::End();
+  }
+
+  void DrawNewSceneModal() {
+    if (!ImGui::IsPopupOpen("New Scene")) ImGui::OpenPopup("New Scene");
+    if (ImGui::BeginPopupModal("New Scene", &m_showNewSceneModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("Scene name:");
+      ImGui::SetNextItemWidth(280.f);
+      bool enter = ImGui::InputText("##NewSceneName", m_newSceneNameBuf, sizeof(m_newSceneNameBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+      if (ImGui::Button("OK") || enter) {
+        if (m_newSceneNameBuf[0] != '\0') {
+          OnNewScene();
+          if (g_editorCtx.projectRootPath && g_editorCtx.projectRootPath[0] != '\0') {
+            std::string name = m_newSceneNameBuf;
+            if (name.size() < 10 || name.compare(name.size() - 10, 10, ".level.xml") != 0)
+              name += ".level.xml";
+            m_currentLevelPath = te::core::PathJoin(te::core::PathJoin(g_editorCtx.projectRootPath, "assets/levels"), name);
+          }
+          m_showNewSceneModal = false;
+          ImGui::CloseCurrentPopup();
+        }
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel")) {
+        m_showNewSceneModal = false;
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
   }
 
   void DrawOpenLevelModal() {
@@ -342,11 +376,13 @@ public:
   }
 
   void OpenLevel(std::string const& path) {
+    if (path.empty()) return;
     te::resource::IResourceManager* mgr = g_editorCtx.resourceManager ? g_editorCtx.resourceManager
                                                                      : te::resource::GetResourceManager();
     if (!mgr) return;
     if (m_isLoadingLevel) return;
 
+    (void)te::world::WorldManager::GetInstance();
     m_isLoadingLevel = true;
 
     struct OpenLevelCallbackContext {
@@ -361,11 +397,24 @@ public:
         [](te::resource::IResource* r, te::resource::LoadResult result, void* user_data) {
           auto* c = static_cast<OpenLevelCallbackContext*>(user_data);
           if (c->editor) {
-            c->editor->OnLevelLoaded(r, result, c->path);
+            try {
+              c->editor->OnLevelLoaded(r, result, c->path);
+            } catch (std::exception const& e) {
+              std::string msg = std::string("Editor: Open level exception: ") + e.what();
+              te::core::Log(te::core::LogLevel::Error, msg.c_str());
+              c->editor->OnLevelLoadFailed();
+            } catch (...) {
+              te::core::Log(te::core::LogLevel::Error, "Editor: Open level unknown exception");
+              c->editor->OnLevelLoadFailed();
+            }
           }
           delete c;
         },
         ctx);
+  }
+
+  void OnLevelLoadFailed() {
+    m_isLoadingLevel = false;
   }
 
   void OnLevelLoaded(te::resource::IResource* r, te::resource::LoadResult result, std::string const& path) {
@@ -401,10 +450,14 @@ public:
   void Run(EditorContext const& ctx) override {
     if (!ctx.application) return;
     if (ctx.projectRootPath && m_resourceView) {
-      m_resourceView->SetRootPath(ctx.projectRootPath);
+      std::string root = std::filesystem::absolute(ctx.projectRootPath).generic_string();
+      m_resourceView->SetRootPath(root.c_str());
       m_resourceView->SetOnOpenLevel([this](std::string const& path) { OpenLevel(path); });
-      if (ctx.resourceManager)
+      if (ctx.resourceManager) {
         m_resourceView->SetResourceManager(ctx.resourceManager);
+        ctx.resourceManager->SetAssetRoot(root.c_str());
+        ctx.resourceManager->LoadAllManifests();
+      }
     }
     g_editorCtx = ctx;
     g_editorInstance = this;
@@ -435,6 +488,8 @@ private:
   int m_selectedLevelIndex = -1;
   std::vector<std::string> m_levelPaths;
   bool m_showOpenModal = false;
+  bool m_showNewSceneModal = false;
+  char m_newSceneNameBuf[256] = "";
   std::string m_currentLevelPath;
   bool m_isLoadingLevel = false;
 

@@ -108,6 +108,14 @@ set(TEXTURE_HEADERS
 )
 
 add_library(te_texture STATIC ${TEXTURE_SOURCES} ${TEXTURE_HEADERS})
+# Ensure debug symbols for breakpoints when debugging the editor or tests (MSVC).
+if(MSVC)
+  target_compile_options(te_texture PRIVATE $<$<CONFIG:Debug>:/Zi /Od /FS>)
+  set_target_properties(te_texture PROPERTIES
+    COMPILE_PDB_NAME te_texture
+    COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/$<CONFIG>"
+  )
+endif()
 target_include_directories(te_texture
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${stb_SOURCE_DIR}

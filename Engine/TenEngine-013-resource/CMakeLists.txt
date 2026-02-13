@@ -44,6 +44,8 @@ endif()
 set(RESOURCE_SOURCES
   src/ResourceManager.cpp
   src/Resource.cpp
+  src/ResourceRepositoryConfig.cpp
+  src/ResourceManifest.cpp
 )
 
 # Resource header files (for Visual Studio project view)
@@ -55,6 +57,8 @@ set(RESOURCE_HEADERS
   include/te/resource/Resource.inl
   include/te/resource/ResourceId.h
   include/te/resource/ResourceManager.h
+  include/te/resource/ResourceManifest.h
+  include/te/resource/ResourceRepositoryConfig.h
   include/te/resource/ResourceTypes.h
   include/te/resource/ShaderResource.h
   include/te/resource/TerrainResource.h
