@@ -5,6 +5,9 @@
 #ifndef TE_EDITOR_IMGUI_BACKEND_H
 #define TE_EDITOR_IMGUI_BACKEND_H
 
+#include <string>
+#include <vector>
+
 namespace te {
 namespace editor {
 
@@ -16,6 +19,9 @@ void ImGuiBackend_NewFrame();
 void ImGuiBackend_Render();
 void ImGuiBackend_Resize(int width, int height);
 bool ImGuiBackend_IsInitialized();
+
+/** Return and clear paths from OS drag-drop (WM_DROPFILES). Empty on non-Windows or when none. */
+std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths();
 
 }  // namespace editor
 }  // namespace te

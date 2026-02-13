@@ -7,8 +7,12 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace te {
+namespace resource {
+class IResourceManager;
+}  // namespace resource
 namespace editor {
 
 class IResourceView {
@@ -18,6 +22,10 @@ public:
   virtual void SetRootPath(char const* path) = 0;
   /** Callback when user double-clicks a .level file to open. */
   virtual void SetOnOpenLevel(std::function<void(std::string const&)> fn) = 0;
+  /** Set resource manager for Import (right-click / drag-drop). */
+  virtual void SetResourceManager(te::resource::IResourceManager* manager) = 0;
+  /** Import files (e.g. from OS drag-drop). Target dir = current selected directory. */
+  virtual void ImportFiles(std::vector<std::string> const& paths) = 0;
 };
 
 IResourceView* CreateResourceView();

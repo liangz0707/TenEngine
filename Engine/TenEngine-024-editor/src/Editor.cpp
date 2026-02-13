@@ -43,7 +43,7 @@ static std::vector<std::string> ScanLevelFiles(char const* projectRoot) {
   std::vector<te::core::DirEntry> entries = te::core::DirectoryEnumerate(levelsDir);
   for (std::string const& name : entries) {
     std::string ext = te::core::PathGetExtension(name);
-    if (ext == ".level") {
+    if (ext == ".level" || ext == ".xml") {
       out.push_back(te::core::PathJoin(levelsDir, name));
     } else if (ext == ".json" && name.find(".level.") != std::string::npos) {
       out.push_back(te::core::PathJoin(levelsDir, name));
@@ -88,6 +88,10 @@ public:
       if (!ImGuiBackend_Init(hwnd, 1280, 720)) return;
     }
     ImGuiBackend_NewFrame();
+
+    std::vector<std::string> dropped = ImGuiBackend_GetAndClearDroppedPaths();
+    if (!dropped.empty() && m_resourceView)
+      m_resourceView->ImportFiles(dropped);
 
     if (m_phase == Phase::Launcher) {
       DrawLauncherUI();
@@ -187,24 +191,73 @@ public:
       }
 
       float w = ImGui::GetIO().DisplaySize.x;
-      float bottomH = 150.f;
-      float mainH = ImGui::GetIO().DisplaySize.y - 60.f - bottomH;
-      if (mainH < 1.f) mainH = 1.f;
+      float totalH = ImGui::GetIO().DisplaySize.y - 60.f;
+      if (totalH < 1.f) totalH = 1.f;
       if (w < 1.f) w = 1.f;
-      if (bottomH < 1.f) bottomH = 1.f;
 
-      ImGui::BeginChild("Left", ImVec2(w * 0.2f, mainH), true);
+      const float splitterW = 4.f;
+      const float minLeft = 80.f, minCenter = 100.f, minRight = 80.f, minBottom = 60.f;
+
+      if (m_mainLeftW <= 0.f || m_mainCenterW <= 0.f) {
+        m_mainLeftW = w * 0.2f;
+        m_mainCenterW = w * 0.5f;
+      }
+      if (m_mainBottomH <= 0.f) m_mainBottomH = 150.f;
+
+      float leftW = m_mainLeftW;
+      float centerW = m_mainCenterW;
+      float rightW = w - leftW - centerW - splitterW * 2.f;
+      if (rightW < minRight) {
+        centerW -= (minRight - rightW);
+        rightW = minRight;
+        if (centerW < minCenter) {
+          leftW -= (minCenter - centerW);
+          centerW = minCenter;
+          if (leftW < minLeft) leftW = minLeft;
+        }
+        m_mainLeftW = leftW;
+        m_mainCenterW = centerW;
+      }
+
+      float mainH = totalH - m_mainBottomH - splitterW;
+      if (mainH < 60.f) {
+        m_mainBottomH = totalH - 60.f - splitterW;
+        if (m_mainBottomH < minBottom) m_mainBottomH = minBottom;
+        mainH = totalH - m_mainBottomH - splitterW;
+      }
+      float bottomH = m_mainBottomH;
+
+      ImGui::BeginChild("Left", ImVec2(leftW, mainH), true);
       ImGui::Text("Scene Tree");
       if (m_sceneView) m_sceneView->OnDraw();
       ImGui::EndChild();
 
       ImGui::SameLine();
-      ImGui::BeginChild("Center", ImVec2(w * 0.5f - 4, mainH), true);
+      if (ImGui::InvisibleButton("SplitV1", ImVec2(splitterW, mainH))) {}
+      if (ImGui::IsItemActive()) {
+        float mx = ImGui::GetIO().MousePos.x;
+        ImVec2 winMin = ImGui::GetWindowPos();
+        float newLeft = mx - winMin.x;
+        if (newLeft >= minLeft && newLeft <= w - splitterW * 2.f - minCenter - minRight)
+          m_mainLeftW = newLeft;
+      }
+      ImGui::SameLine();
+      ImGui::BeginChild("Center", ImVec2(centerW, mainH), true);
       ImGui::Text("Viewport");
       ImGui::EndChild();
 
       ImGui::SameLine();
-      ImGui::BeginChild("Right", ImVec2(w * 0.3f - 20, mainH), true);
+      if (ImGui::InvisibleButton("SplitV2", ImVec2(splitterW, mainH))) {}
+      if (ImGui::IsItemActive()) {
+        float mx = ImGui::GetIO().MousePos.x;
+        ImVec2 winMin = ImGui::GetWindowPos();
+        float newCenterEnd = mx - winMin.x;
+        float newCenterW = newCenterEnd - m_mainLeftW - splitterW;
+        if (newCenterW >= minCenter && newCenterW <= w - m_mainLeftW - splitterW * 2.f - minRight)
+          m_mainCenterW = newCenterW;
+      }
+      ImGui::SameLine();
+      ImGui::BeginChild("Right", ImVec2(rightW, mainH), true);
       ImGui::Text("Property Panel");
       if (m_sceneView && m_propertyPanel) {
         std::vector<te::entity::EntityId> sel;
@@ -214,6 +267,14 @@ public:
       if (m_propertyPanel) m_propertyPanel->OnDraw();
       ImGui::EndChild();
 
+      if (ImGui::InvisibleButton("SplitH", ImVec2(w, splitterW))) {}
+      if (ImGui::IsItemActive()) {
+        float my = ImGui::GetIO().MousePos.y;
+        float winBottom = ImGui::GetWindowPos().y + ImGui::GetIO().DisplaySize.y;
+        float newBottomH = winBottom - my - splitterW;
+        if (newBottomH >= minBottom && newBottomH <= totalH - splitterW)
+          m_mainBottomH = newBottomH;
+      }
       ImGui::BeginChild("Bottom", ImVec2(w, bottomH), true);
       ImGui::Text("Resource Browser");
       if (m_resourceView) m_resourceView->OnDraw();
@@ -255,8 +316,13 @@ public:
                                                                      : te::resource::GetResourceManager();
     if (!mgr) return;
     std::string path = m_currentLevelPath.empty()
-                           ? te::core::PathJoin(g_editorCtx.projectRootPath ? g_editorCtx.projectRootPath : ".", "assets/levels/untitled.level")
+                           ? te::core::PathJoin(g_editorCtx.projectRootPath ? g_editorCtx.projectRootPath : ".", "assets/levels/untitled.level.xml")
                            : m_currentLevelPath;
+    {
+      bool ends_level = (path.size() >= 6 && path.compare(path.size() - 6, 6, ".level") == 0);
+      bool ends_level_xml = (path.size() >= 10 && path.compare(path.size() - 10, 10, ".level.xml") == 0);
+      if (ends_level && !ends_level_xml) path += ".xml";
+    }
     if (te::world::WorldManager::GetInstance().SaveLevel(m_levelHandle, path.c_str())) {
       m_currentLevelPath = path;
     }
@@ -337,6 +403,8 @@ public:
     if (ctx.projectRootPath && m_resourceView) {
       m_resourceView->SetRootPath(ctx.projectRootPath);
       m_resourceView->SetOnOpenLevel([this](std::string const& path) { OpenLevel(path); });
+      if (ctx.resourceManager)
+        m_resourceView->SetResourceManager(ctx.resourceManager);
     }
     g_editorCtx = ctx;
     g_editorInstance = this;
@@ -369,6 +437,10 @@ private:
   bool m_showOpenModal = false;
   std::string m_currentLevelPath;
   bool m_isLoadingLevel = false;
+
+  float m_mainLeftW = 0.f;
+  float m_mainCenterW = 0.f;
+  float m_mainBottomH = 0.f;
 
   IUndoSystem* m_undoSystem = nullptr;
   ISceneView* m_sceneView = nullptr;

@@ -10,11 +10,14 @@
 #include <imgui_impl_dx11.h>
 #include <d3d11.h>
 #include <dxgi.h>
+#include <shellapi.h>
 #include <te/core/check.h>
 #ifdef CreateWindow
 #undef CreateWindow
 #endif
 #include <te/application/Application.h>
+#include <string>
+#include <vector>
 
 #pragma comment(lib, "d3d11.lib")
 
@@ -34,11 +37,35 @@ struct ImGuiBackendData {
 };
 
 static ImGuiBackendData g_data;
+static std::vector<std::string> s_droppedPaths;
+
+static LRESULT CALLBACK WndProcWithDrop(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+  LRESULT r = ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
+  if (msg == WM_DROPFILES) {
+    HDROP h = reinterpret_cast<HDROP>(wParam);
+    UINT n = DragQueryFileW(h, 0xFFFFFFFF, nullptr, 0);
+    for (UINT i = 0; i < n; i++) {
+      wchar_t buf[MAX_PATH] = {};
+      if (DragQueryFileW(h, i, buf, MAX_PATH) > 0) {
+        int len = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
+        if (len > 0) {
+          std::string utf8(static_cast<size_t>(len), '\0');
+          WideCharToMultiByte(CP_UTF8, 0, buf, -1, &utf8[0], len, nullptr, nullptr);
+          if (!utf8.empty() && utf8.back() == '\0') utf8.pop_back();
+          s_droppedPaths.push_back(utf8);
+        }
+      }
+    }
+    DragFinish(h);
+    return 0;
+  }
+  return r;
+}
 
 void ImGuiBackend_RegisterWndProcHandler(void* application) {
   if (application) {
     static_cast<te::application::IApplication*>(application)->SetWndProcHandler(
-        reinterpret_cast<void*>(ImGui_ImplWin32_WndProcHandler));
+        reinterpret_cast<void*>(WndProcWithDrop));
   }
 }
 
@@ -98,6 +125,7 @@ bool ImGuiBackend_Init(void* hwnd, int width, int height) {
 
   if (!ImGui_ImplWin32_Init(hwnd)) return false;
   if (!ImGui_ImplDX11_Init(g_data.device, g_data.ctx)) return false;
+  DragAcceptFiles(static_cast<HWND>(hwnd), TRUE);
 
   g_data.imguiInitialized = true;
   return true;
@@ -148,6 +176,12 @@ void ImGuiBackend_Resize(int width, int height) {
 
 bool ImGuiBackend_IsInitialized() { return g_data.imguiInitialized; }
 
+std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths() {
+  std::vector<std::string> out;
+  out.swap(s_droppedPaths);
+  return out;
+}
+
 }  // namespace editor
 }  // namespace te
 
@@ -157,6 +191,10 @@ namespace te {
 namespace editor {
 
 void ImGuiBackend_RegisterWndProcHandler(void* /*application*/) {}
+
+std::vector<std::string> ImGuiBackend_GetAndClearDroppedPaths() {
+  return std::vector<std::string>();
+}
 
 }  // namespace editor
 }  // namespace te

@@ -28,13 +28,23 @@ std::optional<std::vector<std::uint8_t>> FileRead(std::string const& path) {
   return buf;
 }
 
+static bool EnsureParentDirectoryExists(std::string const& path) {
+  std::string dir = fs::path(path).parent_path().generic_string();
+  if (dir.empty()) return true;
+  std::error_code ec;
+  fs::create_directories(dir, ec);
+  return !ec;
+}
+
 bool FileWrite(std::string const& path, std::vector<std::uint8_t> const& data) {
+  if (!EnsureParentDirectoryExists(path)) return false;
   std::ofstream f(path, std::ios::binary);
   if (!f) return false;
   return static_cast<bool>(f.write(reinterpret_cast<char const*>(data.data()), data.size()));
 }
 
 bool FileWrite(std::string const& path, std::string const& data) {
+  if (!EnsureParentDirectoryExists(path)) return false;
   std::ofstream f(path);
   if (!f) return false;
   return static_cast<bool>(f << data);
@@ -86,6 +96,7 @@ bool FileReadBinary(std::string const& path, void* outData, std::size_t* outSize
 }
 
 bool FileWriteBinary(std::string const& path, void const* data, std::size_t size, std::size_t offset) {
+  if (!EnsureParentDirectoryExists(path)) return false;
   std::ios_base::openmode mode = std::ios::binary;
   if (offset == SIZE_MAX) {
     mode |= std::ios::app;

@@ -18,6 +18,7 @@ tenengine_resolve_my_dependencies("024-editor" OUT_DEPS MY_DEPS)
 set(EDITOR_SOURCES
   src/Editor.cpp
   src/EntityAdapter.cpp
+  src/FileDialog.cpp
   src/RenderViewportImpl.cpp
   src/UndoSystemImpl.cpp
   src/RenderingSettingsPanelImpl.cpp
@@ -33,6 +34,7 @@ endif()
 set(EDITOR_HEADERS
   include/te/editor/Editor.h
   include/te/editor/EditorPanel.h
+  include/te/editor/FileDialog.h
   include/te/editor/EntityAdapter.h
   include/te/editor/RenderingConfig.h
   include/te/editor/RenderingSettingsPanel.h
