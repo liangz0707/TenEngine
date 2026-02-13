@@ -254,10 +254,10 @@ void AsyncBufferCreateWorker(void* ctx) {
   }
   context->progress.store(0.8f);  // 80% - submitted to GPU
 
-  // Wait for fence in background thread (non-blocking for main thread)
-  te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-  if (threadPool) {
-    threadPool->SubmitTask([](void* ctx) {
+  te::core::IThreadPool* pool = te::core::GetThreadPool();
+  te::core::ITaskExecutor* workerEx = pool ? pool->GetWorkerExecutor() : nullptr;
+  if (workerEx) {
+    workerEx->SubmitTask([](void* ctx) {
       auto* ctxt = static_cast<AsyncBufferCreateContext*>(ctx);
       if (!ctxt || !ctxt->fence) {
         return;
@@ -359,17 +359,15 @@ ResourceOperationHandle CreateDeviceBufferAsync(
   // Register operation and get handle
   ResourceOperationHandle handle = internal::RegisterOperation(context);
 
-  // Submit async work to thread pool
-  te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-  if (threadPool) {
-    threadPool->SubmitTask(AsyncBufferCreateWorker, context);
-    return handle;
-  } else {
-    // Fallback: synchronous creation
-    te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Thread pool not available, falling back to sync");
-    AsyncBufferCreateWorker(context);
+  te::core::IThreadPool* pool = te::core::GetThreadPool();
+  te::core::ITaskExecutor* workerEx = pool ? pool->GetWorkerExecutor() : nullptr;
+  if (workerEx) {
+    workerEx->SubmitTask(AsyncBufferCreateWorker, context);
     return handle;
   }
+  te::core::Log(te::core::LogLevel::Error, "BufferDeviceImpl::CreateDeviceBufferAsync: Thread pool not available, falling back to sync");
+  AsyncBufferCreateWorker(context);
+  return handle;
 }
 
 }  // namespace internal

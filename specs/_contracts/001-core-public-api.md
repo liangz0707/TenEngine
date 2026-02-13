@@ -17,7 +17,7 @@
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
 | Allocator / 内存块 | 抽象分配器 Allocator、DefaultAllocator；Alloc(size, alignment)、AllocAligned(size, alignment)、Free(ptr)、Realloc(ptr, newSize)（可选）；GetDefaultAllocator()、GetMemoryStats()（可选） | 分配后直至显式释放；Free(nullptr) 为 no-op |
-| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、TaskCallback、TaskId、TaskStatus、GetThreadPool；IThreadPool::SubmitTaskWithPriority、CancelTask、GetTaskStatus、SetCallbackThread | 按 C++ 或实现约定 |
+| Task/Job、Thread、TLS、Atomic | Thread、TLS\<T\>、Atomic\<T\>、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool、ITaskExecutor、ExecutorType、TaskCallback、TaskId、TaskStatus、GetThreadPool；IThreadPool::SubmitTask、SetCallbackThread、ProcessMainThreadCallbacks、GetWorkerExecutor、GetIOExecutor、GetExecutor、RegisterExecutor、SpawnTask；ITaskExecutor::SubmitTask、SubmitTaskWithPriority、CancelTask、GetTaskStatus | 按 C++ 或实现约定 |
 | 平台句柄与宏 | TE_PLATFORM_WINDOWS/LINUX/MACOS/ANDROID/IOS；FileRead/FileWrite、FileReadBinary/FileWriteBinary、FileGetSize/FileExists、DirectoryEnumerate、DirEntry、Time、HighResolutionTimer、GetEnv、PathNormalize、PathJoin、PathGetDirectory/PathGetFileName/PathGetExtension、PathResolveRelative | 按具体 API 约定 |
 | 数学类型 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray；Lerp、Dot、Cross、Length、Normalize | 值类型或调用方管理 |
 | 容器 | Array\<T\>、Map\<K,V\>、String、UniquePtr\<T\>、SharedPtr\<T\>（可指定分配器） | 调用方管理 |
@@ -29,7 +29,7 @@
 | 序号 | 能力 | 说明 |
 |------|------|------|
 | 1 | 内存管理 | Alloc/Free、AllocAligned、Allocator 接口、GetDefaultAllocator；分配失败返回 nullptr；可选 Realloc、内存统计、池化与统计 |
-| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool::SubmitTask、IThreadPool::SubmitTaskWithPriority、IThreadPool::CancelTask、IThreadPool::GetTaskStatus、IThreadPool::SetCallbackThread、GetThreadPool；语义明确；支持任务优先级、取消、状态查询、回调线程控制 |
+| 2 | 线程管理 | Thread、TLS、Atomic、Mutex、LockGuard、ConditionVariable、TaskQueue、IThreadPool（SubmitTask、SetCallbackThread、ProcessMainThreadCallbacks、GetWorkerExecutor、GetIOExecutor、GetExecutor、RegisterExecutor、SpawnTask）、ITaskExecutor（SubmitTask、SubmitTaskWithPriority、CancelTask、GetTaskStatus）、ExecutorType、GetThreadPool；主线程回调、专用 IO/Worker Executor、一次性 SpawnTask |
 | 3 | 平台抽象 | 文件 FileRead/FileWrite、FileReadBinary/FileWriteBinary（支持大文件和指定偏移）、FileGetSize/FileExists、目录 DirectoryEnumerate、时间 Time/HighResolutionTimer、GetEnv、路径 PathNormalize/PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative；平台宏 TE_PLATFORM_* 编译时选择 |
 | 4 | 日志 | LogLevel、Log、LogSetLevelFilter/LogSetStderrThreshold/LogSetSink、Assert、SetCrashHandler；可重定向与过滤 |
 | 5 | 数学 | Scalar、Vector2/3/4、Matrix3/4、Quaternion、AABB、Ray、Lerp、Dot、Cross、Length、Normalize；无 GPU 依赖 |
@@ -63,14 +63,12 @@
 - **FileGetSize**：获取文件大小，用于预分配内存
 - **FileExists**：检查文件是否存在，用于资源路径验证
 
-### 异步操作增强
+### Executor 架构（2026-02）
 
-为支持资源模块的异步加载需求，扩展 IThreadPool 接口：
-
-- **SubmitTaskWithPriority**：提交带优先级的任务，资源加载任务可设置优先级
-- **CancelTask**：取消正在执行的任务，支持资源加载取消
-- **GetTaskStatus**：查询任务执行状态，用于资源加载状态跟踪
-- **SetCallbackThread**：设置回调执行线程（主线程或工作线程），确保资源加载回调在正确线程执行
+- **ITaskExecutor**：单线程任务执行器；SubmitTask、SubmitTaskWithPriority、CancelTask、GetTaskStatus
+- **ExecutorType**：Worker、IO、Audio、Physics、Network（扩展用）
+- **IThreadPool**：SubmitTask（完成回调路由至主线程或 Worker）、SetCallbackThread、ProcessMainThreadCallbacks（主线程每帧调用）、GetWorkerExecutor、GetIOExecutor、GetExecutor、RegisterExecutor、SpawnTask（一次性线程）
+- 任务提交与取消通过 GetWorkerExecutor()/GetIOExecutor() 等获取 Executor 后调用
 
 ### 内存管理增强
 
@@ -98,3 +96,4 @@
 | T0 更新 | 对齐 T0 架构；移除 ECS/序列化（归 002-Object）；消费者按依赖图 |
 | 2026-02-05 | 统一目录；能力列表用表格描述类型与句柄、能力；不引用 ABI 文件 |
 | 2026-02-06 | 增强功能：文件 I/O（FileReadBinary/FileWriteBinary/FileGetSize/FileExists）、异步操作（任务优先级/取消/状态查询/回调线程控制）、内存管理（AllocAligned/Realloc/GetMemoryStats）、路径操作（PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative）；支持资源模块重构后的需求 |
+| 2026-02-12 | Executor 架构：ITaskExecutor、ExecutorType；IThreadPool 重构为 GetWorkerExecutor/GetIOExecutor/ProcessMainThreadCallbacks/SpawnTask；移除 IThreadPool 上的 SubmitTaskWithPriority/CancelTask/GetTaskStatus |

@@ -1,9 +1,10 @@
 /**
  * @file thread.cpp
- * @brief Implementation of Thread, TLS, Atomic, Mutex, ConditionVariable, TaskQueue, IThreadPool, GetThreadPool per contract (001-core-ABI.md).
+ * @brief Implementation of Thread, TLS, Mutex, ConditionVariable, TaskQueue, ITaskExecutor, IThreadPool per contract.
  * Uses std::thread, std::mutex, std::condition_variable. Comments in English.
  */
 
+#include "te/core/thread.h"
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -15,7 +16,6 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
-#include "te/core/thread.h"
 
 namespace te {
 namespace core {
@@ -23,7 +23,7 @@ namespace core {
 // --- Thread ---
 struct Thread::Impl {
   std::thread t;
-  
+
   ~Impl() {
     if (t.joinable()) {
       t.detach();
@@ -37,10 +37,7 @@ Thread::Thread(std::function<void()> fn) : impl_(std::make_unique<Impl>()) {
   impl_->t = std::thread(std::move(fn));
 }
 
-Thread::~Thread() {
-  // Impl is complete type here, so unique_ptr can be destroyed properly
-  // The destructor will automatically call impl_->~Impl() which handles thread cleanup
-}
+Thread::~Thread() {}
 
 Thread::Thread(Thread&& other) noexcept : impl_(std::move(other.impl_)) {}
 
@@ -77,7 +74,9 @@ bool Mutex::TryLock() { return impl_->m.try_lock(); }
 
 // --- LockGuard ---
 LockGuard::LockGuard(Mutex& m) : mutex_(&m) { mutex_->Lock(); }
-LockGuard::~LockGuard() { if (mutex_) mutex_->Unlock(); }
+LockGuard::~LockGuard() {
+  if (mutex_) mutex_->Unlock();
+}
 
 // --- ConditionVariable ---
 struct ConditionVariable::Impl {
@@ -91,7 +90,7 @@ void ConditionVariable::Wait(Mutex& m) {
   m.Unlock();
   std::unique_lock<std::mutex> lock(m.impl_->m);
   impl_->cv.wait(lock);
-  lock.release();  // leave mutex locked for caller
+  lock.release();
 }
 
 void ConditionVariable::NotifyOne() { impl_->cv.notify_one(); }
@@ -137,7 +136,7 @@ void TaskQueue::Shutdown() {
   impl_->cv.notify_all();
 }
 
-// --- IThreadPool / GetThreadPool ---
+// --- TaskItem ---
 struct TaskItem {
   TaskCallback callback;
   void* user_data;
@@ -147,118 +146,171 @@ struct TaskItem {
   bool cancelled;
 
   TaskItem(TaskCallback cb, void* ud, int prio, TaskId id)
-      : callback(cb), user_data(ud), priority(prio), taskId(id), status(TaskStatus::Pending), cancelled(false) {}
+      : callback(cb), user_data(ud), priority(prio), taskId(id),
+        status(TaskStatus::Pending), cancelled(false) {}
 };
 
-struct DefaultThreadPool : IThreadPool {
-  std::thread worker;
-  mutable std::mutex m;  // mutable so const methods can lock it
-  std::condition_variable cv;
-  std::queue<std::pair<TaskCallback, void*>> queue;  // For SubmitTask (no priority)
-  std::vector<std::shared_ptr<TaskItem>> priority_queue;  // For SubmitTaskWithPriority (sorted by priority)
-  std::unordered_map<TaskId, std::shared_ptr<TaskItem>> tasks;
-  std::atomic<TaskId> nextTaskId{1};
-  bool shutdown = false;
-  CallbackThreadType callbackThreadType = CallbackThreadType::WorkerThread;
-  
-  // Helper to get highest priority task (must be called with lock held)
-  std::shared_ptr<TaskItem> PopHighestPriorityTask() {
-    if (priority_queue.empty()) return nullptr;
-    auto it = std::max_element(priority_queue.begin(), priority_queue.end(),
-                               [](auto const& a, auto const& b) {
-                                 return a->priority < b->priority;
-                               });
-    if (it == priority_queue.end()) return nullptr;
-    auto task = *it;
-    priority_queue.erase(it);
-    return task;
-  }
-
-  DefaultThreadPool() {
-    worker = std::thread([this]() {
+// --- SingleThreadExecutor ---
+class SingleThreadExecutor : public ITaskExecutor {
+ public:
+  SingleThreadExecutor() {
+    worker_ = std::thread([this]() {
       while (true) {
-        std::pair<TaskCallback, void*> item{nullptr, nullptr};
-        std::shared_ptr<TaskItem> taskItem;
+        std::shared_ptr<TaskItem> item;
         {
-          std::unique_lock<std::mutex> lock(m);
-          cv.wait(lock, [this] { return shutdown || !queue.empty() || !priority_queue.empty(); });
-          if (shutdown && queue.empty() && priority_queue.empty()) break;
-          
-          // Process priority queue first
-          taskItem = PopHighestPriorityTask();
-          if (taskItem && !taskItem->cancelled) {
-            item = {taskItem->callback, taskItem->user_data};
-            taskItem->status.store(TaskStatus::Loading);
-          } else if (!queue.empty()) {
-            item = std::move(queue.front());
-            queue.pop();
+          std::unique_lock<std::mutex> lock(m_);
+          cv_.wait(lock, [this] {
+            return shutdown_ || !priority_queue_.empty();
+          });
+          if (shutdown_ && priority_queue_.empty()) break;
+          item = PopHighestPriorityTask();
+          if (item && !item->cancelled) {
+            item->status.store(TaskStatus::Loading);
+          } else {
+            item.reset();
           }
         }
-        
-        if (item.first) {
-          item.first(item.second);
-          if (taskItem) {
-            taskItem->status.store(TaskStatus::Completed);
-            std::lock_guard<std::mutex> lock(m);
-            tasks.erase(taskItem->taskId);
-          }
+        if (item && item->callback) {
+          item->callback(item->user_data);
+          item->status.store(TaskStatus::Completed);
+          std::lock_guard<std::mutex> lock(m_);
+          tasks_.erase(item->taskId);
         }
       }
     });
   }
 
-  ~DefaultThreadPool() override {
+  ~SingleThreadExecutor() override {
     {
-      std::lock_guard<std::mutex> lock(m);
-      shutdown = true;
-      cv.notify_all();
+      std::lock_guard<std::mutex> lock(m_);
+      shutdown_ = true;
+      cv_.notify_all();
     }
-    if (worker.joinable()) worker.join();
+    if (worker_.joinable()) worker_.join();
   }
 
-  void SubmitTask(TaskCallback callback, void* user_data) override {
-    std::lock_guard<std::mutex> lock(m);
-    if (shutdown) return;
-    queue.push({callback, user_data});
-    cv.notify_one();
-  }
-
-  TaskId SubmitTaskWithPriority(TaskCallback callback, void* user_data, int priority) override {
-    std::lock_guard<std::mutex> lock(m);
-    if (shutdown) return 0;
-    TaskId id = nextTaskId.fetch_add(1);
-    auto taskItem = std::make_shared<TaskItem>(callback, user_data, priority, id);
-    tasks[id] = taskItem;
-    priority_queue.push_back(taskItem);
-    cv.notify_one();
+  TaskId SubmitTaskWithPriority(TaskCallback cb, void* ud, int prio) override {
+    std::lock_guard<std::mutex> lock(m_);
+    if (shutdown_) return 0;
+    TaskId id = nextTaskId_.fetch_add(1);
+    auto item = std::make_shared<TaskItem>(cb, ud, prio, id);
+    tasks_[id] = item;
+    priority_queue_.push_back(item);
+    cv_.notify_one();
     return id;
   }
 
-  bool CancelTask(TaskId taskId) override {
-    std::lock_guard<std::mutex> lock(m);
-    auto it = tasks.find(taskId);
-    if (it == tasks.end()) return false;
-    auto taskItem = it->second;
-    TaskStatus currentStatus = taskItem->status.load();
-    if (currentStatus == TaskStatus::Completed || currentStatus == TaskStatus::Failed) {
-      return false;
-    }
-    taskItem->cancelled = true;
-    taskItem->status.store(TaskStatus::Cancelled);
-    tasks.erase(it);
+  void SubmitTask(TaskCallback cb, void* ud) override {
+    (void)SubmitTaskWithPriority(cb, ud, 0);
+  }
+
+  bool CancelTask(TaskId id) override {
+    std::lock_guard<std::mutex> lock(m_);
+    auto it = tasks_.find(id);
+    if (it == tasks_.end()) return false;
+    auto& item = it->second;
+    TaskStatus s = item->status.load();
+    if (s == TaskStatus::Completed || s == TaskStatus::Failed) return false;
+    item->cancelled = true;
+    item->status.store(TaskStatus::Cancelled);
+    tasks_.erase(it);
     return true;
   }
 
-  TaskStatus GetTaskStatus(TaskId taskId) const override {
-    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(m));
-    auto it = tasks.find(taskId);
-    if (it == tasks.end()) return TaskStatus::Completed;  // Assume completed if not found
+  TaskStatus GetTaskStatus(TaskId id) const override {
+    std::lock_guard<std::mutex> lock(const_cast<std::mutex&>(m_));
+    auto it = tasks_.find(id);
+    if (it == tasks_.end()) return TaskStatus::Completed;
     return it->second->status.load();
   }
 
-  void SetCallbackThread(CallbackThreadType threadType) override {
-    std::lock_guard<std::mutex> lock(m);
-    callbackThreadType = threadType;
+ private:
+  std::shared_ptr<TaskItem> PopHighestPriorityTask() {
+    if (priority_queue_.empty()) return nullptr;
+    auto it = std::max_element(priority_queue_.begin(), priority_queue_.end(),
+                               [](auto const& a, auto const& b) {
+                                 return a->priority < b->priority;
+                               });
+    if (it == priority_queue_.end()) return nullptr;
+    auto task = *it;
+    priority_queue_.erase(it);
+    return task;
+  }
+
+  std::thread worker_;
+  mutable std::mutex m_;
+  std::condition_variable cv_;
+  std::vector<std::shared_ptr<TaskItem>> priority_queue_;
+  std::unordered_map<TaskId, std::shared_ptr<TaskItem>> tasks_;
+  std::atomic<TaskId> nextTaskId_{1};
+  bool shutdown_ = false;
+};
+
+// --- DefaultThreadPool ---
+struct DefaultThreadPool : IThreadPool {
+  std::unique_ptr<SingleThreadExecutor> workerExecutor_;
+  std::unique_ptr<SingleThreadExecutor> ioExecutor_;
+  std::vector<ITaskExecutor*> executors_;
+  std::mutex main_m_;
+  std::queue<std::pair<TaskCallback, void*>> main_thread_callbacks_;
+  CallbackThreadType callbackThreadType_ = CallbackThreadType::WorkerThread;
+
+  DefaultThreadPool() {
+    workerExecutor_ = std::make_unique<SingleThreadExecutor>();
+    ioExecutor_ = std::make_unique<SingleThreadExecutor>();
+    executors_.resize(static_cast<size_t>(ExecutorType::Count), nullptr);
+    executors_[static_cast<size_t>(ExecutorType::Worker)] = workerExecutor_.get();
+    executors_[static_cast<size_t>(ExecutorType::IO)] = ioExecutor_.get();
+  }
+
+  void SubmitTask(TaskCallback cb, void* ud) override {
+    {
+      std::lock_guard<std::mutex> lock(main_m_);
+      if (callbackThreadType_ == CallbackThreadType::MainThread) {
+        main_thread_callbacks_.push({cb, ud});
+        return;
+      }
+    }
+    workerExecutor_->SubmitTask(cb, ud);
+  }
+
+  void SetCallbackThread(CallbackThreadType type) override {
+    std::lock_guard<std::mutex> lock(main_m_);
+    callbackThreadType_ = type;
+  }
+
+  void ProcessMainThreadCallbacks() override {
+    std::vector<std::pair<TaskCallback, void*>> batch;
+    {
+      std::lock_guard<std::mutex> lock(main_m_);
+      while (!main_thread_callbacks_.empty()) {
+        batch.push_back(main_thread_callbacks_.front());
+        main_thread_callbacks_.pop();
+      }
+    }
+    for (auto& p : batch) {
+      if (p.first) p.first(p.second);
+    }
+  }
+
+  ITaskExecutor* GetWorkerExecutor() override { return workerExecutor_.get(); }
+  ITaskExecutor* GetIOExecutor() override { return ioExecutor_.get(); }
+
+  ITaskExecutor* GetExecutor(ExecutorType type) override {
+    size_t i = static_cast<size_t>(type);
+    if (i >= executors_.size()) return nullptr;
+    return executors_[i];
+  }
+
+  void RegisterExecutor(ExecutorType type, ITaskExecutor* executor) override {
+    size_t i = static_cast<size_t>(type);
+    if (i < executors_.size()) executors_[i] = executor;
+  }
+
+  void SpawnTask(TaskCallback cb, void* ud) override {
+    std::thread([cb, ud]() {
+      if (cb) cb(ud);
+    }).detach();
   }
 };
 

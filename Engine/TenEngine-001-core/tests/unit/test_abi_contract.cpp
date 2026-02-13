@@ -68,14 +68,19 @@ int main() {
   (void)q;
   IThreadPool* pool = GetThreadPool();
   (void)pool;
-  // Test new enhanced thread pool functions
-  TaskId taskId = pool->SubmitTaskWithPriority(noop_task, nullptr, 1);
-  (void)taskId;
-  bool cancelled = pool->CancelTask(taskId);
-  (void)cancelled;
-  TaskStatus status = pool->GetTaskStatus(taskId);
-  (void)status;
+  ITaskExecutor* workerEx = pool ? pool->GetWorkerExecutor() : nullptr;
+  if (workerEx) {
+    TaskId taskId = workerEx->SubmitTaskWithPriority(noop_task, nullptr, 1);
+    (void)taskId;
+    bool cancelled = workerEx->CancelTask(taskId);
+    (void)cancelled;
+    TaskStatus status = workerEx->GetTaskStatus(taskId);
+    (void)status;
+  }
   pool->SetCallbackThread(CallbackThreadType::MainThread);
+  (void)pool->ProcessMainThreadCallbacks();
+  (void)pool->GetIOExecutor();
+  (void)pool->GetExecutor(ExecutorType::Worker);
 
   // --- platform.h ---
 #if TE_PLATFORM_WINDOWS + TE_PLATFORM_LINUX + TE_PLATFORM_MACOS + TE_PLATFORM_ANDROID + TE_PLATFORM_IOS >= 1

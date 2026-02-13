@@ -224,10 +224,10 @@ void AsyncTextureCreateWorker(void* ctx) {
   }
   context->progress.store(0.8f);  // 80% - submitted to GPU
 
-  // Wait for fence in background thread (non-blocking for main thread)
-  te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-  if (threadPool) {
-    threadPool->SubmitTask([](void* ctx) {
+  te::core::IThreadPool* pool = te::core::GetThreadPool();
+  te::core::ITaskExecutor* workerEx = pool ? pool->GetWorkerExecutor() : nullptr;
+  if (workerEx) {
+    workerEx->SubmitTask([](void* ctx) {
       auto* ctxt = static_cast<AsyncTextureCreateContext*>(ctx);
       if (!ctxt || !ctxt->fence) {
         return;
@@ -329,17 +329,15 @@ ResourceOperationHandle CreateDeviceTextureAsync(
   // Register operation and get handle
   ResourceOperationHandle handle = internal::RegisterOperation(context);
 
-  // Submit async work to thread pool
-  te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-  if (threadPool) {
-    threadPool->SubmitTask(AsyncTextureCreateWorker, context);
-    return handle;
-  } else {
-    // Fallback: synchronous creation
-    te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Thread pool not available, falling back to sync");
-    AsyncTextureCreateWorker(context);
+  te::core::IThreadPool* pool = te::core::GetThreadPool();
+  te::core::ITaskExecutor* workerEx = pool ? pool->GetWorkerExecutor() : nullptr;
+  if (workerEx) {
+    workerEx->SubmitTask(AsyncTextureCreateWorker, context);
     return handle;
   }
+  te::core::Log(te::core::LogLevel::Error, "TextureDeviceImpl::CreateDeviceTextureAsync: Thread pool not available, falling back to sync");
+  AsyncTextureCreateWorker(context);
+  return handle;
 }
 
 bool UpdateDeviceTexture(

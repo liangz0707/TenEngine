@@ -88,16 +88,16 @@ public:
     }
     
     ~ResourceManagerImpl() override {
-        // Cleanup: cancel all pending requests, unload all resources
         std::lock_guard<std::mutex> lock(requests_mutex_);
+        te::core::IThreadPool* pool = te::core::GetThreadPool();
+        te::core::ITaskExecutor* ioEx = pool ? pool->GetIOExecutor() : nullptr;
         for (auto& pair : requests_) {
             auto& request = pair.second;
             if (request->status.load() == LoadStatus::Loading ||
                 request->status.load() == LoadStatus::Pending) {
                 request->cancelled.store(true);
-                te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-                if (threadPool && request->task_id != 0) {
-                    threadPool->CancelTask(request->task_id);
+                if (ioEx && request->task_id != 0) {
+                    ioEx->CancelTask(request->task_id);
                 }
             }
         }
@@ -154,9 +154,9 @@ public:
             requests_[id] = request;
         }
         
-        // Submit task to thread pool
         te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-        if (!threadPool) {
+        te::core::ITaskExecutor* ioExecutor = threadPool ? threadPool->GetIOExecutor() : nullptr;
+        if (!threadPool || !ioExecutor) {
             request->status.store(LoadStatus::Failed);
             if (on_done) {
                 on_done(nullptr, LoadResult::Error, user_data);
@@ -165,11 +165,9 @@ public:
             requests_.erase(id);
             return nullptr;
         }
-        
-        // Submit async load task
+
         request->status.store(LoadStatus::Loading);
-        
-        // Create wrapper structure for lambda context (TaskCallback is function pointer, not std::function)
+
         struct LoadTaskContext {
             ResourceManagerImpl* manager;
             std::shared_ptr<AsyncLoadRequest> request;
@@ -181,27 +179,20 @@ public:
         context->request = request;
         context->path = path;
         context->type = type;
-        
-        // Static callback function that extracts context from user_data
+
         static auto LoadTaskCallback = [](void* user_data) {
             auto* ctx = static_cast<LoadTaskContext*>(user_data);
-            // Execute load in background thread
             LoadResult result = LoadResult::Error;
             IResource* resource = nullptr;
-            
-            // Check cancellation
+
             if (ctx->request->cancelled.load()) {
                 result = LoadResult::Cancelled;
             } else {
-                // Create resource instance
                 resource = ctx->manager->CreateResourceInstance(ctx->type);
                 if (resource) {
-                    // Call IResource::Load directly (synchronous load in background thread)
                     bool success = resource->Load(ctx->path.c_str(), ctx->manager);
                     if (success) {
                         result = LoadResult::Ok;
-                        
-                        // Cache resource
                         ResourceId id = resource->GetResourceId();
                         ctx->manager->CacheResource(id, resource, ctx->path.c_str());
                     } else {
@@ -213,16 +204,13 @@ public:
                     result = LoadResult::Error;
                 }
             }
-            
-            // Update request
+
             ctx->request->result = resource;
             ctx->request->load_result = result;
             ctx->request->status.store(result == LoadResult::Cancelled ? LoadStatus::Cancelled :
                                      (result == LoadResult::Ok ? LoadStatus::Completed : LoadStatus::Failed));
-            
-            // Schedule callback on callback thread
+
             if (ctx->request->on_done && !ctx->request->cancelled.load()) {
-                // Callback will be scheduled by thread pool on callback thread
                 te::core::IThreadPool* pool = te::core::GetThreadPool();
                 if (pool) {
                     struct CallbackContext {
@@ -236,22 +224,27 @@ public:
                     cbCtx->result = resource;
                     cbCtx->load_result = result;
                     cbCtx->user_data = ctx->request->user_data;
-                    
-                    static auto CallbackWrapper = [](void* user_data) {
-                        auto* cb = static_cast<CallbackContext*>(user_data);
-                        cb->callback(cb->result, cb->load_result, cb->user_data);
+
+                    struct CallbackHolder {
+                        std::shared_ptr<CallbackContext> ctx;
+                        static void Wrapper(void* user_data) {
+                            auto* h = static_cast<CallbackHolder*>(user_data);
+                            if (h->ctx) {
+                                h->ctx->callback(h->ctx->result, h->ctx->load_result, h->ctx->user_data);
+                            }
+                            delete h;
+                        }
                     };
-                    pool->SubmitTask(CallbackWrapper, cbCtx.get());
-                    // Note: cbCtx is managed by shared_ptr, so it will be alive until callback completes
-                    // In a real implementation, we might want to use a different lifetime management strategy
+                    auto* holder = new CallbackHolder{std::move(cbCtx)};
+                    pool->SubmitTask(CallbackHolder::Wrapper, holder);
                 }
             }
         };
-        
-        te::core::TaskId taskId = threadPool->SubmitTaskWithPriority(
+
+        te::core::TaskId taskId = ioExecutor->SubmitTaskWithPriority(
             LoadTaskCallback,
             context.get(),
-            0  // Priority
+            0
         );
         
         request->task_id = taskId;
@@ -301,21 +294,19 @@ public:
         auto& request = it->second;
         request->cancelled.store(true);
         
-        // Cancel thread pool task
         if (request->task_id != 0) {
-            te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-            if (threadPool) {
-                threadPool->CancelTask(request->task_id);
+            te::core::IThreadPool* pool = te::core::GetThreadPool();
+            te::core::ITaskExecutor* ioEx = pool ? pool->GetIOExecutor() : nullptr;
+            if (ioEx) {
+                ioEx->CancelTask(request->task_id);
             }
         }
-        
-        // Update status
+
         request->status.store(LoadStatus::Cancelled);
-        
-        // Callback will still be called with Cancelled result
+
         if (request->on_done) {
-            te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-            if (threadPool) {
+            te::core::IThreadPool* pool = te::core::GetThreadPool();
+            if (pool) {
                 struct CancelCallbackContext {
                     LoadCompleteCallback callback;
                     IResource* result;
@@ -325,12 +316,19 @@ public:
                 cbCtx->callback = request->on_done;
                 cbCtx->result = request->result;
                 cbCtx->user_data = request->user_data;
-                
-                static auto CancelCallbackWrapper = [](void* user_data) {
-                    auto* cb = static_cast<CancelCallbackContext*>(user_data);
-                    cb->callback(cb->result, LoadResult::Cancelled, cb->user_data);
+
+                struct CancelCallbackHolder {
+                    std::shared_ptr<CancelCallbackContext> ctx;
+                    static void Wrapper(void* user_data) {
+                        auto* h = static_cast<CancelCallbackHolder*>(user_data);
+                        if (h->ctx) {
+                            h->ctx->callback(h->ctx->result, LoadResult::Cancelled, h->ctx->user_data);
+                        }
+                        delete h;
+                    }
                 };
-                threadPool->SubmitTask(CancelCallbackWrapper, cbCtx.get());
+                auto* holder = new CancelCallbackHolder{std::move(cbCtx)};
+                pool->SubmitTask(CancelCallbackHolder::Wrapper, holder);
             }
         }
     }

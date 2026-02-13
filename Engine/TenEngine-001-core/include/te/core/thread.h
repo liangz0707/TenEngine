@@ -139,10 +139,10 @@ class TaskQueue {
   std::unique_ptr<Impl> impl_;
 };
 
-/** Task callback type per ABI: executed on worker thread. */
+/** Task callback type per ABI. */
 using TaskCallback = void (*)(void* user_data);
 
-/** Task ID type: opaque handle returned by SubmitTaskWithPriority. */
+/** Task ID type: opaque handle returned by ITaskExecutor::SubmitTaskWithPriority. */
 using TaskId = std::uint64_t;
 
 /** Task status enumeration per ABI. */
@@ -160,17 +160,35 @@ enum class CallbackThreadType {
   WorkerThread
 };
 
-/** Thread pool interface per ABI; SubmitTask is thread-safe. */
+/** Executor type for GetExecutor / RegisterExecutor. */
+enum class ExecutorType {
+  Worker,
+  IO,
+  Audio,
+  Physics,
+  Network,
+  Count
+};
+
+/** Task executor: submit/cancel/status per single-thread queue. */
+struct ITaskExecutor {
+  virtual TaskId SubmitTaskWithPriority(TaskCallback cb, void* ud, int prio) = 0;
+  virtual void SubmitTask(TaskCallback cb, void* ud) = 0;
+  virtual bool CancelTask(TaskId id) = 0;
+  virtual TaskStatus GetTaskStatus(TaskId id) const = 0;
+  virtual ~ITaskExecutor() = default;
+};
+
+/** Thread pool: callback routing (MainThread/Worker), executor access, spawn. */
 struct IThreadPool {
-  virtual void SubmitTask(TaskCallback callback, void* user_data) = 0;
-  /** Submit task with priority. Higher priority values have higher priority. Returns TaskId. */
-  virtual TaskId SubmitTaskWithPriority(TaskCallback callback, void* user_data, int priority) = 0;
-  /** Cancel task. Returns true if successfully cancelled, false if task already completed or doesn't exist. */
-  virtual bool CancelTask(TaskId taskId) = 0;
-  /** Get task status. Returns Pending/Loading/Completed/Failed/Cancelled. */
-  virtual TaskStatus GetTaskStatus(TaskId taskId) const = 0;
-  /** Set callback thread type (MainThread or WorkerThread). */
-  virtual void SetCallbackThread(CallbackThreadType threadType) = 0;
+  virtual void SubmitTask(TaskCallback cb, void* ud) = 0;
+  virtual void SetCallbackThread(CallbackThreadType type) = 0;
+  virtual void ProcessMainThreadCallbacks() = 0;
+  virtual ITaskExecutor* GetWorkerExecutor() = 0;
+  virtual ITaskExecutor* GetIOExecutor() = 0;
+  virtual ITaskExecutor* GetExecutor(ExecutorType type) = 0;
+  virtual void RegisterExecutor(ExecutorType type, ITaskExecutor* executor) = 0;
+  virtual void SpawnTask(TaskCallback cb, void* ud) = 0;
   virtual ~IThreadPool() = default;
 };
 

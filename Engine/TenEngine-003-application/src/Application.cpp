@@ -7,6 +7,7 @@
 #include "te/core/log.h"
 #include "te/core/check.h"
 #include "te/core/platform.h"
+#include "te/core/thread.h"
 #include "te/application/Platform.h"
 #include <algorithm>
 #include <thread>
@@ -124,6 +125,12 @@ class Application : public IApplication {
       // Check exit condition
       if (!m_isRunning) {
         break;
+      }
+
+      // Process main-thread callbacks (e.g. async load completion)
+      {
+        te::core::IThreadPool* pool = te::core::GetThreadPool();
+        if (pool) pool->ProcessMainThreadCallbacks();
       }
 
       // Execute tick callbacks if not paused
@@ -338,6 +345,12 @@ class Application : public IApplication {
       return;
     }
     it->second.callback = callback;
+  }
+
+  void SetWndProcHandler(void* handler) override {
+    if (m_windowPlatform) {
+      m_windowPlatform->SetWndProcHandler(handler);
+    }
   }
 
   // ========== Event System ==========

@@ -49,9 +49,9 @@ bool IResource::LoadAsync(char const* path, IResourceManager* manager,
         return false;
     }
 
-    // Default implementation: Use 001-Core's IThreadPool to execute Load in background thread
-    te::core::IThreadPool* threadPool = te::core::GetThreadPool();
-    if (!threadPool) {
+    te::core::IThreadPool* pool = te::core::GetThreadPool();
+    te::core::ITaskExecutor* ioExecutor = pool ? pool->GetIOExecutor() : nullptr;
+    if (!pool || !ioExecutor) {
         if (on_done) {
             on_done(nullptr, LoadResult::Error, user_data);
         }
@@ -60,7 +60,6 @@ bool IResource::LoadAsync(char const* path, IResourceManager* manager,
 
     m_isLoadingAsync = true;
 
-    // Create wrapper structure for lambda context (TaskCallback is function pointer, not std::function)
     struct LoadAsyncContext {
         IResource* self;
         std::string path;
@@ -77,41 +76,53 @@ bool IResource::LoadAsync(char const* path, IResourceManager* manager,
     context->user_data = user_data;
     context->isLoadingAsync = &m_isLoadingAsync;
 
-    // Static callback function that extracts context from user_data
-    static auto LoadAsyncTaskCallback = [](void* user_data) {
-        auto* ctx = static_cast<LoadAsyncContext*>(user_data);
-        // Execute Load in background thread
-        bool success = ctx->self->Load(ctx->path.c_str(), ctx->manager);
-        
-        // Schedule callback on callback thread
-        if (ctx->on_done) {
-            // Get callback thread and schedule callback
-            te::core::IThreadPool* pool = te::core::GetThreadPool();
-            if (pool) {
-                struct CallbackContext {
-                    LoadCompleteCallback callback;
-                    IResource* result;
-                    LoadResult load_result;
-                    void* user_data;
-                };
-                auto cbCtx = std::make_shared<CallbackContext>();
-                cbCtx->callback = ctx->on_done;
-                cbCtx->result = ctx->self;
-                cbCtx->load_result = success ? LoadResult::Ok : LoadResult::Error;
-                cbCtx->user_data = ctx->user_data;
-                
-                static auto CallbackWrapper = [](void* user_data) {
-                    auto* cb = static_cast<CallbackContext*>(user_data);
-                    cb->callback(cb->result, cb->load_result, cb->user_data);
-                };
-                pool->SubmitTask(CallbackWrapper, cbCtx.get());
+    struct LoadAsyncHolder {
+        std::shared_ptr<LoadAsyncContext> ctx;
+        static void TaskCallback(void* user_data) {
+            auto* h = static_cast<LoadAsyncHolder*>(user_data);
+            if (!h->ctx) {
+                delete h;
+                return;
             }
-        }
-        
-        *(ctx->isLoadingAsync) = false;
-    };
+            LoadAsyncContext* ctx = h->ctx.get();
+            bool success = ctx->self->Load(ctx->path.c_str(), ctx->manager);
 
-    threadPool->SubmitTask(LoadAsyncTaskCallback, context.get());
+            if (ctx->on_done) {
+                te::core::IThreadPool* p = te::core::GetThreadPool();
+                if (p) {
+                    struct CallbackContext {
+                        LoadCompleteCallback callback;
+                        IResource* result;
+                        LoadResult load_result;
+                        void* user_data;
+                    };
+                    auto cbCtx = std::make_shared<CallbackContext>();
+                    cbCtx->callback = ctx->on_done;
+                    cbCtx->result = ctx->self;
+                    cbCtx->load_result = success ? LoadResult::Ok : LoadResult::Error;
+                    cbCtx->user_data = ctx->user_data;
+
+                    struct CallbackHolder {
+                        std::shared_ptr<CallbackContext> ctx;
+                        static void Wrapper(void* ud) {
+                            auto* cbH = static_cast<CallbackHolder*>(ud);
+                            if (cbH->ctx) {
+                                cbH->ctx->callback(cbH->ctx->result, cbH->ctx->load_result, cbH->ctx->user_data);
+                            }
+                            delete cbH;
+                        }
+                    };
+                    auto* cbHolder = new CallbackHolder{std::move(cbCtx)};
+                    p->SubmitTask(CallbackHolder::Wrapper, cbHolder);
+                }
+            }
+
+            *(ctx->isLoadingAsync) = false;
+            delete h;
+        }
+    };
+    auto* holder = new LoadAsyncHolder{std::move(context)};
+    ioExecutor->SubmitTask(LoadAsyncHolder::TaskCallback, holder);
 
     return true;
 }
