@@ -92,10 +92,10 @@ set(MESH_HEADERS
   include/te/mesh/detail/mesh_data.hpp
 )
 
-# 第三方库集成（可选）
-option(TENENGINE_USE_ASSIMP "Enable Assimp for mesh import" OFF)
-option(TENENGINE_USE_FAST_OBJ "Enable fast_obj for OBJ import" OFF)
-option(TENENGINE_USE_CGLTF "Enable cgltf for glTF import" OFF)
+# Third-party import: Assimp for FBX etc.; fast_obj and cgltf for OBJ/glTF.
+option(TENENGINE_USE_ASSIMP "Enable Assimp for mesh import (FBX, etc.)" ON)
+option(TENENGINE_USE_FAST_OBJ "Enable fast_obj for OBJ import" ON)
+option(TENENGINE_USE_CGLTF "Enable cgltf for glTF/GLB import" ON)
 
 if(TENENGINE_USE_ASSIMP)
   include(FetchContent)
