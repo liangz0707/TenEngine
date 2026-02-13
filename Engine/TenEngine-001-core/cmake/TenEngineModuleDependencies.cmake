@@ -28,7 +28,7 @@ set(TENENGINE_020_PIPELINE_DEPS "001-core" "004-scene" "005-entity" "019-pipelin
 set(TENENGINE_021_EFFECTS_DEPS "019-pipelinecore" "009-rendercore" "010-shader")
 set(TENENGINE_022_2D_DEPS "001-core" "013-resource" "014-physics" "020-pipeline" "009-rendercore")
 set(TENENGINE_023_TERRAIN_DEPS "001-core" "013-resource" "012-mesh" "020-pipeline" "009-rendercore")
-set(TENENGINE_024_EDITOR_DEPS "001-core" "003-application" "006-input" "008-rhi" "013-resource" "004-scene" "005-entity" "020-pipeline" "018-ui")
+set(TENENGINE_024_EDITOR_DEPS "001-core" "002-object" "003-application" "004-scene" "005-entity" "006-input" "007-subsystems" "013-resource" "029-world" "017-uicore" "018-ui")
 set(TENENGINE_025_TOOLS_DEPS "")
 set(TENENGINE_026_NETWORKING_DEPS "001-core" "005-entity")
 set(TENENGINE_027_XR_DEPS "001-core" "007-subsystems" "006-input" "020-pipeline")

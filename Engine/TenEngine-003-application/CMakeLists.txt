@@ -25,6 +25,18 @@ set(APPLICATION_SOURCES
   src/platform/PlatformAbstraction.cpp
 )
 
+# Platform-specific sources (must be before add_library)
+if(TE_PLATFORM_WINDOWS)
+  list(APPEND APPLICATION_SOURCES
+    src/platform/windows/WindowsWindowPlatform.cpp
+    src/platform/windows/WindowsEventPumpPlatform.cpp
+  )
+elseif(TE_PLATFORM_LINUX)
+  # TODO: Add X11 platform implementations
+elseif(TE_PLATFORM_MACOS)
+  # TODO: Add Cocoa platform implementations
+endif()
+
 # Header files (for Visual Studio project view)
 set(APPLICATION_HEADERS
   include/te/application/Application.h
@@ -69,26 +81,6 @@ source_group("Header Files" FILES ${APPLICATION_HEADERS})
 set_target_properties(te_application PROPERTIES
   PUBLIC_HEADER "${APPLICATION_HEADERS}"
 )
-
-# Platform-specific sources
-if(TE_PLATFORM_WINDOWS)
-  list(APPEND APPLICATION_SOURCES
-    src/platform/windows/WindowsWindowPlatform.cpp
-    src/platform/windows/WindowsEventPumpPlatform.cpp
-  )
-elseif(TE_PLATFORM_LINUX)
-  # TODO: Add X11 platform implementations
-  # list(APPEND APPLICATION_SOURCES
-  #   src/platform/x11/X11WindowPlatform.cpp
-  #   src/platform/x11/X11EventPumpPlatform.cpp
-  # )
-elseif(TE_PLATFORM_MACOS)
-  # TODO: Add Cocoa platform implementations
-  # list(APPEND APPLICATION_SOURCES
-  #   src/platform/cocoa/CocoaWindowPlatform.mm
-  #   src/platform/cocoa/CocoaEventPumpPlatform.mm
-  # )
-endif()
 
 if(NOT TENENGINE_SKIP_DEPENDENCY_TESTS)
   # TODO: Add tests subdirectory when tests are implemented

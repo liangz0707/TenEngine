@@ -140,7 +140,22 @@ public:
      */
     template<typename T>
     bool HasComponent() const;
-    
+
+    /**
+     * @brief Check if Entity has a component by TypeId (for Editor/reflection).
+     * @param typeId Component type ID from TypeRegistry
+     * @return true if Entity has the component
+     */
+    bool HasComponent(te::object::TypeId typeId) const { return HasComponentInternal(typeId); }
+
+    /**
+     * @brief Get a component by TypeId (for Editor/reflection).
+     * @param typeId Component type ID from TypeRegistry
+     * @return Pointer to component, or nullptr if not found
+     */
+    Component* GetComponent(te::object::TypeId typeId) { return GetComponentInternal(typeId); }
+    Component const* GetComponent(te::object::TypeId typeId) const { return GetComponentInternal(typeId); }
+
     // ========== ISceneNode Interface Implementation ==========
     
     // Hierarchy
