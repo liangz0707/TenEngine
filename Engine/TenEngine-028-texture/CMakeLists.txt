@@ -46,7 +46,10 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/nothings/stb.git
   GIT_TAG        master
 )
-FetchContent_Populate(stb)
+FetchContent_GetProperties(stb POPULATED stb_POPULATED SOURCE_DIR stb_SOURCE_DIR)
+if(NOT stb_POPULATED)
+  FetchContent_Populate(stb)
+endif()
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
