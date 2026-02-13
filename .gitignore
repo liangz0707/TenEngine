@@ -21,3 +21,6 @@ Makefile
 .vscode/
 .DS_Store
 Thumbs.db
+target/
+**/target/
+Cargo.lock

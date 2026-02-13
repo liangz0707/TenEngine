@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "name": "minimal",
+  "nodes": [
+    {
+      "id": "n1",
+      "kind": "frame.begin_pass",
+      "inputs": [],
+      "outputs": [{ "id": "out", "ty": "color" }],
+      "params": { "pass_name": "GBuffer" }
+    },
+    {
+      "id": "n2",
+      "kind": "frame.end_pass",
+      "inputs": [{ "id": "in", "ty": "color" }],
+      "outputs": [],
+      "params": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": { "node": "n1", "pin": "out" },
+      "to": { "node": "n2", "pin": "in" }
+    }
+  ]
+}

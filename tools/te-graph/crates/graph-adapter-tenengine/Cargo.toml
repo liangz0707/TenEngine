@@ -1,0 +1,11 @@
+[package]
+name = "graph-adapter-tenengine"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+graph-spec = { path = "../graph-spec" }
+graph-core = { path = "../graph-core" }
+serde_json.workspace = true

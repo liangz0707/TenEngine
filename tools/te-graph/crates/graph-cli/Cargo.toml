@@ -1,0 +1,14 @@
+[package]
+name = "graph-cli"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+graph-spec = { path = "../graph-spec" }
+graph-core = { path = "../graph-core" }
+graph-plugin-api = { path = "../graph-plugin-api" }
+graph-domain-framegraph = { path = "../graph-domain-framegraph" }
+graph-domain-shader = { path = "../graph-domain-shader" }
+graph-adapter-tenengine = { path = "../graph-adapter-tenengine" }

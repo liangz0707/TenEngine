@@ -1,0 +1,9 @@
+[package]
+name = "graph-plugin-api"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+graph-spec = { path = "../graph-spec" }
