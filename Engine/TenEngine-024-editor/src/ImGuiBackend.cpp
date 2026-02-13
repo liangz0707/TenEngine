@@ -40,6 +40,8 @@ struct ImGuiBackendData {
 static ImGuiBackendData g_data;
 static std::vector<std::string> s_droppedPaths;
 
+void ImGuiBackend_Resize(int width, int height);  // forward decl for NewFrame
+
 static LRESULT CALLBACK WndProcWithDrop(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
   LRESULT r = ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam);
   if (msg == WM_DROPFILES) {
@@ -144,6 +146,14 @@ void ImGuiBackend_Shutdown() {
 }
 
 void ImGuiBackend_NewFrame() {
+  // Sync swap chain with current window client size (handles user resize/drag)
+  RECT rect = {};
+  if (g_data.hwnd && GetClientRect(static_cast<HWND>(g_data.hwnd), &rect)) {
+    int clientW = rect.right - rect.left;
+    int clientH = rect.bottom - rect.top;
+    if (clientW > 0 && clientH > 0 && (clientW != g_data.width || clientH != g_data.height))
+      ImGuiBackend_Resize(clientW, clientH);
+  }
   ImGui_ImplDX11_NewFrame();
   ImGui_ImplWin32_NewFrame();
   ImGui::NewFrame();

@@ -140,12 +140,35 @@ public:
       m_levelPaths = levels;
 
       ImGui::BeginChild("LevelList", ImVec2(0, -30), true);
+      const float tileW = 96.f;
+      const float tileH = 90.f;
+      const float iconSz = 64.f;
+      float availW = ImGui::GetContentRegionAvail().x;
+      int cols = (availW > tileW) ? static_cast<int>(availW / tileW) : 1;
+      ImDrawList* drawList = ImGui::GetWindowDrawList();
       for (size_t i = 0; i < levels.size(); ++i) {
+        if (i > 0 && (i % static_cast<size_t>(cols)) != 0)
+          ImGui::SameLine();
         std::string const& path = levels[i];
         std::string name = te::core::PathGetFileName(path);
-        if (ImGui::Selectable(name.c_str(), m_selectedLevelIndex == static_cast<int>(i))) {
-          m_selectedLevelIndex = static_cast<int>(i);
-        }
+        if (name.size() > 12u) name = name.substr(0, 9) + "...";
+        bool selected = (m_selectedLevelIndex == static_cast<int>(i));
+        ImGui::PushID(static_cast<int>(i));
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("##tile", ImVec2(tileW, tileH));
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemClicked(0)) m_selectedLevelIndex = static_cast<int>(i);
+        if (hovered && ImGui::IsMouseDoubleClicked(0) && canOpen && !m_isLoadingLevel) OpenLevel(path);
+        ImVec2 iconMin(pos.x + (tileW - iconSz) * 0.5f, pos.y + 2.f);
+        ImVec2 iconMax(iconMin.x + iconSz, iconMin.y + iconSz);
+        ImU32 iconCol = selected ? IM_COL32(90, 90, 140, 255) : (hovered ? IM_COL32(70, 70, 100, 255) : IM_COL32(55, 55, 70, 255));
+        drawList->AddRectFilled(iconMin, iconMax, iconCol, 6.f);
+        drawList->AddRect(iconMin, iconMax, IM_COL32(120, 120, 150, 200), 6.f);
+        const char* cname = name.c_str();
+        ImVec2 textSize = ImGui::CalcTextSize(cname, nullptr, false, tileW - 4.f);
+        ImVec2 textPos(pos.x + (tileW - textSize.x) * 0.5f, iconMax.y + 4.f);
+        drawList->AddText(textPos, IM_COL32(255, 255, 255, 255), cname);
+        ImGui::PopID();
       }
       ImGui::EndChild();
 
@@ -192,6 +215,12 @@ public:
           }
           ImGui::EndMenu();
         }
+        float levelLabelW = 280.f;
+        ImGui::SameLine(ImGui::GetWindowWidth() - levelLabelW - ImGui::GetStyle().WindowPadding.x);
+        std::string levelDisplay = m_currentLevelPath.empty()
+            ? "(No Level)"
+            : te::core::PathGetFileName(m_currentLevelPath);
+        ImGui::TextDisabled("Level: %s", levelDisplay.c_str());
         ImGui::EndMenuBar();
       }
 
@@ -203,34 +232,38 @@ public:
       const float splitterW = 4.f;
       const float minLeft = 80.f, minCenter = 100.f, minRight = 80.f, minBottom = 60.f;
 
-      if (m_mainLeftW <= 0.f || m_mainCenterW <= 0.f) {
-        m_mainLeftW = w * 0.2f;
-        m_mainCenterW = w * 0.5f;
+      if (m_mainLeftRatio <= 0.f || m_mainCenterRatio <= 0.f) {
+        m_mainLeftRatio = 0.2f;
+        m_mainCenterRatio = 0.5f;
       }
-      if (m_mainBottomH <= 0.f) m_mainBottomH = 150.f;
+      if (m_mainBottomRatio <= 0.f) m_mainBottomRatio = 0.25f;
 
-      float leftW = m_mainLeftW;
-      float centerW = m_mainCenterW;
+      float leftW = w * m_mainLeftRatio;
+      float centerW = w * m_mainCenterRatio;
       float rightW = w - leftW - centerW - splitterW * 2.f;
       if (rightW < minRight) {
-        centerW -= (minRight - rightW);
-        rightW = minRight;
+        centerW = w - leftW - minRight - splitterW * 2.f;
         if (centerW < minCenter) {
-          leftW -= (minCenter - centerW);
+          leftW = w - minCenter - minRight - splitterW * 2.f;
           centerW = minCenter;
-          if (leftW < minLeft) leftW = minLeft;
         }
-        m_mainLeftW = leftW;
-        m_mainCenterW = centerW;
+        rightW = w - leftW - centerW - splitterW * 2.f;
+        m_mainLeftRatio = leftW / w;
+        m_mainCenterRatio = centerW / w;
       }
 
-      float mainH = totalH - m_mainBottomH - splitterW;
+      float mainH = totalH * (1.f - m_mainBottomRatio) - splitterW;
+      float bottomH = totalH * m_mainBottomRatio;
+      if (mainH < 0.f) mainH = 0.f;
       if (mainH < 60.f) {
-        m_mainBottomH = totalH - 60.f - splitterW;
-        if (m_mainBottomH < minBottom) m_mainBottomH = minBottom;
-        mainH = totalH - m_mainBottomH - splitterW;
+        mainH = 60.f;
+        bottomH = totalH - mainH - splitterW;
+        if (bottomH < minBottom) {
+          bottomH = minBottom;
+          mainH = totalH - bottomH - splitterW;
+        }
+        m_mainBottomRatio = bottomH / totalH;
       }
-      float bottomH = m_mainBottomH;
 
       ImGui::BeginChild("Left", ImVec2(leftW, mainH), true);
       ImGui::Text("Scene Tree");
@@ -243,8 +276,8 @@ public:
         float mx = ImGui::GetIO().MousePos.x;
         ImVec2 winMin = ImGui::GetWindowPos();
         float newLeft = mx - winMin.x;
-        if (newLeft >= minLeft && newLeft <= w - splitterW * 2.f - minCenter - minRight)
-          m_mainLeftW = newLeft;
+        if (w > 0.f && newLeft >= minLeft && newLeft <= w - splitterW * 2.f - minCenter - minRight)
+          m_mainLeftRatio = newLeft / w;
       }
       ImGui::SameLine();
       ImGui::BeginChild("Center", ImVec2(centerW, mainH), true);
@@ -257,9 +290,9 @@ public:
         float mx = ImGui::GetIO().MousePos.x;
         ImVec2 winMin = ImGui::GetWindowPos();
         float newCenterEnd = mx - winMin.x;
-        float newCenterW = newCenterEnd - m_mainLeftW - splitterW;
-        if (newCenterW >= minCenter && newCenterW <= w - m_mainLeftW - splitterW * 2.f - minRight)
-          m_mainCenterW = newCenterW;
+        float newCenterW = newCenterEnd - leftW - splitterW;
+        if (w > 0.f && newCenterW >= minCenter && newCenterW <= w - leftW - splitterW * 2.f - minRight)
+          m_mainCenterRatio = newCenterW / w;
       }
       ImGui::SameLine();
       ImGui::BeginChild("Right", ImVec2(rightW, mainH), true);
@@ -277,8 +310,8 @@ public:
         float my = ImGui::GetIO().MousePos.y;
         float winBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
         float newBottomH = winBottom - my - splitterW;
-        if (newBottomH >= minBottom && newBottomH <= totalH - splitterW)
-          m_mainBottomH = newBottomH;
+        if (totalH > 0.f && newBottomH >= minBottom && newBottomH <= totalH - splitterW)
+          m_mainBottomRatio = newBottomH / totalH;
       }
       ImGui::BeginChild("Bottom", ImVec2(w, bottomH), true);
       ImGui::Text("Resource Browser");
@@ -287,6 +320,7 @@ public:
 
       if (m_showOpenModal) DrawOpenLevelModal();
       if (m_showNewSceneModal) DrawNewSceneModal();
+      DrawDeleteLevelModal();
     }
     ImGui::End();
   }
@@ -328,16 +362,65 @@ public:
       std::vector<std::string> levels = ScanLevelFiles(g_editorCtx.projectRootPath);
       ImGui::BeginChild("ModalLevelList", ImVec2(400, 300), true);
       for (size_t i = 0; i < levels.size(); ++i) {
-        std::string name = te::core::PathGetFileName(levels[i]);
+        std::string const& path = levels[i];
+        std::string name = te::core::PathGetFileName(path);
+        ImGui::PushID(static_cast<int>(i));
         if (ImGui::Selectable(name.c_str())) {
-          OpenLevel(levels[i]);
+          OpenLevel(path);
           m_showOpenModal = false;
           ImGui::CloseCurrentPopup();
         }
+        if (ImGui::BeginPopupContextItem()) {
+          if (ImGui::MenuItem("Delete Level")) {
+            m_showDeleteLevelModal = true;
+            m_deleteLevelPath = path;
+            ImGui::CloseCurrentPopup();
+          }
+          ImGui::EndPopup();
+        }
+        ImGui::PopID();
       }
       ImGui::EndChild();
       if (ImGui::Button("Cancel")) {
         m_showOpenModal = false;
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
+  }
+
+  void DeleteLevelFile(std::string const& path) {
+    if (path.empty()) return;
+    if (path == m_currentLevelPath) {
+      if (m_levelHandle.IsValid()) {
+        te::world::WorldManager::GetInstance().UnloadLevel(m_levelHandle);
+        m_levelHandle = te::world::LevelHandle();
+        if (m_sceneView) m_sceneView->SetLevelHandle(nullptr);
+      }
+      m_currentLevelPath.clear();
+    }
+    std::error_code ec;
+    std::filesystem::remove(std::filesystem::u8path(path), ec);
+    if (ec) {
+      te::core::Log(te::core::LogLevel::Error, ("Editor: failed to delete level file: " + path).c_str());
+    }
+  }
+
+  void DrawDeleteLevelModal() {
+    if (!m_showDeleteLevelModal) return;
+    if (!ImGui::IsPopupOpen("Delete Level")) ImGui::OpenPopup("Delete Level");
+    if (ImGui::BeginPopupModal("Delete Level", &m_showDeleteLevelModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::Text("Delete level \"%s\"?", te::core::PathGetFileName(m_deleteLevelPath).c_str());
+      ImGui::Text("This cannot be undone.");
+      if (ImGui::Button("Delete")) {
+        DeleteLevelFile(m_deleteLevelPath);
+        m_showDeleteLevelModal = false;
+        m_showOpenModal = false;
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Cancel")) {
+        m_showDeleteLevelModal = false;
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
@@ -453,6 +536,10 @@ public:
       std::string root = std::filesystem::absolute(ctx.projectRootPath).generic_string();
       m_resourceView->SetRootPath(root.c_str());
       m_resourceView->SetOnOpenLevel([this](std::string const& path) { OpenLevel(path); });
+      m_resourceView->SetOnDeleteLevel([this](std::string const& path) {
+        m_showDeleteLevelModal = true;
+        m_deleteLevelPath = path;
+      });
       if (ctx.resourceManager) {
         m_resourceView->SetResourceManager(ctx.resourceManager);
         ctx.resourceManager->SetAssetRoot(root.c_str());
@@ -493,9 +580,12 @@ private:
   std::string m_currentLevelPath;
   bool m_isLoadingLevel = false;
 
-  float m_mainLeftW = 0.f;
-  float m_mainCenterW = 0.f;
-  float m_mainBottomH = 0.f;
+  bool m_showDeleteLevelModal = false;
+  std::string m_deleteLevelPath;
+
+  float m_mainLeftRatio = 0.f;
+  float m_mainCenterRatio = 0.f;
+  float m_mainBottomRatio = 0.f;
 
   IUndoSystem* m_undoSystem = nullptr;
   ISceneView* m_sceneView = nullptr;

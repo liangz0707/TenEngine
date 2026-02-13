@@ -22,6 +22,8 @@ public:
   virtual void SetRootPath(char const* path) = 0;
   /** Callback when user double-clicks a .level file to open. */
   virtual void SetOnOpenLevel(std::function<void(std::string const&)> fn) = 0;
+  /** Callback when user requests delete of a level file (path to .level). */
+  virtual void SetOnDeleteLevel(std::function<void(std::string const&)> fn) = 0;
   /** Set resource manager for Import (right-click / drag-drop). */
   virtual void SetResourceManager(te::resource::IResourceManager* manager) = 0;
   /** Import files (e.g. from OS drag-drop). Target dir = current selected directory. */

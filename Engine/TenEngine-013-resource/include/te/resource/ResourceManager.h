@@ -263,6 +263,15 @@ class IResourceManager {
    * Add empty asset folder (persisted in manifest).
    */
   virtual bool AddAssetFolder(char const* repositoryName, char const* assetPath) = 0;
+
+  /**
+   * Remove asset folder from manifest. Folder and all descendant folders are removed;
+   * resources under that path are moved to the folder's parent path.
+   * @param repositoryName Repository that contains the folder
+   * @param assetPath Full folder path to remove (e.g. "A/B/C")
+   * @return true if any change was made and saved
+   */
+  virtual bool RemoveAssetFolder(char const* repositoryName, char const* assetPath) = 0;
 };
 
 /** Global accessor; provided by Subsystems or singleton. Caller does not own pointer. */

@@ -1,6 +1,6 @@
 /**
  * @file ResourceViewImpl.cpp
- * @brief Resource browser (024-Editor) - asset path tree, repository-based.
+ * @brief Resource browser (024-Editor) - asset path tree, repository-based. Full rewrite.
  */
 #include <te/editor/ResourceView.h>
 #include <te/editor/FileDialog.h>
@@ -14,20 +14,97 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <map>
 #include <set>
-#include <filesystem>
 
 namespace te {
 namespace editor {
 
-namespace fs = std::filesystem;
 using resource::ResourceType;
 using resource::ResourceId;
 using resource::IResourceManager;
 
-static fs::path PathUtf8(std::string const& s) { return fs::u8path(s); }
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
+static const char RESOURCE_GUID_PAYLOAD[] = "ResourceAssetPath";
+static const char FOLDER_PATH_PAYLOAD[] = "AssetFolderPath";
+static const char LEVELS_REL_DIR[] = "assets/levels";
 
+// -----------------------------------------------------------------------------
+// Helpers: Level scan (match Editor ScanLevelFiles)
+// -----------------------------------------------------------------------------
+static std::vector<std::string> ScanLevelFiles(char const* rootPath) {
+  std::vector<std::string> out;
+  if (!rootPath || !rootPath[0]) return out;
+  std::string levelsDir = te::core::PathJoin(rootPath, LEVELS_REL_DIR);
+  std::vector<te::core::DirEntry> entries = te::core::DirectoryEnumerate(levelsDir);
+  for (std::string const& name : entries) {
+    std::string ext = te::core::PathGetExtension(name);
+    if (ext == ".level" || ext == ".xml") {
+      out.push_back(te::core::PathJoin(levelsDir, name));
+    } else if (ext == ".json" && name.find(".level.") != std::string::npos) {
+      out.push_back(te::core::PathJoin(levelsDir, name));
+    }
+  }
+  return out;
+}
+
+// -----------------------------------------------------------------------------
+// Helpers: Path relation
+// -----------------------------------------------------------------------------
+static bool IsUnderFolder(std::string const& assetPath, std::string const& folderPath) {
+  if (folderPath.empty()) {
+    return assetPath.find('/') == std::string::npos;
+  }
+  if (assetPath == folderPath) return true;
+  if (assetPath.size() <= folderPath.size()) return false;
+  if (assetPath[folderPath.size()] != '/') return false;
+  return assetPath.compare(0, folderPath.size(), folderPath) == 0;
+}
+
+/** Direct child folder segments under parentPath. A "folder" is either in assetFolderSet or has a child path in allAssetPaths. */
+static void GetDirectChildFolderSegments(
+  std::string const& parentPath,
+  std::vector<std::string> const& allAssetPaths,
+  std::set<std::string> const& assetFolderSet,
+  std::vector<std::string>& outSegments) {
+  outSegments.clear();
+  std::set<std::string> seen;
+  std::string prefix = parentPath.empty() ? "" : (parentPath + "/");
+  for (std::string const& p : allAssetPaths) {
+    if (p.empty()) continue;
+    std::string segment;
+    if (prefix.empty()) {
+      size_t pos = p.find('/');
+      segment = pos == std::string::npos ? p : p.substr(0, pos);
+    } else if (p.size() > prefix.size() && p.compare(0, prefix.size(), prefix) == 0) {
+      std::string rest = p.substr(prefix.size());
+      size_t pos = rest.find('/');
+      segment = pos == std::string::npos ? rest : rest.substr(0, pos);
+    }
+    if (segment.empty() || seen.count(segment)) continue;
+    std::string fullPath = prefix.empty() ? segment : (parentPath + "/" + segment);
+    bool isFolder = (assetFolderSet.count(fullPath) != 0);
+    if (!isFolder) {
+      std::string childPrefix = fullPath + "/";
+      for (std::string const& p2 : allAssetPaths) {
+        if (p2.size() > childPrefix.size() && p2.compare(0, childPrefix.size(), childPrefix) == 0) {
+          isFolder = true;
+          break;
+        }
+      }
+    }
+    if (isFolder) {
+      seen.insert(segment);
+      outSegments.push_back(segment);
+    }
+  }
+  std::sort(outSegments.begin(), outSegments.end());
+}
+
+// -----------------------------------------------------------------------------
+// Helpers: Resource filter
+// -----------------------------------------------------------------------------
 static bool MatchesNameFilter(std::string const& name, char const* filterBuf) {
   if (!filterBuf || !filterBuf[0]) return true;
   std::string lowerName = name;
@@ -37,6 +114,27 @@ static bool MatchesNameFilter(std::string const& name, char const* filterBuf) {
   return lowerName.find(lowerFilter) != std::string::npos;
 }
 
+/** Show only resources whose assetPath exactly equals folderPath (resource is in that folder, not in a subfolder). */
+static std::vector<IResourceManager::ResourceInfo> FilterResourcesInFolder(
+  std::vector<IResourceManager::ResourceInfo> const& infos,
+  std::string const& folderPath,
+  int typeFilter,
+  char const* nameFilterBuf) {
+  std::vector<IResourceManager::ResourceInfo> out;
+  for (auto const& i : infos) {
+    if (i.guid.IsNull()) continue;
+    if (i.assetPath != folderPath) continue;
+    if (typeFilter >= 0 && static_cast<int>(i.type) != typeFilter) continue;
+    if (!MatchesNameFilter(i.displayName, nameFilterBuf)) continue;
+    out.push_back(i);
+  }
+  std::sort(out.begin(), out.end(), [](auto const& a, auto const& b) { return a.displayName < b.displayName; });
+  return out;
+}
+
+// -----------------------------------------------------------------------------
+// Helpers: Import type and filter combo
+// -----------------------------------------------------------------------------
 static ResourceType ImportTypeFromExtension(std::string const& ext) {
   if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" || ext == ".bmp" || ext == ".hdr")
     return ResourceType::Texture;
@@ -51,6 +149,7 @@ static int FilterTypeToComboIndex(int filterType) {
   if (filterType >= 0 && filterType <= 2) return filterType + 1;
   return 0;
 }
+
 static int ComboIndexToFilterType(int comboIdx) {
   if (comboIdx <= 0) return -1;
   if (comboIdx == 4) return static_cast<int>(ResourceType::Level);
@@ -58,41 +157,34 @@ static int ComboIndexToFilterType(int comboIdx) {
   return -1;
 }
 
-/** Return only folder segments (paths that have children or are in assetFolders). Resources (leaf paths) are not included. */
-static void GetDirectChildAssetFoldersOnly(std::string const& parentPath, std::vector<std::string> const& allPaths, std::set<std::string> const& assetFoldersSet, std::vector<std::string>& outFolders) {
-  outFolders.clear();
-  std::set<std::string> seen;
-  std::string prefix = parentPath.empty() ? "" : (parentPath + "/");
-  for (std::string const& p : allPaths) {
-    if (p.empty()) continue;
-    std::string first;
-    if (prefix.empty()) {
-      size_t pos = p.find('/');
-      first = pos == std::string::npos ? p : p.substr(0, pos);
-    } else if (p.size() > prefix.size() && p.compare(0, prefix.size(), prefix) == 0) {
-      std::string rest = p.substr(prefix.size());
-      size_t pos = rest.find('/');
-      first = pos == std::string::npos ? rest : rest.substr(0, pos);
-    }
-    if (first.empty() || seen.count(first)) continue;
-    std::string fullPath = parentPath.empty() ? first : (parentPath + "/" + first);
-    bool isFolder = (assetFoldersSet.count(fullPath) != 0);
-    if (!isFolder) {
-      std::string childPrefix = fullPath + "/";
-      for (std::string const& p2 : allPaths)
-        if (p2.size() > childPrefix.size() && p2.compare(0, childPrefix.size(), childPrefix) == 0) {
-          isFolder = true;
-          break;
-        }
-    }
-    if (isFolder) {
-      seen.insert(first);
-      outFolders.push_back(first);
+/** Resolve which repo "owns" the given asset path for UI (selected repo when that folder is selected). */
+static std::string GetRepoForAssetPath(
+  std::string const& assetPath,
+  std::vector<IResourceManager::ResourceInfo> const& infos,
+  std::vector<std::string> const& repos,
+  IResourceManager* mgr) {
+  for (auto const& i : infos) {
+    if (assetPath.empty()) {
+      if (i.assetPath.find('/') == std::string::npos) return i.repository;
+    } else {
+      if (i.assetPath == assetPath || (i.assetPath.size() > assetPath.size() && i.assetPath[assetPath.size()] == '/' && i.assetPath.compare(0, assetPath.size(), assetPath) == 0))
+        return i.repository;
     }
   }
-  std::sort(outFolders.begin(), outFolders.end());
+  for (std::string const& repo : repos) {
+    std::vector<std::string> folders;
+    mgr->GetAssetFoldersForRepository(repo.c_str(), folders);
+    for (std::string const& f : folders) {
+      if (f == assetPath || (assetPath.size() < f.size() && f[assetPath.size()] == '/' && f.compare(0, assetPath.size(), assetPath) == 0))
+        return repo;
+    }
+  }
+  return repos.empty() ? "main" : repos[0];
 }
 
+// -----------------------------------------------------------------------------
+// ResourceViewImpl
+// -----------------------------------------------------------------------------
 class ResourceViewImpl : public IResourceView {
 public:
   void OnDraw() override {
@@ -166,14 +258,15 @@ public:
 
     DrawModals();
 
-    if (m_importModalTriggerFileDialog) {
-      m_importModalTriggerFileDialog = false;
+    if (m_pendingOpenFileDialog) {
+      m_pendingOpenFileDialog = false;
       DoImportAfterFileDialog();
     }
   }
 
   void SetRootPath(char const* path) override { m_rootPath = path ? path : ""; }
   void SetOnOpenLevel(std::function<void(std::string const&)> fn) override { m_onOpenLevel = std::move(fn); }
+  void SetOnDeleteLevel(std::function<void(std::string const&)> fn) override { m_onDeleteLevel = std::move(fn); }
   void SetResourceManager(te::resource::IResourceManager* manager) override { m_resourceManager = manager; }
 
   void ImportFiles(std::vector<std::string> const& paths) override {
@@ -197,21 +290,29 @@ public:
   }
 
 private:
-  std::string GetFirstRepoForAssetPath(std::string const& assetPath, std::vector<IResourceManager::ResourceInfo> const& infos, std::vector<std::string> const& repos) const {
-    for (auto const& i : infos) {
-      bool inPath = assetPath.empty()
-        ? (i.assetPath.find('/') == std::string::npos)
-        : (i.assetPath == assetPath || (i.assetPath.size() > assetPath.size() && i.assetPath.compare(0, assetPath.size(), assetPath) == 0 && i.assetPath[assetPath.size()] == '/'));
-      if (inPath) return i.repository;
+  void GatherTreeData(
+    std::vector<std::string>& reposOut,
+    std::vector<IResourceManager::ResourceInfo>& infosOut,
+    std::set<std::string>& allAssetPathsOut,
+    std::set<std::string>& assetFoldersSetOut,
+    std::vector<std::string>& pathVecOut) {
+    reposOut.clear();
+    infosOut.clear();
+    allAssetPathsOut.clear();
+    assetFoldersSetOut.clear();
+    pathVecOut.clear();
+    if (!m_resourceManager) return;
+    m_resourceManager->GetRepositoryList(reposOut);
+    m_resourceManager->GetResourceInfos(infosOut);
+    for (std::string const& repo : reposOut) {
+      std::vector<std::string> folders;
+      m_resourceManager->GetAssetFoldersForRepository(repo.c_str(), folders);
+      for (std::string const& f : folders) assetFoldersSetOut.insert(f);
     }
-    for (std::string const& repo : repos) {
-      std::vector<std::string> assetFolders;
-      m_resourceManager->GetAssetFoldersForRepository(repo.c_str(), assetFolders);
-      for (std::string const& folder : assetFolders)
-        if (folder == assetPath || (assetPath.size() < folder.size() && folder.compare(0, assetPath.size(), assetPath) == 0 && folder[assetPath.size()] == '/'))
-          return repo;
-    }
-    return repos.empty() ? "main" : repos[0];
+    for (auto const& i : infosOut)
+      if (!i.assetPath.empty()) allAssetPathsOut.insert(i.assetPath);
+    for (std::string const& f : assetFoldersSetOut) allAssetPathsOut.insert(f);
+    pathVecOut.assign(allAssetPathsOut.begin(), allAssetPathsOut.end());
   }
 
   void DrawLeftPanel() {
@@ -219,32 +320,24 @@ private:
     ImGui::Separator();
     ImGui::BeginChild("DirTree", ImVec2(-1, -1), true);
 
+    std::vector<std::string> repos;
+    std::vector<IResourceManager::ResourceInfo> infos;
+    std::set<std::string> allAssetPathsSet;
+    std::set<std::string> assetFoldersSet;
+    std::vector<std::string> pathVec;
+    GatherTreeData(repos, infos, allAssetPathsSet, assetFoldersSet, pathVec);
+
     if (m_resourceManager) {
-      std::vector<std::string> repos;
-      m_resourceManager->GetRepositoryList(repos);
-      std::vector<IResourceManager::ResourceInfo> infos;
-      m_resourceManager->GetResourceInfos(infos);
-
-      std::set<std::string> allPathsSet;
-      std::set<std::string> assetFoldersSet;
-      for (std::string const& repo : repos) {
-        std::vector<std::string> assetFolders;
-        m_resourceManager->GetAssetFoldersForRepository(repo.c_str(), assetFolders);
-        for (std::string const& folder : assetFolders) assetFoldersSet.insert(folder);
-        for (auto const& i : infos)
-          if (i.repository == repo && !i.assetPath.empty()) allPathsSet.insert(i.assetPath);
-      }
-      for (std::string const& folder : assetFoldersSet) allPathsSet.insert(folder);
-      std::vector<std::string> pathVec(allPathsSet.begin(), allPathsSet.end());
-
-      ImGuiPayload const* dragPayload = ImGui::GetDragDropPayload();
-      bool draggingResource = (dragPayload != nullptr && dragPayload->DataType != nullptr && std::strcmp(dragPayload->DataType, "ResourceAssetPath") == 0);
+      bool draggingResource = false;
+      ImGuiPayload const* payload = ImGui::GetDragDropPayload();
+      if (payload && payload->DataType && std::strcmp(payload->DataType, RESOURCE_GUID_PAYLOAD) == 0)
+        draggingResource = true;
       if (draggingResource) {
         ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]);
         (void)ImGui::Selectable("(root) <- drop here", false, ImGuiSelectableFlags_AllowItemOverlap, ImVec2(-1, 0));
         ImGui::PopStyleColor();
         if (ImGui::BeginDragDropTarget()) {
-          if (ImGui::AcceptDragDropPayload("ResourceAssetPath")) {
+          if (ImGui::AcceptDragDropPayload(RESOURCE_GUID_PAYLOAD)) {
             ImGuiPayload const* pl = ImGui::GetDragDropPayload();
             if (pl && pl->Data && pl->DataSize >= 16) {
               ResourceId guid;
@@ -255,21 +348,34 @@ private:
               }
             }
           }
+          if (ImGui::AcceptDragDropPayload(FOLDER_PATH_PAYLOAD)) {
+            char buf[512];
+            ImGuiPayload const* pl = ImGui::GetDragDropPayload();
+            if (pl && pl->Data && pl->DataSize > 0) {
+              size_t sz = (std::min)(static_cast<size_t>(pl->DataSize), sizeof(buf) - 1);
+              std::memcpy(buf, pl->Data, sz);
+              buf[sz] = '\0';
+              if (buf[0]) {
+                m_resourceManager->MoveAssetFolder(buf, "");
+                m_resourceManager->LoadAllManifests();
+              }
+            }
+          }
           ImGui::EndDragDropTarget();
         }
       }
+
       ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_SpanAvailWidth;
       if (m_selectedAssetPath.empty()) rootFlags |= ImGuiTreeNodeFlags_Selected;
-      bool rootOpen = ImGui::TreeNodeEx("##vproot", rootFlags, "(root)");
+      bool rootOpen = ImGui::TreeNodeEx("##root", rootFlags, "(root)");
       if (ImGui::IsItemClicked()) {
         m_showLevels = false;
         m_selectedAssetPath.clear();
-        m_selectedRepo = GetFirstRepoForAssetPath("", infos, repos);
+        m_selectedRepo = GetRepoForAssetPath("", infos, repos, m_resourceManager);
         m_selectedResourceGuid = ResourceId();
-        m_cachedDetailValid = false;
       }
       if (ImGui::BeginDragDropTarget()) {
-        if (ImGui::AcceptDragDropPayload("ResourceAssetPath")) {
+        if (ImGui::AcceptDragDropPayload(RESOURCE_GUID_PAYLOAD)) {
           ImGuiPayload const* pl = ImGui::GetDragDropPayload();
           if (pl && pl->Data && pl->DataSize >= 16) {
             ResourceId guid;
@@ -280,10 +386,10 @@ private:
             }
           }
         }
-        if (ImGui::AcceptDragDropPayload("AssetFolderPath")) {
+        if (ImGui::AcceptDragDropPayload(FOLDER_PATH_PAYLOAD)) {
+          char buf[512];
           ImGuiPayload const* pl = ImGui::GetDragDropPayload();
           if (pl && pl->Data && pl->DataSize > 0) {
-            char buf[256];
             size_t sz = (std::min)(static_cast<size_t>(pl->DataSize), sizeof(buf) - 1);
             std::memcpy(buf, pl->Data, sz);
             buf[sz] = '\0';
@@ -296,26 +402,46 @@ private:
         ImGui::EndDragDropTarget();
       }
       if (ImGui::BeginPopupContextItem()) {
-        if (ImGui::MenuItem("Import...")) { m_resourceManager->LoadAllManifests(); m_selectedAssetPath.clear(); m_selectedRepo = GetFirstRepoForAssetPath("", infos, repos); m_showImportModal = true; m_importModalRepo = m_selectedRepo; m_importModalAssetPath.clear(); ImGui::CloseCurrentPopup(); }
-        if (ImGui::MenuItem("New Folder")) { m_selectedRepo = GetFirstRepoForAssetPath("", infos, repos); m_showNewFolder = true; m_newFolderParent = ""; m_newFolderBuf[0] = '\0'; ImGui::CloseCurrentPopup(); }
-        if (ImGui::MenuItem("Create Repository")) { m_showCreateRepo = true; m_createRepoBuf[0] = '\0'; ImGui::CloseCurrentPopup(); }
+        if (ImGui::MenuItem("Import...")) {
+          m_resourceManager->LoadAllManifests();
+          m_selectedAssetPath.clear();
+          m_selectedRepo = GetRepoForAssetPath("", infos, repos, m_resourceManager);
+          m_showImportModal = true;
+          m_importRepo = m_selectedRepo;
+          m_importFolderPath.clear();
+          ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("New Folder")) {
+          m_selectedRepo = GetRepoForAssetPath("", infos, repos, m_resourceManager);
+          m_showNewFolderModal = true;
+          m_newFolderParentPath.clear();
+          m_newFolderNameBuf[0] = '\0';
+          ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::MenuItem("Create Repository")) {
+          m_showCreateRepoModal = true;
+          m_createRepoNameBuf[0] = '\0';
+          m_createRepoFailed = false;
+          ImGui::CloseCurrentPopup();
+        }
         ImGui::EndPopup();
       }
-      if (rootOpen) ImGui::TreePop();
-
-      std::vector<std::string> topFolders;
-      GetDirectChildAssetFoldersOnly("", pathVec, assetFoldersSet, topFolders);
-      for (std::string const& f : topFolders)
-        DrawAssetPathNode("", f, pathVec, assetFoldersSet, infos, repos);
+      if (rootOpen) {
+        std::vector<std::string> topSegments;
+        GetDirectChildFolderSegments("", pathVec, assetFoldersSet, topSegments);
+        for (std::string const& seg : topSegments)
+          DrawFolderNode("", seg, pathVec, assetFoldersSet, infos, repos);
+        ImGui::TreePop();
+      }
     }
 
-    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && ImGui::IsMouseClicked(1)) {
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows) && ImGui::IsMouseClicked(1))
       ImGui::OpenPopup("TreeBackgroundContext");
-    }
     if (ImGui::BeginPopup("TreeBackgroundContext")) {
       if (ImGui::MenuItem("Create Repository")) {
-        m_showCreateRepo = true;
-        m_createRepoBuf[0] = '\0';
+        m_showCreateRepoModal = true;
+        m_createRepoNameBuf[0] = '\0';
+        m_createRepoFailed = false;
         ImGui::CloseCurrentPopup();
       }
       ImGui::EndPopup();
@@ -325,17 +451,28 @@ private:
     ImGuiTreeNodeFlags levelFlags = ImGuiTreeNodeFlags_OpenOnArrow;
     if (m_showLevels) levelFlags |= ImGuiTreeNodeFlags_Selected;
     if (ImGui::TreeNodeEx("##levels", levelFlags, "Levels")) {
-      if (ImGui::IsItemClicked()) { m_showLevels = true; m_selectedRepo.clear(); m_selectedAssetPath.clear(); m_selectedResourceGuid = ResourceId(); m_cachedDetailValid = false; }
+      if (ImGui::IsItemClicked()) {
+        m_showLevels = true;
+        m_selectedRepo.clear();
+        m_selectedAssetPath.clear();
+        m_selectedResourceGuid = ResourceId();
+        m_selectedLevelPath.clear();
+      }
       ImGui::TreePop();
     }
     ImGui::EndChild();
   }
 
-  void DrawAssetPathNode(std::string const& parentFullPath, std::string const& segment, std::vector<std::string> const& allPaths, std::set<std::string> const& assetFoldersSet, std::vector<IResourceManager::ResourceInfo> const& infos, std::vector<std::string> const& repos) {
-    std::string nodeFullPath = parentFullPath.empty() ? segment : (parentFullPath + "/" + segment);
-
+  void DrawFolderNode(
+    std::string const& parentPath,
+    std::string const& segment,
+    std::vector<std::string> const& pathVec,
+    std::set<std::string> const& assetFoldersSet,
+    std::vector<IResourceManager::ResourceInfo> const& infos,
+    std::vector<std::string> const& repos) {
+    std::string nodeFullPath = parentPath.empty() ? segment : (parentPath + "/" + segment);
     std::vector<std::string> childSegments;
-    GetDirectChildAssetFoldersOnly(nodeFullPath, allPaths, assetFoldersSet, childSegments);
+    GetDirectChildFolderSegments(nodeFullPath, pathVec, assetFoldersSet, childSegments);
     bool hasChildren = !childSegments.empty();
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -345,21 +482,20 @@ private:
     if (ImGui::IsItemClicked()) {
       m_showLevels = false;
       m_selectedAssetPath = nodeFullPath;
-      m_selectedRepo = GetFirstRepoForAssetPath(nodeFullPath, infos, repos);
+      m_selectedRepo = GetRepoForAssetPath(nodeFullPath, infos, repos, m_resourceManager);
       m_selectedResourceGuid = ResourceId();
-      m_cachedDetailValid = false;
     }
     if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-      char folderPayload[256] = {};
-      size_t len = (std::min)(nodeFullPath.size(), size_t(255));
-      std::memcpy(folderPayload, nodeFullPath.c_str(), len);
-      folderPayload[len] = '\0';
-      ImGui::SetDragDropPayload("AssetFolderPath", folderPayload, len + 1);
+      char pathBuf[512];
+      size_t len = (std::min)(nodeFullPath.size(), size_t(511));
+      std::memcpy(pathBuf, nodeFullPath.c_str(), len);
+      pathBuf[len] = '\0';
+      ImGui::SetDragDropPayload(FOLDER_PATH_PAYLOAD, pathBuf, len + 1);
       ImGui::Text("%s", segment.c_str());
       ImGui::EndDragDropSource();
     }
     if (ImGui::BeginDragDropTarget()) {
-      if (ImGui::AcceptDragDropPayload("ResourceAssetPath")) {
+      if (ImGui::AcceptDragDropPayload(RESOURCE_GUID_PAYLOAD)) {
         ImGuiPayload const* pl = ImGui::GetDragDropPayload();
         if (pl && pl->Data && pl->DataSize >= 16) {
           ResourceId guid;
@@ -370,58 +506,102 @@ private:
           }
         }
       }
-      if (ImGui::AcceptDragDropPayload("AssetFolderPath")) {
+      if (ImGui::AcceptDragDropPayload(FOLDER_PATH_PAYLOAD)) {
+        char buf[512];
         ImGuiPayload const* pl = ImGui::GetDragDropPayload();
         if (pl && pl->Data && pl->DataSize > 0) {
-          char buf[256];
           size_t sz = (std::min)(static_cast<size_t>(pl->DataSize), sizeof(buf) - 1);
           std::memcpy(buf, pl->Data, sz);
           buf[sz] = '\0';
           if (buf[0] && std::string(buf) != nodeFullPath) {
-            m_resourceManager->MoveAssetFolder(buf, nodeFullPath.c_str());
-            m_resourceManager->LoadAllManifests();
+            std::string bufStr(buf);
+            bool isDescendant = (nodeFullPath.size() > bufStr.size() + 1 &&
+                                nodeFullPath.compare(0, bufStr.size(), bufStr) == 0 &&
+                                nodeFullPath[bufStr.size()] == '/');
+            if (!isDescendant) {
+              m_resourceManager->MoveAssetFolder(buf, nodeFullPath.c_str());
+              m_resourceManager->LoadAllManifests();
+            }
           }
         }
       }
       ImGui::EndDragDropTarget();
     }
     if (ImGui::BeginPopupContextItem()) {
-      if (ImGui::MenuItem("Import...")) { m_resourceManager->LoadAllManifests(); m_selectedAssetPath = nodeFullPath; m_selectedRepo = GetFirstRepoForAssetPath(nodeFullPath, infos, repos); m_showImportModal = true; m_importModalRepo = m_selectedRepo; m_importModalAssetPath = nodeFullPath; ImGui::CloseCurrentPopup(); }
-      if (ImGui::MenuItem("New Folder")) { m_showNewFolder = true; m_newFolderParent = nodeFullPath; m_newFolderBuf[0] = '\0'; ImGui::CloseCurrentPopup(); }
-      if (ImGui::MenuItem("Change Repository")) { m_resourceManager->LoadAllManifests(); m_changeRepoTargetAssetPath = nodeFullPath; m_changeRepoTargetIsFolder = true; m_showChangeRepo = true; m_changeRepoCombo = 0; ImGui::CloseCurrentPopup(); }
-      if (ImGui::MenuItem("Move here")) { /* move asset path handled by drag */ ImGui::CloseCurrentPopup(); }
+      if (ImGui::MenuItem("Import...")) {
+        m_resourceManager->LoadAllManifests();
+        m_selectedAssetPath = nodeFullPath;
+        m_selectedRepo = GetRepoForAssetPath(nodeFullPath, infos, repos, m_resourceManager);
+        m_showImportModal = true;
+        m_importRepo = m_selectedRepo;
+        m_importFolderPath = nodeFullPath;
+        ImGui::CloseCurrentPopup();
+      }
+      if (ImGui::MenuItem("New Folder")) {
+        m_showNewFolderModal = true;
+        m_newFolderParentPath = nodeFullPath;
+        m_newFolderNameBuf[0] = '\0';
+        ImGui::CloseCurrentPopup();
+      }
+      if (ImGui::MenuItem("Delete Folder")) {
+        m_showDeleteFolderModal = true;
+        m_deleteFolderPath = nodeFullPath;
+        m_deleteFolderRepo = GetRepoForAssetPath(nodeFullPath, infos, repos, m_resourceManager);
+        ImGui::CloseCurrentPopup();
+      }
+      if (ImGui::MenuItem("Change Repository")) {
+        m_resourceManager->LoadAllManifests();
+        m_changeRepoTargetPath = nodeFullPath;
+        m_changeRepoIsFolder = true;
+        m_showChangeRepoModal = true;
+        m_changeRepoComboIdx = 0;
+        ImGui::CloseCurrentPopup();
+      }
+      if (ImGui::MenuItem("Move here")) { /* handled by drag */ ImGui::CloseCurrentPopup(); }
       ImGui::EndPopup();
     }
     if (open) {
       for (std::string const& ch : childSegments)
-        DrawAssetPathNode(nodeFullPath, ch, allPaths, assetFoldersSet, infos, repos);
+        DrawFolderNode(nodeFullPath, ch, pathVec, assetFoldersSet, infos, repos);
       ImGui::TreePop();
     }
   }
 
   void DrawCenterPanel() {
     if (m_showLevels) {
-      ImGui::Text("Levels: %s", (m_rootPath + "/assets/levels").c_str());
+      ImGui::Text("Levels: %s", (m_rootPath + "/" + LEVELS_REL_DIR).c_str());
       ImGui::Separator();
-      std::string levelsDir = te::core::PathJoin(m_rootPath, "assets/levels");
-      std::vector<std::string> entries;
-      std::error_code ec;
-      fs::directory_iterator it(PathUtf8(levelsDir), ec);
-      if (!ec) {
-        for (; it != fs::directory_iterator(); ++it) {
-          std::string name = it->path().filename().u8string();
-          if (name.size() >= 10 && name.compare(name.size() - 10, 10, ".level.xml") == 0)
-            entries.push_back(name);
-        }
-      }
-      std::sort(entries.begin(), entries.end());
+      std::vector<std::string> levelPaths = ScanLevelFiles(m_rootPath.c_str());
       ImGui::BeginChild("FileList", ImVec2(-1, -1), true);
-      for (std::string const& e : entries) {
-        std::string fullPath = te::core::PathJoin(levelsDir, e);
-        if (ImGui::Selectable(e.c_str(), false))
-          m_selectedLevelPath = fullPath;
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && m_onOpenLevel)
-          m_onOpenLevel(fullPath);
+      const float tileW = 88.f;
+      const float tileH = 82.f;
+      const float iconSz = 56.f;
+      float availW = ImGui::GetContentRegionAvail().x;
+      int cols = (availW > tileW) ? static_cast<int>(availW / tileW) : 1;
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      for (size_t i = 0; i < levelPaths.size(); ++i) {
+        if (i > 0 && (i % static_cast<size_t>(cols)) != 0) ImGui::SameLine();
+        std::string const& fullPath = levelPaths[i];
+        std::string name = te::core::PathGetFileName(fullPath);
+        if (name.size() > 12u) name = name.substr(0, 9) + "...";
+        bool selected = (m_selectedLevelPath == fullPath);
+        ImGui::PushID(static_cast<int>(i));
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("##lv", ImVec2(tileW, tileH));
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemClicked(0)) m_selectedLevelPath = fullPath;
+        if (hovered && ImGui::IsMouseDoubleClicked(0) && m_onOpenLevel) m_onOpenLevel(fullPath);
+        ImVec2 iconMin(pos.x + (tileW - iconSz) * 0.5f, pos.y + 2.f);
+        ImVec2 iconMax(iconMin.x + iconSz, iconMin.y + iconSz);
+        ImU32 iconCol = selected ? IM_COL32(90, 90, 140, 255) : (hovered ? IM_COL32(70, 70, 100, 255) : IM_COL32(55, 55, 70, 255));
+        dl->AddRectFilled(iconMin, iconMax, iconCol, 5.f);
+        ImVec2 textSize = ImGui::CalcTextSize(name.c_str(), nullptr, false, tileW - 4.f);
+        dl->AddText(ImVec2(pos.x + (tileW - textSize.x) * 0.5f, iconMax.y + 4.f), IM_COL32(255, 255, 255, 255), name.c_str());
+        if (ImGui::BeginPopupContextItem()) {
+          if (ImGui::MenuItem("Delete Level") && m_onDeleteLevel) m_onDeleteLevel(fullPath);
+          ImGui::EndPopup();
+        }
+        ImGui::PopID();
       }
       ImGui::EndChild();
       return;
@@ -430,64 +610,88 @@ private:
     ImGui::Text("Asset path: %s", m_selectedAssetPath.empty() ? "(root)" : m_selectedAssetPath.c_str());
     ImGui::Separator();
 
+    std::vector<std::string> repos;
     std::vector<IResourceManager::ResourceInfo> infos;
-    if (m_resourceManager) m_resourceManager->GetResourceInfos(infos);
-    std::vector<IResourceManager::ResourceInfo> filtered;
-    for (auto const& i : infos) {
-      if (i.guid.IsNull()) continue;
-      bool inFolder = false;
-      if (m_selectedAssetPath.empty()) {
-        size_t firstSlash = i.assetPath.find('/');
-        size_t secondSlash = (firstSlash == std::string::npos) ? std::string::npos : i.assetPath.find('/', firstSlash + 1);
-        inFolder = (secondSlash == std::string::npos);
-      } else {
-        if (i.assetPath == m_selectedAssetPath) inFolder = true;
-        else if (i.assetPath.size() > m_selectedAssetPath.size() && i.assetPath[m_selectedAssetPath.size()] == '/' && i.assetPath.compare(0, m_selectedAssetPath.size(), m_selectedAssetPath) == 0 && i.assetPath.find('/', m_selectedAssetPath.size() + 1) == std::string::npos) inFolder = true;
-      }
-      if (!inFolder) continue;
-      if (m_filterType >= 0 && static_cast<int>(i.type) != m_filterType) continue;
-      if (!MatchesNameFilter(i.displayName, m_nameFilterBuf)) continue;
-      filtered.push_back(i);
-    }
-    std::sort(filtered.begin(), filtered.end(), [](auto const& a, auto const& b) { return a.displayName < b.displayName; });
+    std::set<std::string> allAssetPathsSet, assetFoldersSet;
+    std::vector<std::string> pathVec;
+    GatherTreeData(repos, infos, allAssetPathsSet, assetFoldersSet, pathVec);
+
+    std::vector<std::string> childFolderSegments;
+    GetDirectChildFolderSegments(m_selectedAssetPath, pathVec, assetFoldersSet, childFolderSegments);
+    std::vector<IResourceManager::ResourceInfo> filtered = FilterResourcesInFolder(infos, m_selectedAssetPath, m_filterType, m_nameFilterBuf);
 
     ImGui::BeginChild("FileList", ImVec2(-1, -1), true);
     if (!m_resourceManager) {
       ImGui::TextDisabled("No resource manager. Open a project.");
-    } else if (infos.empty()) {
-      ImGui::TextDisabled("No resources. Import files or create a repository.");
-    } else if (filtered.empty()) {
-      ImGui::TextDisabled("No resources in this folder. Select (root) or a folder on the left.");
-    }
-    for (size_t idx = 0; idx < filtered.size(); ++idx) {
-      auto const& e = filtered[idx];
-      ImGui::PushID(static_cast<int>(idx));
-      bool selected = (m_selectedResourceGuid == e.guid);
-      if (ImGui::Selectable(e.displayName.empty() ? "(no name)" : e.displayName.c_str(), selected))
-        m_selectedResourceGuid = e.guid;
-      if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) {
-        m_selectedResourceGuid = e.guid;
-        m_cachedDetailInfo = e;
-        m_cachedDetailValid = true;
-      }
-      if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-        ImGui::SetDragDropPayload("ResourceAssetPath", e.guid.data, 16);
-        ImGui::Text("%s", e.displayName.empty() ? "(no name)" : e.displayName.c_str());
-        ImGui::EndDragDropSource();
-      }
-      if (ImGui::BeginPopupContextItem()) {
-        if (ImGui::MenuItem("Change Repository")) {
-          m_resourceManager->LoadAllManifests();
-          m_changeRepoTargetGuid = e.guid;
-          m_changeRepoTargetAssetPath.clear();
-          m_changeRepoTargetIsFolder = false;
-          m_showChangeRepo = true;
-          m_changeRepoCombo = 0;
-          ImGui::CloseCurrentPopup();
+    } else {
+      const float tileW = 88.f;
+      const float tileH = 82.f;
+      const float iconSz = 56.f;
+      float availW = ImGui::GetContentRegionAvail().x;
+      int cols = (availW > tileW) ? static_cast<int>(availW / tileW) : 1;
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      int tileIndex = 0;
+      for (std::string const& seg : childFolderSegments) {
+        if (tileIndex > 0 && (tileIndex % cols) != 0) ImGui::SameLine();
+        std::string fullPath = m_selectedAssetPath.empty() ? seg : (m_selectedAssetPath + "/" + seg);
+        bool selected = (m_selectedAssetPath == fullPath);
+        ImGui::PushID(("f:" + fullPath).c_str());
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("##folder", ImVec2(tileW, tileH));
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemClicked(0)) {
+          m_showLevels = false;
+          m_selectedAssetPath = fullPath;
+          m_selectedRepo = GetRepoForAssetPath(fullPath, infos, repos, m_resourceManager);
+          m_selectedResourceGuid = ResourceId();
         }
-        ImGui::EndPopup();
+        ImVec2 iconMin(pos.x + (tileW - iconSz) * 0.5f, pos.y + 2.f);
+        ImVec2 iconMax(iconMin.x + iconSz, iconMin.y + iconSz);
+        ImU32 iconCol = selected ? IM_COL32(80, 120, 80, 255) : (hovered ? IM_COL32(60, 95, 60, 255) : IM_COL32(50, 75, 50, 255));
+        dl->AddRectFilled(iconMin, iconMax, iconCol, 5.f);
+        std::string disp = seg.size() > 12u ? seg.substr(0, 9) + "..." : seg;
+        ImVec2 ts = ImGui::CalcTextSize(disp.c_str(), nullptr, false, tileW - 4.f);
+        dl->AddText(ImVec2(pos.x + (tileW - ts.x) * 0.5f, iconMax.y + 4.f), IM_COL32(255, 255, 255, 255), disp.c_str());
+        ImGui::PopID();
+        ++tileIndex;
       }
-      ImGui::PopID();
+      for (size_t idx = 0; idx < filtered.size(); ++idx) {
+        auto const& e = filtered[idx];
+        if (tileIndex > 0 && (tileIndex % cols) != 0) ImGui::SameLine();
+        bool selected = (m_selectedResourceGuid == e.guid);
+        ImGui::PushID(static_cast<int>(idx));
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("##res", ImVec2(tileW, tileH));
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemClicked(0)) m_selectedResourceGuid = e.guid;
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+          ImGui::SetDragDropPayload(RESOURCE_GUID_PAYLOAD, e.guid.data, 16);
+          ImGui::Text("%s", e.displayName.empty() ? "(no name)" : e.displayName.c_str());
+          ImGui::EndDragDropSource();
+        }
+        ImVec2 iconMin(pos.x + (tileW - iconSz) * 0.5f, pos.y + 2.f);
+        ImVec2 iconMax(iconMin.x + iconSz, iconMin.y + iconSz);
+        ImU32 iconCol = selected ? IM_COL32(90, 90, 140, 255) : (hovered ? IM_COL32(70, 70, 100, 255) : IM_COL32(55, 55, 70, 255));
+        dl->AddRectFilled(iconMin, iconMax, iconCol, 5.f);
+        std::string disp = e.displayName.empty() ? "(no name)" : e.displayName;
+        if (disp.size() > 12u) disp = disp.substr(0, 9) + "...";
+        ImVec2 ts = ImGui::CalcTextSize(disp.c_str(), nullptr, false, tileW - 4.f);
+        dl->AddText(ImVec2(pos.x + (tileW - ts.x) * 0.5f, iconMax.y + 4.f), IM_COL32(255, 255, 255, 255), disp.c_str());
+        if (ImGui::BeginPopupContextItem()) {
+          if (ImGui::MenuItem("Change Repository")) {
+            m_resourceManager->LoadAllManifests();
+            m_changeRepoTargetGuid = e.guid;
+            m_changeRepoTargetPath.clear();
+            m_changeRepoIsFolder = false;
+            m_showChangeRepoModal = true;
+            m_changeRepoComboIdx = 0;
+            ImGui::CloseCurrentPopup();
+          }
+          ImGui::EndPopup();
+        }
+        ImGui::PopID();
+        ++tileIndex;
+      }
     }
     ImGui::EndChild();
   }
@@ -507,8 +711,7 @@ private:
       ImGui::EndChild();
       return;
     }
-    std::string selectedGuidStr = m_selectedResourceGuid.ToString();
-    ImGui::Text("GUID: %s", selectedGuidStr.c_str());
+    ImGui::Text("GUID: %s", m_selectedResourceGuid.ToString().c_str());
     if (!m_resourceManager) {
       ImGui::TextDisabled("Repository: (no resource manager)");
       ImGui::EndChild();
@@ -536,45 +739,22 @@ private:
     ImGui::EndChild();
   }
 
-  void DoImportAfterFileDialog() {
-    if (!m_resourceManager) return;
-    std::string repo = m_importModalRepo.empty() ? (m_selectedRepo.empty() ? "main" : m_selectedRepo) : m_importModalRepo;
-    if (repo.empty()) {
-      std::vector<std::string> repos;
-      m_resourceManager->GetRepositoryList(repos);
-      if (!repos.empty()) repo = repos[0];
-    }
-    std::string vpath = m_importModalAssetPath;
-    std::string initialDir = m_rootPath;
-    auto savedCwd = fs::current_path();
-    std::vector<std::string> paths = OpenFileDialogMulti(nullptr, nullptr, initialDir.c_str());
-    fs::current_path(savedCwd);
-    for (std::string const& path : paths) {
-      if (path.empty()) continue;
-      ResourceType type = ImportTypeFromExtension(te::core::PathGetExtension(path));
-      if (type == ResourceType::_Count) continue;
-      m_resourceManager->ImportIntoRepository(path.c_str(), type, repo.c_str(), vpath.c_str(), nullptr);
-    }
-    m_resourceManager->LoadAllManifests();
-  }
-
   void DrawModals() {
-    if (m_showCreateRepo && m_resourceManager) {
+    if (m_showCreateRepoModal && m_resourceManager) {
       if (!ImGui::IsPopupOpen("Create Repository"))
         ImGui::OpenPopup("Create Repository");
-      if (ImGui::BeginPopupModal("Create Repository", &m_showCreateRepo, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (ImGui::BeginPopupModal("Create Repository", &m_showCreateRepoModal, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Repository name:");
         ImGui::SetNextItemWidth(280.f);
-        bool enter = ImGui::InputText("##RepoName", m_createRepoBuf, sizeof(m_createRepoBuf), ImGuiInputTextFlags_EnterReturnsTrue);
-        if (m_createRepoFailed) {
+        bool enter = ImGui::InputText("##RepoName", m_createRepoNameBuf, sizeof(m_createRepoNameBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+        if (m_createRepoFailed)
           ImGui::TextDisabled("Failed. Open a project first; name must not contain / \\ : * ? \" < > |");
-        }
         if (ImGui::Button("OK") || enter) {
           m_createRepoFailed = false;
-          if (m_createRepoBuf[0] != '\0') {
-            if (m_resourceManager->CreateRepository(m_createRepoBuf)) {
+          if (m_createRepoNameBuf[0] != '\0') {
+            if (m_resourceManager->CreateRepository(m_createRepoNameBuf)) {
               m_resourceManager->LoadAllManifests();
-              m_showCreateRepo = false;
+              m_showCreateRepoModal = false;
               ImGui::CloseCurrentPopup();
             } else {
               m_createRepoFailed = true;
@@ -583,7 +763,7 @@ private:
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {
-          m_showCreateRepo = false;
+          m_showCreateRepoModal = false;
           m_createRepoFailed = false;
           ImGui::CloseCurrentPopup();
         }
@@ -591,25 +771,25 @@ private:
       }
     }
 
-    if (m_showNewFolder && m_resourceManager) {
+    if (m_showNewFolderModal && m_resourceManager) {
       if (!ImGui::IsPopupOpen("New Folder"))
         ImGui::OpenPopup("New Folder");
-      if (ImGui::BeginPopupModal("New Folder", &m_showNewFolder, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (ImGui::BeginPopupModal("New Folder", &m_showNewFolderModal, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Folder name:");
         ImGui::SetNextItemWidth(280.f);
-        bool enter = ImGui::InputText("##NewFolderName", m_newFolderBuf, sizeof(m_newFolderBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+        bool enter = ImGui::InputText("##NewFolderName", m_newFolderNameBuf, sizeof(m_newFolderNameBuf), ImGuiInputTextFlags_EnterReturnsTrue);
         if (ImGui::Button("OK") || enter) {
-          if (m_newFolderBuf[0] != '\0') {
-            std::string vpath = m_newFolderParent.empty() ? m_newFolderBuf : (m_newFolderParent + "/" + m_newFolderBuf);
-            if (m_resourceManager->AddAssetFolder(m_selectedRepo.c_str(), vpath.c_str())) {
-              m_showNewFolder = false;
+          if (m_newFolderNameBuf[0] != '\0') {
+            std::string fullPath = m_newFolderParentPath.empty() ? m_newFolderNameBuf : (m_newFolderParentPath + "/" + m_newFolderNameBuf);
+            if (m_resourceManager->AddAssetFolder(m_selectedRepo.c_str(), fullPath.c_str())) {
+              m_showNewFolderModal = false;
               ImGui::CloseCurrentPopup();
             }
           }
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {
-          m_showNewFolder = false;
+          m_showNewFolderModal = false;
           ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -623,18 +803,18 @@ private:
         std::vector<std::string> repos;
         m_resourceManager->GetRepositoryList(repos);
         int repoIdx = 0;
-        for (size_t i = 0; i < repos.size(); ++i) { if (repos[i] == m_importModalRepo) { repoIdx = static_cast<int>(i); break; } }
-        if (m_importModalRepo.empty() && !repos.empty()) { m_importModalRepo = repos[0]; repoIdx = 0; }
+        for (size_t i = 0; i < repos.size(); ++i) { if (repos[i] == m_importRepo) { repoIdx = static_cast<int>(i); break; } }
+        if (m_importRepo.empty() && !repos.empty()) { m_importRepo = repos[0]; repoIdx = 0; }
         std::vector<const char*> repoPtrs;
         for (auto const& r : repos) repoPtrs.push_back(r.c_str());
         ImGui::Text("Import to repository:");
         ImGui::SetNextItemWidth(200.f);
-        if (ImGui::Combo("##ImportModalRepo", &repoIdx, repoPtrs.data(), static_cast<int>(repos.size())) && repoIdx >= 0 && static_cast<size_t>(repoIdx) < repos.size())
-          m_importModalRepo = repos[static_cast<size_t>(repoIdx)];
-        ImGui::Text("Folder: %s", m_importModalAssetPath.empty() ? "(root)" : m_importModalAssetPath.c_str());
+        if (ImGui::Combo("##ImportRepo", &repoIdx, repoPtrs.data(), static_cast<int>(repos.size())) && repoIdx >= 0 && static_cast<size_t>(repoIdx) < repos.size())
+          m_importRepo = repos[static_cast<size_t>(repoIdx)];
+        ImGui::Text("Folder: %s", m_importFolderPath.empty() ? "(root)" : m_importFolderPath.c_str());
         if (ImGui::Button("Select Files")) {
           m_showImportModal = false;
-          m_importModalTriggerFileDialog = true;
+          m_pendingOpenFileDialog = true;
           ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
@@ -646,10 +826,10 @@ private:
       }
     }
 
-    if (m_showChangeRepo && m_resourceManager) {
+    if (m_showChangeRepoModal && m_resourceManager) {
       if (!ImGui::IsPopupOpen("Change Repository"))
         ImGui::OpenPopup("Change Repository");
-      if (ImGui::BeginPopupModal("Change Repository", &m_showChangeRepo, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (ImGui::BeginPopupModal("Change Repository", &m_showChangeRepoModal, ImGuiWindowFlags_AlwaysAutoResize)) {
         std::vector<std::string> repos;
         m_resourceManager->GetRepositoryList(repos);
         std::vector<const char*> repoPtrs;
@@ -657,40 +837,91 @@ private:
         int n = static_cast<int>(repos.size());
         ImGui::Text("Target repository:");
         ImGui::SetNextItemWidth(200.f);
-        ImGui::Combo("##TargetRepo", &m_changeRepoCombo, repoPtrs.data(), n);
+        ImGui::Combo("##TargetRepo", &m_changeRepoComboIdx, repoPtrs.data(), n);
         if (ImGui::Button("OK")) {
-          if (m_changeRepoCombo >= 0 && m_changeRepoCombo < n) {
-            std::string targetRepo = repos[static_cast<size_t>(m_changeRepoCombo)];
-            if (targetRepo == m_selectedRepo) { m_showChangeRepo = false; ImGui::CloseCurrentPopup(); ImGui::EndPopup(); return; }
-            if (m_changeRepoTargetIsFolder) {
+          if (m_changeRepoComboIdx >= 0 && m_changeRepoComboIdx < n) {
+            std::string targetRepo = repos[static_cast<size_t>(m_changeRepoComboIdx)];
+            if (targetRepo == m_selectedRepo) {
+              m_showChangeRepoModal = false;
+              ImGui::CloseCurrentPopup();
+              ImGui::EndPopup();
+              return;
+            }
+            if (m_changeRepoIsFolder) {
               std::vector<IResourceManager::ResourceInfo> infos;
               m_resourceManager->GetResourceInfos(infos);
-              if (m_changeRepoTargetAssetPath.empty()) {
-                for (auto const& i : infos)
-                  if (i.repository == m_selectedRepo)
-                    m_resourceManager->MoveResourceToRepository(i.guid, targetRepo.c_str());
-              } else {
-                std::string prefix = m_changeRepoTargetAssetPath + "/";
-                for (auto const& i : infos) {
-                  if (i.repository != m_selectedRepo) continue;
-                  if (i.assetPath == m_changeRepoTargetAssetPath || (i.assetPath.size() > prefix.size() && i.assetPath.compare(0, prefix.size(), prefix) == 0))
+              std::string prefix = m_changeRepoTargetPath.empty() ? "" : (m_changeRepoTargetPath + "/");
+              for (auto const& i : infos) {
+                if (i.repository != m_selectedRepo) continue;
+                if (m_changeRepoTargetPath.empty()) {
+                  m_resourceManager->MoveResourceToRepository(i.guid, targetRepo.c_str());
+                } else {
+                  if (i.assetPath == m_changeRepoTargetPath || (i.assetPath.size() > prefix.size() && i.assetPath.compare(0, prefix.size(), prefix) == 0))
                     m_resourceManager->MoveResourceToRepository(i.guid, targetRepo.c_str());
                 }
               }
-            } else
+            } else {
               m_resourceManager->MoveResourceToRepository(m_changeRepoTargetGuid, targetRepo.c_str());
-            m_showChangeRepo = false;
+            }
+            m_showChangeRepoModal = false;
+            m_resourceManager->LoadAllManifests();
             ImGui::CloseCurrentPopup();
           }
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) {
-          m_showChangeRepo = false;
+          m_showChangeRepoModal = false;
           ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
       }
     }
+
+    if (m_showDeleteFolderModal && m_resourceManager) {
+      if (!ImGui::IsPopupOpen("Delete Folder"))
+        ImGui::OpenPopup("Delete Folder");
+      if (ImGui::BeginPopupModal("Delete Folder", &m_showDeleteFolderModal, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Delete folder \"%s\"?", m_deleteFolderPath.empty() ? "(root)" : m_deleteFolderPath.c_str());
+        ImGui::Text("Resources inside will be moved to the parent folder.");
+        if (ImGui::Button("Delete")) {
+          if (!m_deleteFolderPath.empty() && !m_deleteFolderRepo.empty()) {
+            m_resourceManager->RemoveAssetFolder(m_deleteFolderRepo.c_str(), m_deleteFolderPath.c_str());
+            m_resourceManager->LoadAllManifests();
+            if (m_selectedAssetPath == m_deleteFolderPath || (m_selectedAssetPath.size() > m_deleteFolderPath.size() && m_selectedAssetPath.compare(0, m_deleteFolderPath.size(), m_deleteFolderPath) == 0 && m_selectedAssetPath[m_deleteFolderPath.size()] == '/')) {
+              std::string parent = te::core::PathGetDirectory(m_deleteFolderPath);
+              m_selectedAssetPath = (parent == ".") ? "" : parent;
+            }
+          }
+          m_showDeleteFolderModal = false;
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+          m_showDeleteFolderModal = false;
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+      }
+    }
+  }
+
+  void DoImportAfterFileDialog() {
+    if (!m_resourceManager) return;
+    std::string repo = m_importRepo.empty() ? (m_selectedRepo.empty() ? "main" : m_selectedRepo) : m_importRepo;
+    if (repo.empty()) {
+      std::vector<std::string> repos;
+      m_resourceManager->GetRepositoryList(repos);
+      if (!repos.empty()) repo = repos[0];
+    }
+    std::string folderPath = m_importFolderPath;
+    std::vector<std::string> paths = OpenFileDialogMulti(nullptr, nullptr, m_rootPath.empty() ? nullptr : m_rootPath.c_str());
+    for (std::string const& path : paths) {
+      if (path.empty()) continue;
+      ResourceType type = ImportTypeFromExtension(te::core::PathGetExtension(path));
+      if (type == ResourceType::_Count) continue;
+      m_resourceManager->ImportIntoRepository(path.c_str(), type, repo.c_str(), folderPath.c_str(), nullptr);
+    }
+    m_resourceManager->LoadAllManifests();
   }
 
   std::string m_rootPath;
@@ -699,31 +930,37 @@ private:
   std::string m_selectedRepo;
   std::string m_selectedAssetPath;
   ResourceId m_selectedResourceGuid;
-  IResourceManager::ResourceInfo m_cachedDetailInfo;
-  bool m_cachedDetailValid = false;
   bool m_showLevels = false;
   std::string m_selectedLevelPath;
   std::function<void(std::string const&)> m_onOpenLevel;
+  std::function<void(std::string const&)> m_onDeleteLevel;
   IResourceManager* m_resourceManager = nullptr;
 
   float m_leftRatio = 0.25f;
   float m_centerRatio = 0.45f;
 
-  bool m_showCreateRepo = false;
+  bool m_showCreateRepoModal = false;
   bool m_createRepoFailed = false;
-  char m_createRepoBuf[256] = "";
-  bool m_showNewFolder = false;
-  std::string m_newFolderParent;
-  char m_newFolderBuf[256] = "";
-  bool m_showChangeRepo = false;
-  int m_changeRepoCombo = 0;
-  std::string m_changeRepoTargetAssetPath;
-  bool m_changeRepoTargetIsFolder = false;
-  ResourceId m_changeRepoTargetGuid;
+  char m_createRepoNameBuf[256] = "";
+
+  bool m_showNewFolderModal = false;
+  std::string m_newFolderParentPath;
+  char m_newFolderNameBuf[256] = "";
+
   bool m_showImportModal = false;
-  std::string m_importModalRepo;
-  std::string m_importModalAssetPath;
-  bool m_importModalTriggerFileDialog = false;
+  std::string m_importRepo;
+  std::string m_importFolderPath;
+  bool m_pendingOpenFileDialog = false;
+
+  bool m_showChangeRepoModal = false;
+  int m_changeRepoComboIdx = 0;
+  std::string m_changeRepoTargetPath;
+  bool m_changeRepoIsFolder = false;
+  ResourceId m_changeRepoTargetGuid;
+
+  bool m_showDeleteFolderModal = false;
+  std::string m_deleteFolderPath;
+  std::string m_deleteFolderRepo;
 };
 
 IResourceView* CreateResourceView() {

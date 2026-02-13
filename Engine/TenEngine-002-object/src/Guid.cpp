@@ -50,17 +50,12 @@ GUID GUID::FromString(char const* str) {
     if (!str) {
         return guid;
     }
-    
-    // Parse UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    // Format: 8-4-4-4-12 hex digits
-    std::uint32_t d0, d1, d2, d3, d4, d5, d6, d7;
-    std::uint16_t w0, w1, w2, w3;
-    std::uint16_t w4, w5, w6, w7;
-    
-    int result = std::sscanf(str, "%08x-%04hx-%04hx-%04hx%04hx-%04hx%04hx%04hx%04hx",
-                             &d0, &w0, &w1, &w2, &w3, &w4, &w5, &w6, &w7);
-    
-    if (result == 8) {
+    // Parse standard UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (8-4-4-4-12 hex)
+    std::uint32_t d0;
+    std::uint16_t w0, w1, w2, w3, w4, w5;
+    int result = std::sscanf(str, "%08x-%04hx-%04hx-%04hx-%04hx%04hx%04hx",
+                             &d0, &w0, &w1, &w2, &w3, &w4, &w5);
+    if (result == 7) {
         std::memcpy(&guid.data[0], &d0, 4);
         std::memcpy(&guid.data[4], &w0, 2);
         std::memcpy(&guid.data[6], &w1, 2);
@@ -68,10 +63,7 @@ GUID GUID::FromString(char const* str) {
         std::memcpy(&guid.data[10], &w3, 2);
         std::memcpy(&guid.data[12], &w4, 2);
         std::memcpy(&guid.data[14], &w5, 2);
-        // Note: w6 and w7 are not used in standard UUID format
-        // Adjust if needed based on actual format
     }
-    
     return guid;
 }
 

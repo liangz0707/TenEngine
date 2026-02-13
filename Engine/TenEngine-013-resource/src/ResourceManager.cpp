@@ -158,6 +158,7 @@ public:
     }
 
     void LoadAllManifests() override {
+        if (asset_root_.empty()) return;
         {
             std::lock_guard<std::mutex> lock(manifest_mutex_);
             manifests_.clear();
@@ -169,7 +170,6 @@ public:
             id_to_type_.clear();
             id_to_repo_.clear();
         }
-        if (asset_root_.empty()) return;
         {
             std::lock_guard<std::mutex> lock(manifest_mutex_);
             if (!LoadRepositoryConfig(asset_root_.c_str(), repo_config_)) {
@@ -229,8 +229,8 @@ public:
         std::string parentAP = parentAssetPath ? parentAssetPath : "";
         char const* typeDir = GetTypeDirectory(type);
         if (!typeDir || !typeDir[0]) return false;
-        std::string repoRoot = te::core::PathJoin(asset_root_, repoName);
-        std::string typeRoot = te::core::PathJoin(repoRoot, typeDir);
+        std::string repoRootDir = te::core::PathJoin(asset_root_, GetRepoRoot(repoName.c_str()));
+        std::string typeRoot = te::core::PathJoin(repoRootDir, typeDir);
         uint64_t tick = static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
         std::string tempDir = te::core::PathJoin(typeRoot, "import_" + std::to_string(tick));
         std::error_code ec;
@@ -259,7 +259,8 @@ public:
         }
         size_t dot = sourceFileName.find_last_of('.');
         std::string displayName = dot != std::string::npos ? sourceFileName.substr(0, dot) : sourceFileName;
-        std::string assetPath = parentAP.empty() ? displayName : (parentAP + "/" + displayName);
+        // assetPath = folder only (where the resource lives); displayName = file name in that folder
+        std::string assetPath = parentAP;
         std::string relPath = ComputeStoragePath(repoName.c_str(), type, id, displayName.c_str());
         std::string fullPrimaryPath = relPath.empty() ? "" : te::core::PathJoin(asset_root_, relPath);
         if (relPath.empty()) {
@@ -290,9 +291,9 @@ public:
             }
         }
         CacheResource(id, resource, fullPrimaryPath.c_str());
-        std::string manifestPath = te::core::PathJoin(repoRoot, "manifest.json");
         {
             std::lock_guard<std::mutex> lock(manifest_mutex_);
+            std::string manifestPath = te::core::PathJoin(repoRootDir, "manifest.json");
             SaveManifest(manifestPath.c_str(), manifests_[repoName]);
         }
         return true;
@@ -358,7 +359,7 @@ public:
         if (!typeDir || !typeDir[0]) return false;
         std::string guidStr = id.ToString();
         std::string srcDir = te::core::PathGetDirectory(fullPath);
-        std::string destRoot = te::core::PathJoin(asset_root_, targetRepository);
+        std::string destRoot = te::core::PathJoin(asset_root_, GetRepoRoot(targetRepository));
         std::string destTypeRoot = te::core::PathJoin(destRoot, typeDir);
         std::string destDir = te::core::PathJoin(destTypeRoot, guidStr);
         std::error_code ec;
@@ -396,28 +397,39 @@ public:
             id_to_path_[id] = te::core::PathJoin(asset_root_, newRelPath);
             id_to_repo_[id] = targetRepository;
         }
-        SaveManifest(te::core::PathJoin(te::core::PathJoin(asset_root_, srcRepo), "manifest.json").c_str(), srcManifestIt->second);
-        SaveManifest(te::core::PathJoin(te::core::PathJoin(asset_root_, targetRepository), "manifest.json").c_str(), destManifestIt->second);
+        std::string srcRepoRoot = GetRepoRoot(srcRepo.c_str());
+        std::string dstRepoRoot = GetRepoRoot(targetRepository);
+        std::string srcManifestPath = te::core::PathJoin(te::core::PathJoin(asset_root_, srcRepoRoot), "manifest.json");
+        std::string dstManifestPath = te::core::PathJoin(te::core::PathJoin(asset_root_, dstRepoRoot), "manifest.json");
+        SaveManifest(srcManifestPath.c_str(), srcManifestIt->second);
+        SaveManifest(dstManifestPath.c_str(), destManifestIt->second);
         std::filesystem::remove_all(std::filesystem::u8path(srcDir), ec);
         (void)ec;
         return true;
     }
 
     bool UpdateAssetPath(ResourceId id, char const* newAssetPath) override {
-        if (id.IsNull() || !newAssetPath) return false;
+        if (id.IsNull()) return false;
+        std::string newPath(newAssetPath ? newAssetPath : "");
         std::lock_guard<std::mutex> lock(manifest_mutex_);
         auto repoIt = id_to_repo_.find(id);
         if (repoIt == id_to_repo_.end()) return false;
-        auto it = manifests_.find(repoIt->second);
-        if (it == manifests_.end()) return false;
-        for (ManifestEntry& e : it->second.resources) {
+        std::string repoRootDir = GetRepoRoot(repoIt->second.c_str());
+        std::string manifestPathOnDisk = te::core::PathJoin(te::core::PathJoin(asset_root_, repoRootDir), "manifest.json");
+        ResourceManifest mf;
+        if (!LoadManifest(manifestPathOnDisk.c_str(), mf)) return false;
+        bool found = false;
+        for (ManifestEntry& e : mf.resources) {
             if (e.guid == id) {
-                e.assetPath = newAssetPath;
-                SaveManifest(te::core::PathJoin(te::core::PathJoin(asset_root_, repoIt->second), "manifest.json").c_str(), it->second);
-                return true;
+                e.assetPath = newPath;
+                found = true;
+                break;
             }
         }
-        return false;
+        if (!found) return false;
+        bool ok = SaveManifest(manifestPathOnDisk.c_str(), mf);
+        if (ok) manifests_[repoIt->second] = std::move(mf);
+        return ok;
     }
 
     bool MoveAssetFolder(char const* assetPath, char const* newParentAssetPath) override {
@@ -425,32 +437,41 @@ public:
         std::string prefix = assetPath;
         if (!prefix.empty() && prefix.back() != '/') prefix += "/";
         std::string newParent(newParentAssetPath ? newParentAssetPath : "");
+        std::string movedName = te::core::PathGetFileName(assetPath);
+        if (movedName.empty()) return false;
+        std::string baseNewPath = newParent.empty() ? movedName : (newParent + "/" + movedName);
         std::lock_guard<std::mutex> lock(manifest_mutex_);
         bool any = false;
         for (auto& kv : manifests_) {
+            std::string manifestPathOnDisk = te::core::PathJoin(te::core::PathJoin(asset_root_, GetRepoRoot(kv.first.c_str())), "manifest.json");
+            ResourceManifest mf;
+            if (!LoadManifest(manifestPathOnDisk.c_str(), mf)) continue;
             bool modified = false;
-            for (ManifestEntry& e : kv.second.resources) {
+            for (ManifestEntry& e : mf.resources) {
                 if (e.assetPath == assetPath || (e.assetPath.size() > prefix.size() && e.assetPath.compare(0, prefix.size(), prefix) == 0)) {
                     std::string suffix = e.assetPath.size() > prefix.size() ? e.assetPath.substr(prefix.size()) : "";
-                    e.assetPath = newParent + (suffix.empty() ? "" : "/" + suffix);
+                    e.assetPath = baseNewPath + (suffix.empty() ? "" : "/" + suffix);
                     modified = true;
                     any = true;
                 }
             }
             std::vector<std::string> newAssetFolders;
-            for (std::string const& folder : kv.second.assetFolders) {
+            for (std::string const& folder : mf.assetFolders) {
                 if (folder == assetPath || (prefix.size() > 0 && folder.size() >= prefix.size() && folder.compare(0, prefix.size(), prefix) == 0)) {
                     std::string suffix = (folder == assetPath) ? "" : folder.substr(prefix.size());
-                    std::string np = newParent + (suffix.empty() ? "" : "/" + suffix);
-                    if (!np.empty()) newAssetFolders.push_back(np);
+                    std::string np = baseNewPath + (suffix.empty() ? "" : "/" + suffix);
+                    newAssetFolders.push_back(np);
                     modified = true;
                     any = true;
                 } else {
                     newAssetFolders.push_back(folder);
                 }
             }
-            if (modified) kv.second.assetFolders = std::move(newAssetFolders);
-            if (modified) SaveManifest(te::core::PathJoin(te::core::PathJoin(asset_root_, kv.first), "manifest.json").c_str(), kv.second);
+            if (modified) {
+                mf.assetFolders = std::move(newAssetFolders);
+                if (SaveManifest(manifestPathOnDisk.c_str(), mf))
+                    kv.second = std::move(mf);
+            }
         }
         return any;
     }
@@ -458,20 +479,54 @@ public:
     bool AddAssetFolder(char const* repositoryName, char const* assetPath) override {
         if (!repositoryName || !assetPath || !assetPath[0]) return false;
         std::lock_guard<std::mutex> lock(manifest_mutex_);
-        auto it = manifests_.find(repositoryName);
-        if (it == manifests_.end()) {
-            ResourceManifest mf;
-            manifests_[repositoryName] = mf;
-            it = manifests_.find(repositoryName);
+        std::string repoRootDir = GetRepoRoot(repositoryName);
+        std::string manifestPathOnDisk = te::core::PathJoin(te::core::PathJoin(asset_root_, repoRootDir), "manifest.json");
+        ResourceManifest mf;
+        if (!LoadManifest(manifestPathOnDisk.c_str(), mf)) {
+            mf = ResourceManifest();
         }
         std::string ap(assetPath);
-        for (std::string const& s : it->second.assetFolders)
+        for (std::string const& s : mf.assetFolders)
             if (s == ap) return true;
-        it->second.assetFolders.push_back(ap);
-        std::string manifestPath = te::core::PathJoin(te::core::PathJoin(asset_root_, repositoryName), "manifest.json");
-        return SaveManifest(manifestPath.c_str(), it->second);
+        mf.assetFolders.push_back(ap);
+        bool ok = SaveManifest(manifestPathOnDisk.c_str(), mf);
+        if (ok)
+            manifests_[repositoryName] = std::move(mf);
+        return ok;
     }
-    
+
+    bool RemoveAssetFolder(char const* repositoryName, char const* assetPath) override {
+        if (!repositoryName || !repositoryName[0] || !assetPath) return false;
+        std::string prefix = assetPath;
+        if (!prefix.empty() && prefix.back() != '/') prefix += "/";
+        std::string parentPath = te::core::PathGetDirectory(assetPath);
+        std::lock_guard<std::mutex> lock(manifest_mutex_);
+        std::string repoRootDir = GetRepoRoot(repositoryName);
+        if (repoRootDir.empty()) return false;
+        std::string manifestPathOnDisk = te::core::PathJoin(te::core::PathJoin(asset_root_, repoRootDir), "manifest.json");
+        ResourceManifest mf;
+        if (!LoadManifest(manifestPathOnDisk.c_str(), mf)) return false;
+        bool modified = false;
+        for (ManifestEntry& e : mf.resources) {
+            if (e.assetPath == assetPath || (prefix.size() > 0 && e.assetPath.size() >= prefix.size() && e.assetPath.compare(0, prefix.size(), prefix) == 0)) {
+                e.assetPath = parentPath;
+                modified = true;
+            }
+        }
+        std::vector<std::string> newAssetFolders;
+        for (std::string const& folder : mf.assetFolders) {
+            if (folder == assetPath || (prefix.size() > 0 && folder.size() >= prefix.size() && folder.compare(0, prefix.size(), prefix) == 0))
+                modified = true;
+            else
+                newAssetFolders.push_back(folder);
+        }
+        if (!modified) return false;
+        mf.assetFolders = std::move(newAssetFolders);
+        bool ok = SaveManifest(manifestPathOnDisk.c_str(), mf);
+        if (ok) manifests_[repositoryName] = std::move(mf);
+        return ok;
+    }
+
     LoadRequestId RequestLoadAsync(char const* path, ResourceType type,
                                   LoadCompleteCallback on_done, void* user_data) override {
         if (!path) {
@@ -960,6 +1015,14 @@ private:
     std::unordered_map<uintptr_t, StreamingEntry> streaming_requests_;
     uintptr_t next_streaming_handle_ = 1;
     
+    /** Get repository root directory (disk path) for a repository name. Uses repo_config_; falls back to name if not found. */
+    std::string GetRepoRoot(char const* repositoryName) const {
+        if (!repositoryName || !repositoryName[0]) return std::string();
+        for (RepositoryInfo const& r : repo_config_.repositories)
+            if (r.name == repositoryName) return r.root.empty() ? r.name : r.root;
+        return std::string(repositoryName);
+    }
+
     /**
      * Resolve path to ResourceId (for cache lookup).
      */
