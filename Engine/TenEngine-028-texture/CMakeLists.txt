@@ -50,8 +50,15 @@ FetchContent_GetProperties(stb POPULATED stb_POPULATED SOURCE_DIR stb_SOURCE_DIR
 if(NOT stb_POPULATED)
   FetchContent_Populate(stb)
 endif()
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+if(NOT TARGET stb)
+  add_library(stb INTERFACE)
+  target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+endif()
+
+# Skip if already built (e.g. added from root and again via dependency)
+if(TARGET te_texture)
+  return()
+endif()
 
 # libpng and libjpeg-turbo: use find_package (vcpkg or system); libwebp: FetchContent.
 if(TENENGINE_USE_LIBPNG)

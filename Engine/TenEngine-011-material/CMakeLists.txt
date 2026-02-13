@@ -25,6 +25,11 @@ if(NOT _material_deps)
   message(FATAL_ERROR "te_material: Dependencies (009-rendercore, 010-shader, 013-resource) could not be resolved.")
 endif()
 
+# Skip if already built (e.g. added from root and again via dependency)
+if(TARGET te_material)
+  return()
+endif()
+
 set(TE_MATERIAL_SOURCES
   src/material_json.cpp
   src/MaterialResource.cpp

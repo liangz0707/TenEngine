@@ -58,6 +58,11 @@ if(NOT MY_DEPS)
   message(FATAL_ERROR "te_pipeline: Upstream (001-core, 004-scene, 005-entity, 029-world, 019-pipelinecore, 009-rendercore, 010-shader, 011-material, 012-mesh, 028-texture, 013-resource, 008-rhi) required. TenEngineHelpers not found or deps unresolved. Set TENENGINE_ROOT.")
 endif()
 
+# Skip if already built (e.g. added from root and again via dependency)
+if(TARGET te_pipeline)
+  return()
+endif()
+
 set(TE_PIPELINE_SOURCES
   src/ThreadQueue.cpp
 )
