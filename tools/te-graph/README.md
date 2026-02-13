@@ -18,6 +18,7 @@ It is intentionally decoupled from TenEngine runtime modules.
 - `graph-domain-shader`: sample ShaderGraph domain plugin.
 - `graph-adapter-tenengine`: bridge layer (no direct runtime dependency yet).
 - `graph-cli`: command line tool for validation and compile checks.
+- `apps/graph-editor`: Tauri + React Flow desktop editor shell.
 
 ## Quick start
 
@@ -25,6 +26,12 @@ It is intentionally decoupled from TenEngine runtime modules.
 cd tools/te-graph
 cargo run -p graph-cli -- validate examples/minimal.graph.json
 cargo run -p graph-cli -- compile examples/minimal.graph.json
+```
+
+```bash
+cd tools/te-graph/apps/graph-editor
+npm install
+npm run tauri dev
 ```
 
 ## Notes
