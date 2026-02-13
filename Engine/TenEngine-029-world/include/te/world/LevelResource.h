@@ -33,6 +33,12 @@ struct LevelResourceFactory {
     static te::resource::IResource* Create(te::resource::ResourceType type);
 };
 
+/**
+ * @brief Create LevelResource from LevelAssetDesc for Save (Editor export flow).
+ * Caller must Release() the returned resource after Save.
+ */
+te::resource::IResource* CreateLevelResourceFromDesc(LevelAssetDesc const& desc);
+
 }  // namespace world
 }  // namespace te
 

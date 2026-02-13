@@ -91,6 +91,12 @@ struct IWindowPlatform {
    * @return Actual number of displays
    */
   virtual uint32_t EnumerateDisplays(DisplayInfo* displays, uint32_t maxCount) const = 0;
+
+  /**
+   * @brief Set optional WndProc handler (Windows only). Used by ImGui to receive input.
+   * @param handler Function pointer: LRESULT (*)(HWND, UINT, WPARAM, LPARAM). nullptr to clear.
+   */
+  virtual void SetWndProcHandler(void* handler) { (void)handler; }
 };
 
 /**

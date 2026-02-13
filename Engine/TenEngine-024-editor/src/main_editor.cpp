@@ -4,6 +4,7 @@
  */
 #include <te/editor/Editor.h>
 #include <te/application/Application.h>
+#include <te/resource/ResourceManager.h>
 
 int main(int argc, char const** argv) {
   te::application::IApplication* app = te::application::CreateApplication();
@@ -17,7 +18,7 @@ int main(int argc, char const** argv) {
   te::editor::EditorContext ctx;
   ctx.projectRootPath = "./assets";
   ctx.application = app;
-  ctx.resourceManager = nullptr;  // TODO: from SubsystemRegistry when available
+  ctx.resourceManager = te::resource::GetResourceManager();
 
   te::editor::IEditor* editor = te::editor::CreateEditor(ctx);
   if (!editor) return 1;

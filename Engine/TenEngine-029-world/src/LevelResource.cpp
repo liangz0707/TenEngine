@@ -28,6 +28,7 @@ namespace world {
 class LevelResource : public te::resource::IResource, public ILevelResource {
 public:
     LevelResource() : m_refCount(1), m_guid(te::resource::ResourceId()) {}
+    explicit LevelResource(LevelAssetDesc const& desc) : m_refCount(1), m_guid(te::resource::ResourceId()), m_desc(desc) {}
 
     te::resource::ResourceType GetResourceType() const override {
         return te::resource::ResourceType::Level;
@@ -49,6 +50,11 @@ public:
         return true;
     }
 
+    bool Save(char const* path, te::resource::IResourceManager* manager) override {
+        (void)manager;
+        return SaveAssetDesc<LevelAssetDesc>(path, &m_desc);
+    }
+
     bool OnConvertSourceFile(char const*, void**, std::size_t*) override { return false; }
     void* OnCreateAssetDesc() override { return new LevelAssetDesc(); }
 
@@ -57,6 +63,10 @@ private:
     te::resource::ResourceId m_guid;
     LevelAssetDesc m_desc;
 };
+
+te::resource::IResource* CreateLevelResourceFromDesc(LevelAssetDesc const& desc) {
+    return new LevelResource(desc);
+}
 
 }  // namespace world
 }  // namespace te

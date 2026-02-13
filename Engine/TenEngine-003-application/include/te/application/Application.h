@@ -199,6 +199,12 @@ class IApplication {
    */
   virtual void SetWindowCallback(WindowId windowId, WindowCallback callback) = 0;
 
+  /**
+   * @brief Set optional platform WndProc handler (Windows only). For ImGui input.
+   * @param handler Function pointer or nullptr to clear
+   */
+  virtual void SetWndProcHandler(void* handler) = 0;
+
   // ========== Event System ==========
 
   /**

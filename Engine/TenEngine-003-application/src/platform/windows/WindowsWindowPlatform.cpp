@@ -42,7 +42,18 @@ bool WindowsWindowPlatform::RegisterWindowClass() {
   return true;
 }
 
+void* WindowsWindowPlatform::s_wndProcHandler = nullptr;
+
+void WindowsWindowPlatform::SetWndProcHandler(void* handler) {
+  s_wndProcHandler = handler;
+}
+
 LRESULT CALLBACK WindowsWindowPlatform::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+  if (s_wndProcHandler) {
+    using Fn = LRESULT (*)(HWND, UINT, WPARAM, LPARAM);
+    LRESULT r = Fn(s_wndProcHandler)(hwnd, uMsg, wParam, lParam);
+    if (r != 0) return r;
+  }
   switch (uMsg) {
     case WM_DESTROY:
       PostQuitMessage(0);

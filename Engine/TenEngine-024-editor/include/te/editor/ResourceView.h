@@ -5,6 +5,9 @@
 #ifndef TE_EDITOR_RESOURCE_VIEW_H
 #define TE_EDITOR_RESOURCE_VIEW_H
 
+#include <functional>
+#include <string>
+
 namespace te {
 namespace editor {
 
@@ -13,6 +16,8 @@ public:
   virtual ~IResourceView() = default;
   virtual void OnDraw() = 0;
   virtual void SetRootPath(char const* path) = 0;
+  /** Callback when user double-clicks a .level file to open. */
+  virtual void SetOnOpenLevel(std::function<void(std::string const&)> fn) = 0;
 };
 
 IResourceView* CreateResourceView();

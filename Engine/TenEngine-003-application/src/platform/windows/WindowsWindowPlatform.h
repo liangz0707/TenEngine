@@ -21,6 +21,7 @@ class WindowsWindowPlatform : public IWindowPlatform {
 
   void* CreateNativeWindow(WindowDesc const& desc) override;
   void DestroyNativeWindow(void* handle) override;
+  void SetWndProcHandler(void* handler) override;
   void SetWindowTitle(void* handle, char const* title) override;
   void SetWindowSize(void* handle, uint32_t width, uint32_t height) override;
   void SetWindowPosition(void* handle, int32_t x, int32_t y) override;
@@ -36,6 +37,7 @@ class WindowsWindowPlatform : public IWindowPlatform {
 
   static bool s_windowClassRegistered;
   static constexpr char const* s_windowClassName = "TenEngineWindow";
+  static void* s_wndProcHandler;
 };
 
 }  // namespace application

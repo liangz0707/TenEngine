@@ -143,11 +143,12 @@ if(TENENGINE_BUILD_EDITOR)
 
   # tenengine_editor executable
   add_executable(tenengine_editor Engine/TenEngine-024-editor/src/main_editor.cpp)
-  target_link_libraries(tenengine_editor PRIVATE te_editor te_application te_core)
+  target_link_libraries(tenengine_editor PRIVATE te_editor te_application te_core te_resource)
   target_include_directories(tenengine_editor PRIVATE
     ${TENENGINE_ROOT}/Engine/TenEngine-024-editor/include
     ${TENENGINE_ROOT}/Engine/TenEngine-003-application/include
     ${TENENGINE_ROOT}/Engine/TenEngine-001-core/include
+    ${TENENGINE_ROOT}/Engine/TenEngine-013-resource/include
   )
   set_target_properties(tenengine_editor PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

@@ -160,5 +160,50 @@ void WorldManager::Traverse(LevelHandle handle, std::function<void(te::scene::IS
     te::scene::SceneManager::GetInstance().Traverse(s->sceneRef, callback);
 }
 
+namespace {
+void ExportNodeToDesc(te::scene::ISceneNode* node, world::SceneNodeDesc& out) {
+    if (!node) return;
+    char const* name = node->GetName();
+    out.name = name ? name : "";
+    out.localTransform = node->GetLocalTransform();
+    out.modelGuid = te::resource::ResourceId();
+    te::entity::Entity* e = dynamic_cast<te::entity::Entity*>(node);
+    if (e) {
+        te::world::ModelComponent* comp = e->GetComponent<te::world::ModelComponent>();
+        if (comp) out.modelGuid = comp->modelResourceId;
+    }
+    std::vector<te::scene::ISceneNode*> children;
+    node->GetChildren(children);
+    out.children.resize(children.size());
+    for (size_t i = 0; i < children.size(); ++i) {
+        ExportNodeToDesc(children[i], out.children[i]);
+    }
+}
+}  // namespace
+
+bool WorldManager::ExportLevelToDesc(LevelHandle handle, LevelAssetDesc& out) const {
+    out.roots.clear();
+    std::vector<te::scene::ISceneNode*> roots;
+    GetRootNodes(handle, roots);
+    out.roots.resize(roots.size());
+    for (size_t i = 0; i < roots.size(); ++i) {
+        ExportNodeToDesc(roots[i], out.roots[i]);
+    }
+    return true;
+}
+
+bool WorldManager::SaveLevel(LevelHandle handle, char const* path) const {
+    if (!path || !handle.IsValid()) return false;
+    te::resource::IResourceManager* mgr = te::resource::GetResourceManager();
+    if (!mgr) return false;
+    LevelAssetDesc desc;
+    if (!ExportLevelToDesc(handle, desc)) return false;
+    te::resource::IResource* r = CreateLevelResourceFromDesc(desc);
+    if (!r) return false;
+    bool ok = mgr->Save(r, path);
+    r->Release();
+    return ok;
+}
+
 }  // namespace world
 }  // namespace te

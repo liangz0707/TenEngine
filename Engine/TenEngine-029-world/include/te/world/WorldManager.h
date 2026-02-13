@@ -65,6 +65,23 @@ public:
     /** Traverse level (delegate to 004). */
     void Traverse(LevelHandle handle, std::function<void(te::scene::ISceneNode*)> const& callback) const;
 
+    /**
+     * Export level scene to LevelAssetDesc (for Save).
+     * @param handle Level handle
+     * @param out Output LevelAssetDesc (roots with name, localTransform, modelGuid, children)
+     * @return true on success
+     */
+    bool ExportLevelToDesc(LevelHandle handle, LevelAssetDesc& out) const;
+
+    /**
+     * Save level to file path.
+     * Exports scene to LevelAssetDesc, creates LevelResource, calls IResourceManager::Save.
+     * @param handle Level handle
+     * @param path Output path (e.g. assets/levels/untitled.level)
+     * @return true on success
+     */
+    bool SaveLevel(LevelHandle handle, char const* path) const;
+
 private:
     WorldManager() = default;
     ~WorldManager() = default;

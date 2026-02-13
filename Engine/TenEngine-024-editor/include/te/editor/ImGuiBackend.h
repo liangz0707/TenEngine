@@ -8,6 +8,8 @@
 namespace te {
 namespace editor {
 
+/** Pass application to register ImGui WndProc handler for input. */
+void ImGuiBackend_RegisterWndProcHandler(void* application);
 bool ImGuiBackend_Init(void* hwnd, int width, int height);
 void ImGuiBackend_Shutdown();
 void ImGuiBackend_NewFrame();

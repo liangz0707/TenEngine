@@ -11,8 +11,14 @@
 #include <d3d11.h>
 #include <dxgi.h>
 #include <te/core/check.h>
+#ifdef CreateWindow
+#undef CreateWindow
+#endif
+#include <te/application/Application.h>
 
 #pragma comment(lib, "d3d11.lib")
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace te {
 namespace editor {
@@ -29,7 +35,12 @@ struct ImGuiBackendData {
 
 static ImGuiBackendData g_data;
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void ImGuiBackend_RegisterWndProcHandler(void* application) {
+  if (application) {
+    static_cast<te::application::IApplication*>(application)->SetWndProcHandler(
+        reinterpret_cast<void*>(ImGui_ImplWin32_WndProcHandler));
+  }
+}
 
 static bool CreateDeviceD3D(HWND hwnd, int width, int height) {
   DXGI_SWAP_CHAIN_DESC sd = {};
@@ -136,6 +147,16 @@ void ImGuiBackend_Resize(int width, int height) {
 }
 
 bool ImGuiBackend_IsInitialized() { return g_data.imguiInitialized; }
+
+}  // namespace editor
+}  // namespace te
+
+#else  // !TE_PLATFORM_WINDOWS
+
+namespace te {
+namespace editor {
+
+void ImGuiBackend_RegisterWndProcHandler(void* /*application*/) {}
 
 }  // namespace editor
 }  // namespace te
