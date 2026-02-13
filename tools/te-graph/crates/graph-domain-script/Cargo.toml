@@ -1,0 +1,9 @@
+[package]
+name = "graph-domain-script"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+graph-plugin-api = { path = "../graph-plugin-api" }

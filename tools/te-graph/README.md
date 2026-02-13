@@ -16,6 +16,8 @@ It is intentionally decoupled from TenEngine runtime modules.
 - `graph-plugin-api`: domain plugin traits.
 - `graph-domain-framegraph`: sample FrameGraph domain plugin.
 - `graph-domain-shader`: sample ShaderGraph domain plugin.
+- `graph-domain-script`: sample ScriptGraph domain plugin.
+- `graph-domain-ai-task`: sample AI TaskGraph domain plugin.
 - `graph-adapter-tenengine`: bridge layer (no direct runtime dependency yet).
 - `graph-cli`: command line tool for validation and compile checks.
 - `apps/graph-editor`: Tauri + React Flow desktop editor shell.

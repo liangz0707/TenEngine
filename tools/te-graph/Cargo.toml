@@ -5,6 +5,8 @@ members = [
   "crates/graph-plugin-api",
   "crates/graph-domain-framegraph",
   "crates/graph-domain-shader",
+  "crates/graph-domain-script",
+  "crates/graph-domain-ai-task",
   "crates/graph-adapter-tenengine",
   "crates/graph-cli",
 ]

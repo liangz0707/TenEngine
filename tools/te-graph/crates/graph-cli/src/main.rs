@@ -1,7 +1,9 @@
 use graph_adapter_tenengine::compile_for_tenengine;
 use graph_core::compile_graph;
+use graph_domain_ai_task::AiTaskGraphPlugin;
 use graph_domain_framegraph::FrameGraphPlugin;
 use graph_domain_shader::ShaderGraphPlugin;
+use graph_domain_script::ScriptGraphPlugin;
 use graph_plugin_api::PluginRegistry;
 use graph_spec::parse_graph_json;
 use std::fs;
@@ -36,6 +38,8 @@ fn main() -> ExitCode {
     let mut plugins = PluginRegistry::new();
     plugins.register(Box::new(FrameGraphPlugin));
     plugins.register(Box::new(ShaderGraphPlugin));
+    plugins.register(Box::new(ScriptGraphPlugin));
+    plugins.register(Box::new(AiTaskGraphPlugin));
 
     for node in &doc.nodes {
         if let Err(e) = plugins.validate_node_with_any_plugin(node) {

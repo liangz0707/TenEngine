@@ -44,6 +44,45 @@
   border-color: #4c6ef5;
 }
 
+.path-row,
+.kind-row {
+  display: grid;
+  gap: 8px;
+}
+
+.path-row {
+  grid-template-columns: 1fr auto auto;
+}
+
+.kind-row {
+  grid-template-columns: 1fr auto;
+}
+
+.path-row input,
+.kind-row select {
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.path-row button,
+.kind-row button {
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.path-row button:hover,
+.kind-row button:hover {
+  border-color: #4c6ef5;
+}
+
 .graph-input {
   width: 100%;
   min-height: 220px;

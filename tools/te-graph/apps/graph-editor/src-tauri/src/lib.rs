@@ -1,7 +1,13 @@
 use graph_adapter_tenengine::compile_for_tenengine;
 use graph_core::compile_graph;
+use graph_domain_ai_task::AiTaskGraphPlugin;
+use graph_domain_framegraph::FrameGraphPlugin;
+use graph_domain_script::ScriptGraphPlugin;
+use graph_domain_shader::ShaderGraphPlugin;
+use graph_plugin_api::PluginRegistry;
 use graph_spec::parse_graph_json;
 use serde::Serialize;
+use std::fs;
 
 #[derive(Debug, Serialize)]
 struct CompilePassDto {
@@ -17,14 +23,51 @@ struct CompileResultDto {
   tenengine_passes: Vec<CompilePassDto>,
 }
 
+fn build_plugin_registry() -> PluginRegistry {
+  let mut plugins = PluginRegistry::new();
+  plugins.register(Box::new(FrameGraphPlugin));
+  plugins.register(Box::new(ShaderGraphPlugin));
+  plugins.register(Box::new(ScriptGraphPlugin));
+  plugins.register(Box::new(AiTaskGraphPlugin));
+  plugins
+}
+
 #[tauri::command]
 fn load_example_graph() -> String {
   include_str!("../../../../examples/minimal.graph.json").to_string()
 }
 
 #[tauri::command]
+fn load_graph_from_path(path: String) -> Result<String, String> {
+  fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_graph_to_path(path: String, graph_text: String) -> Result<(), String> {
+  fs::write(path, graph_text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_supported_node_kinds() -> Vec<String> {
+  let plugins = build_plugin_registry();
+  let mut out = Vec::new();
+  for plugin in plugins.plugins() {
+    for node in plugin.node_types() {
+      out.push(node.kind.to_string());
+    }
+  }
+  out.sort();
+  out.dedup();
+  out
+}
+
+#[tauri::command]
 fn compile_graph_text(graph_text: String) -> Result<CompileResultDto, String> {
   let doc = parse_graph_json(&graph_text).map_err(|e| e.to_string())?;
+  let plugins = build_plugin_registry();
+  for node in &doc.nodes {
+    plugins.validate_node_with_any_plugin(node)?;
+  }
   let plan = compile_graph(&doc).map_err(|e| e.to_string())?;
   let passes = compile_for_tenengine(&doc).map_err(|e| e.to_string())?;
 
@@ -49,6 +92,9 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       load_example_graph,
+      load_graph_from_path,
+      save_graph_to_path,
+      list_supported_node_kinds,
       compile_graph_text
     ])
     .run(tauri::generate_context!())

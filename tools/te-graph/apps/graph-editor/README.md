@@ -25,5 +25,8 @@ If they are missing, frontend build still works but `cargo check` in `src-tauri`
 ## Current features
 
 - Load sample graph JSON from Rust side.
+- Load/save graph JSON by file path via Tauri backend commands.
 - Render graph nodes and edges in React Flow.
-- Compile graph via Rust Tauri command and show execution order.
+- Add node on canvas and create links by dragging handles.
+- Sync JSON and canvas in both directions.
+- Compile graph via Rust Tauri command with plugin validation and show execution order.

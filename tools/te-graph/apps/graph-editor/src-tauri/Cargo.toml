@@ -23,6 +23,11 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = "=2.0.0"
 graph-spec = { path = "../../../crates/graph-spec" }
 graph-core = { path = "../../../crates/graph-core" }
+graph-plugin-api = { path = "../../../crates/graph-plugin-api" }
+graph-domain-framegraph = { path = "../../../crates/graph-domain-framegraph" }
+graph-domain-shader = { path = "../../../crates/graph-domain-shader" }
+graph-domain-script = { path = "../../../crates/graph-domain-script" }
+graph-domain-ai-task = { path = "../../../crates/graph-domain-ai-task" }
 graph-adapter-tenengine = { path = "../../../crates/graph-adapter-tenengine" }
 
 [workspace]

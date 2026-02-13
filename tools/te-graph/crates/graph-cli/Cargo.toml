@@ -11,4 +11,6 @@ graph-core = { path = "../graph-core" }
 graph-plugin-api = { path = "../graph-plugin-api" }
 graph-domain-framegraph = { path = "../graph-domain-framegraph" }
 graph-domain-shader = { path = "../graph-domain-shader" }
+graph-domain-script = { path = "../graph-domain-script" }
+graph-domain-ai-task = { path = "../graph-domain-ai-task" }
 graph-adapter-tenengine = { path = "../graph-adapter-tenengine" }
