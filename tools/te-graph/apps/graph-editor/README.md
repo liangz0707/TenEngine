@@ -17,6 +17,11 @@ npm run tauri dev     # desktop app
 npm run build
 ```
 
+## Linux note
+
+Tauri on Linux needs WebKitGTK/GTK development packages (for example `gdk-3.0` pkg-config).
+If they are missing, frontend build still works but `cargo check` in `src-tauri` will fail until system deps are installed.
+
 ## Current features
 
 - Load sample graph JSON from Rust side.
