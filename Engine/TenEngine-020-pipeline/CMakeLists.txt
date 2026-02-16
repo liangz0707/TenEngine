@@ -65,10 +65,14 @@ endif()
 
 set(TE_PIPELINE_SOURCES
   src/ThreadQueue.cpp
+  src/RenderPipeline.cpp
+  src/PassBuilders.cpp
 )
 
 set(TE_PIPELINE_HEADERS
   include/te/pipeline/ThreadQueue.h
+  include/te/pipeline/RenderPipeline.h
+  include/te/pipeline/PassBuilders.h
 )
 
 add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})

@@ -60,3 +60,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
 | 2026-02-10 | TODO 更新：PrepareRenderMaterial/Mesh、Convert 合批、ExecutePass、PassContext 已实现；CollectRenderItemsParallel 与 009 Bind 分工说明 |
 | 2026-02-11 | FrameGraph 扩展：PassKind、PassContentSource、PassAttachmentDesc、派生 PassBuilder；PassContext 多 slot RenderItemList、LightItemList；ILightItemList、ICameraItemList、IReflectionProbeItemList、IDecalItemList 及 Create/Destroy；ILogicalPipeline::GetPassConfig(index, PassCollectConfig*) |
+| 2026-02-17 | 新增提交相关函数：ExecuteLogicalCommandBufferOnDeviceThread（执行逻辑命令缓冲到 RHI）、SubmitLogicalCommandBuffer（提交到 RHI 队列）、PresentSwapChain（Present 交换链） |

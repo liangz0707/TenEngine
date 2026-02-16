@@ -14,6 +14,8 @@ import ReactFlow, {
 import type { Connection, Edge, Node, NodeChange, EdgeChange, NodeProps, XYPosition } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './App.css';
+import { SearchPanel } from './SearchPanel';
+import { PropertiesPanel } from './PropertiesPanel';
 
 type GraphPin = { id: string; ty: string };
 type GraphNode = {
@@ -347,7 +349,8 @@ function FlowEditorInner({
         onConnect={onConnect}
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
-        onPaneClick={() => { setContextMenu(null); setNodeContextMenu(null); }}
+        onPaneClick={() => { setContextMenu(null); setNodeContextMenu(null); setSelectedNodeId(null); }}
+        onNodeClick={(e, node) => { setSelectedNodeId(node.id); }}
         deleteKeyCode={['Backspace', 'Delete']}
         fitView
       >
@@ -416,6 +419,34 @@ function App() {
   const [filePath, setFilePath] = useState('tools/te-graph/examples/minimal.graph.json');
   const [selectedDomain, setSelectedDomain] = useState<string>('framegraph');
   const [nodesByDomain, setNodesByDomain] = useState<NodesByDomain>({});
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  const selectedNode = useMemo(() => {
+    return selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) || null : null;
+  }, [nodes, selectedNodeId]);
+
+  const handleUpdateNode = useCallback((nodeId: string, data: Record<string, unknown>) => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, ...data } } : n
+      )
+    );
+  }, [setNodes]);
+
+  const handleAddNodeFromSearch = useCallback((kind: string) => {
+    const id = `n${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const passName = kind === 'frame.begin_pass' ? 'NewPass' : undefined;
+    setNodes((prev) => [
+      ...prev,
+      {
+        id,
+        type: CUSTOM_NODE_TYPE,
+        position: { x: 200 + Math.random() * 400, y: 150 + Math.random() * 300 },
+        data: { kind, passName, label: composeLabel(id, kind, passName) },
+      },
+    ]);
+    setMessage(`Added ${kind} from search`);
+  }, [setNodes, setMessage]);
 
   useEffect(() => {
     void (async () => {
@@ -521,6 +552,23 @@ function App() {
             ))}
           </select>
         </div>
+
+        <div className="panel-section">
+          <div className="panel-section-title">Search & Add</div>
+          <SearchPanel
+            nodesByDomain={nodesByDomain}
+            selectedDomain={selectedDomain}
+            onAddNode={handleAddNodeFromSearch}
+          />
+        </div>
+
+        <div className="panel-section">
+          <PropertiesPanel
+            selectedNode={selectedNode}
+            onUpdateNode={handleUpdateNode}
+          />
+        </div>
+
         <p className="hint">Right-click on canvas to add nodes (filtered by domain).</p>
 
         <div className="button-row">

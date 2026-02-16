@@ -241,3 +241,131 @@
   background: #4c6ef5;
   border: 2px solid #161b22;
 }
+
+/* 属性面板 */
+.properties-panel {
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.properties-panel h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #e2e8f0;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 8px;
+}
+
+.properties-panel .property-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.properties-panel .property-row label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.properties-panel .property-row input {
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.properties-panel .property-row input:focus {
+  outline: none;
+  border-color: #4c6ef5;
+}
+
+.properties-panel .no-selection {
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+  padding: 20px;
+}
+
+/* 搜索面板 */
+.search-container {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4c6ef5;
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  margin-top: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.search-result-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #334155;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: #334155;
+}
+
+.search-result-item .kind {
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.search-result-item .description {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* 面板分隔 */
+.panel-section {
+  margin-bottom: 16px;
+}
+
+.panel-section:last-child {
+  margin-bottom: 0;
+}
+
+.panel-section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 8px;
+}

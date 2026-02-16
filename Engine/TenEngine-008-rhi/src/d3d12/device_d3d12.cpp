@@ -170,7 +170,18 @@ struct CommandListD3D12 final : ICommandList {
     if (d->rootSignature) list->SetGraphicsRootSignature(d->rootSignature.Get());
   }
   void BindDescriptorSet(IDescriptorSet* set) override { BindDescriptorSet(0u, set); }
-  void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) override { (void)setIndex; (void)set; /* TODO: D3D12 descriptor set binding */ }
+  void BindDescriptorSet(uint32_t setIndex, IDescriptorSet* set) override {
+    (void)setIndex;
+    // D3D12 descriptor set binding via root signature
+    // In the current implementation, descriptor sets are not fully implemented
+    // This is a placeholder that will be enhanced when descriptor set allocation is complete
+    if (!list || !recording) return;
+    (void)set;
+    // TODO: When IDescriptorSet implementation is complete:
+    // 1. Get GPU descriptor handle from the set
+    // 2. Use SetGraphicsRootDescriptorTable or SetComputeRootDescriptorTable
+    // Example: list->SetGraphicsRootDescriptorTable(setIndex, gpuHandle);
+  }
   void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override { (void)desc; (void)pass; }
   void NextSubpass() override {}
   void EndRenderPass() override {}
