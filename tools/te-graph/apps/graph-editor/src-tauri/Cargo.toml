@@ -15,12 +15,12 @@ name = "graph_editor_tauri_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = "=2.0.0"
+tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = "=2.0.0"
+tauri = { version = "2.5", features = [] }
 graph-spec = { path = "../../../crates/graph-spec" }
 graph-core = { path = "../../../crates/graph-core" }
 graph-plugin-api = { path = "../../../crates/graph-plugin-api" }

@@ -44,7 +44,41 @@ fn load_graph_from_path(path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn save_graph_to_path(path: String, graph_text: String) -> Result<(), String> {
+  let p = std::path::Path::new(&path);
+  if let Some(parent) = p.parent() {
+    if !parent.as_os_str().is_empty() {
+      fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+  }
   fs::write(path, graph_text).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize)]
+struct NodeTypeInfo {
+  kind: String,
+  description: String,
+}
+
+/// Returns nodes grouped by domain and category: { "framegraph": { "pass": [{ kind, description }, ...] }, ... }
+#[tauri::command]
+fn list_nodes_by_domain_and_category() -> std::collections::HashMap<String, std::collections::HashMap<String, Vec<NodeTypeInfo>>> {
+  let plugins = build_plugin_registry();
+  let mut by_domain: std::collections::HashMap<String, std::collections::HashMap<String, Vec<NodeTypeInfo>>> =
+    std::collections::HashMap::new();
+  for plugin in plugins.plugins() {
+    let domain = plugin.domain_name().to_string();
+    let categories = by_domain.entry(domain).or_default();
+    for nt in plugin.node_types() {
+      let entry = categories
+        .entry(nt.category.to_string())
+        .or_default();
+      entry.push(NodeTypeInfo {
+        kind: nt.kind.to_string(),
+        description: nt.description.to_string(),
+      });
+    }
+  }
+  by_domain
 }
 
 #[tauri::command]
@@ -95,6 +129,7 @@ pub fn run() {
       load_graph_from_path,
       save_graph_to_path,
       list_supported_node_kinds,
+      list_nodes_by_domain_and_category,
       compile_graph_text
     ])
     .run(tauri::generate_context!())
