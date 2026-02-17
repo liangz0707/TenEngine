@@ -16,6 +16,7 @@ set(TENENGINE_SKIP_DEPENDENCY_TESTS ON CACHE BOOL "Skip building dependency modu
 tenengine_resolve_my_dependencies("024-editor" OUT_DEPS MY_DEPS)
 
 set(EDITOR_SOURCES
+  # Core files
   src/Editor.cpp
   src/EntityAdapter.cpp
   src/FileDialog.cpp
@@ -25,6 +26,33 @@ set(EDITOR_SOURCES
   src/SceneViewImpl.cpp
   src/ResourceViewImpl.cpp
   src/PropertyPanelImpl.cpp
+  
+  # Phase 1: Core components
+  src/GizmoImpl.cpp
+  src/EditorCamera.cpp
+  src/SelectionManager.cpp
+  src/SnapSettings.cpp
+  src/MainMenuImpl.cpp
+  src/ToolbarImpl.cpp
+  src/StatusBarImpl.cpp
+  src/ConsolePanelImpl.cpp
+  src/EditorPreferences.cpp
+  src/ProfilerPanelImpl.cpp
+  src/StatisticsPanelImpl.cpp
+  src/LayoutManager.cpp
+  
+  # Phase 2-3: Enhanced components
+  src/SceneSearch.cpp
+  src/KeyBindingSystem.cpp
+  src/EditorScripting.cpp
+  src/DebugVisualization.cpp
+  
+  # Phase 4: Advanced features
+  src/PrefabSystem.cpp
+  src/PluginSystem.cpp
+  src/HistoryManager.cpp
+  src/MultiObjectEditing.cpp
+  src/ViewportStats.cpp
 )
 
 if(WIN32)
@@ -32,6 +60,7 @@ if(WIN32)
 endif()
 
 set(EDITOR_HEADERS
+  # Core files
   include/te/editor/Editor.h
   include/te/editor/EditorPanel.h
   include/te/editor/FileDialog.h
@@ -43,6 +72,35 @@ set(EDITOR_HEADERS
   include/te/editor/ResourceView.h
   include/te/editor/PropertyPanel.h
   include/te/editor/UndoSystem.h
+  include/te/editor/ImGuiBackend.h
+  
+  # Phase 1: Core components
+  include/te/editor/EditorTypes.h
+  include/te/editor/Gizmo.h
+  include/te/editor/EditorCamera.h
+  include/te/editor/SelectionManager.h
+  include/te/editor/SnapSettings.h
+  include/te/editor/MainMenu.h
+  include/te/editor/Toolbar.h
+  include/te/editor/StatusBar.h
+  include/te/editor/ConsolePanel.h
+  include/te/editor/EditorPreferences.h
+  include/te/editor/ProfilerPanel.h
+  include/te/editor/StatisticsPanel.h
+  include/te/editor/LayoutManager.h
+  
+  # Phase 2-3: Enhanced components
+  include/te/editor/SceneSearch.h
+  include/te/editor/KeyBindingSystem.h
+  include/te/editor/EditorScripting.h
+  include/te/editor/DebugVisualization.h
+  
+  # Phase 4: Advanced features
+  include/te/editor/PrefabSystem.h
+  include/te/editor/PluginSystem.h
+  include/te/editor/HistoryManager.h
+  include/te/editor/MultiObjectEditing.h
+  include/te/editor/ViewportStats.h
 )
 
 add_library(te_editor STATIC

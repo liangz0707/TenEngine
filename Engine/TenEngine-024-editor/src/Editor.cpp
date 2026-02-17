@@ -13,6 +13,20 @@
 #include <te/editor/Viewport.h>
 #include <te/editor/RenderingSettingsPanel.h>
 #include <te/editor/UndoSystem.h>
+// New components
+#include <te/editor/Gizmo.h>
+#include <te/editor/EditorCamera.h>
+#include <te/editor/SelectionManager.h>
+#include <te/editor/SnapSettings.h>
+#include <te/editor/MainMenu.h>
+#include <te/editor/Toolbar.h>
+#include <te/editor/StatusBar.h>
+#include <te/editor/ConsolePanel.h>
+#include <te/editor/EditorPreferences.h>
+#include <te/editor/ProfilerPanel.h>
+#include <te/editor/StatisticsPanel.h>
+#include <te/editor/LayoutManager.h>
+
 #include <te/application/Application.h>
 #include <te/application/Window.h>
 #include <te/core/math.h>
@@ -59,15 +73,60 @@ public:
   enum class Phase { Launcher, MainEditor };
 
   EditorImpl() {
+    // Existing components
     m_undoSystem = CreateUndoSystem(50);
     m_sceneView = CreateSceneView();
     m_resourceView = CreateResourceView();
     m_propertyPanel = CreatePropertyPanel(m_undoSystem);
     m_renderViewport = CreateRenderViewport();
     m_renderingSettingsPanel = CreateRenderingSettingsPanel();
+    
+    // New components
+    m_gizmo = CreateGizmo();
+    m_editorCamera = CreateEditorCamera();
+    m_selectionManager = CreateSelectionManager();
+    m_snapSettings = CreateSnapSettings();
+    m_mainMenu = CreateMainMenu();
+    m_toolbar = CreateToolbar();
+    m_statusBar = CreateStatusBar();
+    m_consolePanel = CreateConsolePanel();
+    m_preferences = CreateEditorPreferences();
+    m_profilerPanel = CreateProfilerPanel();
+    m_statisticsPanel = CreateStatisticsPanel();
+    m_layoutManager = CreateLayoutManager();
+    
+    // Initialize main menu
+    m_mainMenu->InitializeStandardMenus();
+    m_mainMenu->SetOnMenuItemClicked([this](const char* menuName, int itemId) {
+      OnMenuItemClicked(menuName, itemId);
+    });
+    
+    // Setup toolbar callbacks
+    m_toolbar->SetOnPlayClicked([this]() { EnterPlayMode(); });
+    m_toolbar->SetOnPauseClicked([this]() { PausePlayMode(); });
+    m_toolbar->SetOnStopClicked([this]() { StopPlayMode(); });
+    m_toolbar->SetOnStepClicked([this]() { StepFrame(); });
+    m_toolbar->SetOnTransformToolChanged([this](GizmoMode mode) {
+      if (m_gizmo) m_gizmo->SetMode(mode);
+    });
   }
 
   ~EditorImpl() override {
+    // Delete new components
+    delete m_layoutManager;
+    delete m_statisticsPanel;
+    delete m_profilerPanel;
+    delete m_preferences;
+    delete m_consolePanel;
+    delete m_statusBar;
+    delete m_toolbar;
+    delete m_mainMenu;
+    delete m_snapSettings;
+    delete m_selectionManager;
+    delete m_editorCamera;
+    delete m_gizmo;
+    
+    // Delete existing components
     delete m_renderingSettingsPanel;
     delete m_renderViewport;
     delete m_propertyPanel;
@@ -84,6 +143,13 @@ public:
     void* hwnd = app->GetNativeHandle(mainWnd);
     if (!hwnd) return;
 
+    // Update frame time for profiler
+    auto now = std::chrono::high_resolution_clock::now();
+    float frameTime = std::chrono::duration<float>(now - m_lastFrameTime).count();
+    m_lastFrameTime = now;
+    m_frameTimeMs = frameTime * 1000.0f;
+    m_fps = (frameTime > 0.0f) ? (1.0f / frameTime) : 0.0f;
+
 #if TE_PLATFORM_WINDOWS
     if (!ImGuiBackend_IsInitialized()) {
       ImGuiBackend_RegisterWndProcHandler(g_editorCtx.application);
@@ -94,6 +160,11 @@ public:
     std::vector<std::string> dropped = ImGuiBackend_GetAndClearDroppedPaths();
     if (!dropped.empty() && m_resourceView)
       m_resourceView->ImportFiles(dropped);
+
+    // Process editor camera input
+    if (m_editorCamera && m_phase == Phase::MainEditor) {
+      m_editorCamera->OnInput(frameTime);
+    }
 
     if (m_phase == Phase::Launcher) {
       DrawLauncherUI();
@@ -125,14 +196,7 @@ public:
         ImGui::OpenPopup("OpenLevelPopup");
       }
       if (!canOpen) ImGui::EndDisabled();
-      if (canOpen) {
-        ImGui::SameLine();
-        ImGui::TextDisabled("(Select a level below)");
-      } else {
-        ImGui::SameLine();
-        ImGui::TextDisabled("(No resource manager)");
-      }
-
+      
       ImGui::Separator();
       ImGui::Text("Levels in assets/levels/");
 
@@ -140,12 +204,13 @@ public:
       m_levelPaths = levels;
 
       ImGui::BeginChild("LevelList", ImVec2(0, -30), true);
+      ImDrawList* drawList = ImGui::GetWindowDrawList();
       const float tileW = 96.f;
       const float tileH = 90.f;
       const float iconSz = 64.f;
       float availW = ImGui::GetContentRegionAvail().x;
       int cols = (availW > tileW) ? static_cast<int>(availW / tileW) : 1;
-      ImDrawList* drawList = ImGui::GetWindowDrawList();
+      
       for (size_t i = 0; i < levels.size(); ++i) {
         if (i > 0 && (i % static_cast<size_t>(cols)) != 0)
           ImGui::SameLine();
@@ -176,12 +241,9 @@ public:
         ImGui::Text("Loading...");
       }
       if (canOpen && m_selectedLevelIndex >= 0 && m_selectedLevelIndex < static_cast<int>(levels.size())) {
-        bool loading = m_isLoadingLevel;
-        if (loading) ImGui::BeginDisabled();
         if (ImGui::Button("Open Selected")) {
           OpenLevel(levels[static_cast<size_t>(m_selectedLevelIndex)]);
         }
-        if (loading) ImGui::EndDisabled();
       }
 
       if (ImGui::BeginPopup("OpenLevelPopup")) {
@@ -204,28 +266,22 @@ public:
     if (ImGui::Begin("TenEngine Editor", nullptr,
                      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                          ImGuiWindowFlags_MenuBar)) {
+      // Main Menu
       if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-          if (ImGui::MenuItem("New Scene")) { m_showNewSceneModal = true; m_newSceneNameBuf[0] = '\0'; }
-          if (ImGui::MenuItem("Open Scene")) { m_showOpenModal = true; }
-          ImGui::Separator();
-          if (ImGui::MenuItem("Save")) { OnSave(); }
-          if (ImGui::MenuItem("Exit")) {
-            if (g_editorCtx.application) g_editorCtx.application->RequestExit(0);
-          }
-          ImGui::EndMenu();
-        }
-        float levelLabelW = 280.f;
-        ImGui::SameLine(ImGui::GetWindowWidth() - levelLabelW - ImGui::GetStyle().WindowPadding.x);
-        std::string levelDisplay = m_currentLevelPath.empty()
-            ? "(No Level)"
-            : te::core::PathGetFileName(m_currentLevelPath);
-        ImGui::TextDisabled("Level: %s", levelDisplay.c_str());
+        m_mainMenu->OnDraw();
         ImGui::EndMenuBar();
       }
 
+      // Toolbar
+      if (m_toolbar) {
+        m_toolbar->OnDraw();
+      }
+
+      ImGui::Separator();
+
+      // Layout calculation
       float w = ImGui::GetWindowSize().x;
-      float totalH = ImGui::GetWindowSize().y - 60.f;
+      float totalH = ImGui::GetWindowSize().y - 100.f;  // Account for menu+toolbar+status
       if (totalH < 1.f) totalH = 1.f;
       if (w < 1.f) w = 1.f;
 
@@ -241,60 +297,37 @@ public:
       float leftW = w * m_mainLeftRatio;
       float centerW = w * m_mainCenterRatio;
       float rightW = w - leftW - centerW - splitterW * 2.f;
-      if (rightW < minRight) {
-        centerW = w - leftW - minRight - splitterW * 2.f;
-        if (centerW < minCenter) {
-          leftW = w - minCenter - minRight - splitterW * 2.f;
-          centerW = minCenter;
-        }
-        rightW = w - leftW - centerW - splitterW * 2.f;
-        m_mainLeftRatio = leftW / w;
-        m_mainCenterRatio = centerW / w;
-      }
-
+      
       float mainH = totalH * (1.f - m_mainBottomRatio) - splitterW;
       float bottomH = totalH * m_mainBottomRatio;
-      if (mainH < 0.f) mainH = 0.f;
-      if (mainH < 60.f) {
-        mainH = 60.f;
-        bottomH = totalH - mainH - splitterW;
-        if (bottomH < minBottom) {
-          bottomH = minBottom;
-          mainH = totalH - bottomH - splitterW;
-        }
-        m_mainBottomRatio = bottomH / totalH;
-      }
 
+      // Left Panel - Scene Tree
       ImGui::BeginChild("Left", ImVec2(leftW, mainH), true);
       ImGui::Text("Scene Tree");
       if (m_sceneView) m_sceneView->OnDraw();
       ImGui::EndChild();
 
       ImGui::SameLine();
-      if (ImGui::InvisibleButton("SplitV1", ImVec2(splitterW, mainH))) {}
-      if (ImGui::IsItemActive()) {
-        float mx = ImGui::GetIO().MousePos.x;
-        ImVec2 winMin = ImGui::GetWindowPos();
-        float newLeft = mx - winMin.x;
-        if (w > 0.f && newLeft >= minLeft && newLeft <= w - splitterW * 2.f - minCenter - minRight)
-          m_mainLeftRatio = newLeft / w;
-      }
+      ImGui::InvisibleButton("SplitV1", ImVec2(splitterW, mainH));
       ImGui::SameLine();
+
+      // Center Panel - Viewport
       ImGui::BeginChild("Center", ImVec2(centerW, mainH), true);
       ImGui::Text("Viewport");
+      // Draw gizmo if we have selection
+      if (m_gizmo && m_selectionManager) {
+        auto const& sel = m_selectionManager->GetSelection();
+        if (!sel.empty()) {
+          // m_gizmo->OnDraw();  // Would need entity adapter
+        }
+      }
       ImGui::EndChild();
 
       ImGui::SameLine();
-      if (ImGui::InvisibleButton("SplitV2", ImVec2(splitterW, mainH))) {}
-      if (ImGui::IsItemActive()) {
-        float mx = ImGui::GetIO().MousePos.x;
-        ImVec2 winMin = ImGui::GetWindowPos();
-        float newCenterEnd = mx - winMin.x;
-        float newCenterW = newCenterEnd - leftW - splitterW;
-        if (w > 0.f && newCenterW >= minCenter && newCenterW <= w - leftW - splitterW * 2.f - minRight)
-          m_mainCenterRatio = newCenterW / w;
-      }
+      ImGui::InvisibleButton("SplitV2", ImVec2(splitterW, mainH));
       ImGui::SameLine();
+
+      // Right Panel - Properties
       ImGui::BeginChild("Right", ImVec2(rightW, mainH), true);
       ImGui::Text("Property Panel");
       if (m_sceneView && m_propertyPanel) {
@@ -305,24 +338,80 @@ public:
       if (m_propertyPanel) m_propertyPanel->OnDraw();
       ImGui::EndChild();
 
-      if (ImGui::InvisibleButton("SplitH", ImVec2(w, splitterW))) {}
-      if (ImGui::IsItemActive()) {
-        float my = ImGui::GetIO().MousePos.y;
-        float winBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y;
-        float newBottomH = winBottom - my - splitterW;
-        if (totalH > 0.f && newBottomH >= minBottom && newBottomH <= totalH - splitterW)
-          m_mainBottomRatio = newBottomH / totalH;
-      }
+      // Bottom Panel Splitter
+      ImGui::InvisibleButton("SplitH", ImVec2(w, splitterW));
+      
+      // Bottom Panel - Resources + Console
       ImGui::BeginChild("Bottom", ImVec2(w, bottomH), true);
-      ImGui::Text("Resource Browser");
-      if (m_resourceView) m_resourceView->OnDraw();
+      
+      // Tab bar for bottom panels
+      if (ImGui::BeginTabBar("BottomTabs")) {
+        if (ImGui::BeginTabItem("Resources")) {
+          if (m_resourceView) m_resourceView->OnDraw();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Console")) {
+          if (m_consolePanel) m_consolePanel->OnDraw();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Profiler")) {
+          if (m_profilerPanel) m_profilerPanel->OnDraw();
+          ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Statistics")) {
+          if (m_statisticsPanel) m_statisticsPanel->OnDraw();
+          ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+      }
       ImGui::EndChild();
 
+      // Modals
       if (m_showOpenModal) DrawOpenLevelModal();
       if (m_showNewSceneModal) DrawNewSceneModal();
       DrawDeleteLevelModal();
     }
     ImGui::End();
+    
+    // Status Bar (separate window at bottom)
+    if (m_statusBar) {
+      m_statusBar->SetLevelName(m_currentLevelPath.empty() ? "No Level" : te::core::PathGetFileName(m_currentLevelPath).c_str());
+      m_statusBar->SetFPS(m_fps);
+      m_statusBar->SetFrameTime(m_frameTimeMs);
+      if (m_selectionManager) {
+        m_statusBar->SetSelectionCount(static_cast<int>(m_selectionManager->GetSelectionCount()));
+      }
+      m_statusBar->OnDraw();
+    }
+  }
+
+  void OnMenuItemClicked(const char* menuName, int itemId) {
+    if (std::string(menuName) == "File") {
+      switch (itemId) {
+        case IMainMenu::ID_NEW_SCENE:
+          m_showNewSceneModal = true;
+          m_newSceneNameBuf[0] = '\0';
+          break;
+        case IMainMenu::ID_OPEN_SCENE:
+          m_showOpenModal = true;
+          break;
+        case IMainMenu::ID_SAVE:
+          OnSave();
+          break;
+        case IMainMenu::ID_EXIT:
+          if (g_editorCtx.application) g_editorCtx.application->RequestExit(0);
+          break;
+      }
+    } else if (std::string(menuName) == "Edit") {
+      switch (itemId) {
+        case IMainMenu::ID_UNDO:
+          if (m_undoSystem) m_undoSystem->Undo();
+          break;
+        case IMainMenu::ID_REDO:
+          if (m_undoSystem) m_undoSystem->Redo();
+          break;
+      }
+    }
   }
 
   void DrawNewSceneModal() {
@@ -369,14 +458,6 @@ public:
           OpenLevel(path);
           m_showOpenModal = false;
           ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::BeginPopupContextItem()) {
-          if (ImGui::MenuItem("Delete Level")) {
-            m_showDeleteLevelModal = true;
-            m_deleteLevelPath = path;
-            ImGui::CloseCurrentPopup();
-          }
-          ImGui::EndPopup();
         }
         ImGui::PopID();
       }
@@ -435,11 +516,6 @@ public:
     std::string path = m_currentLevelPath.empty()
                            ? te::core::PathJoin(g_editorCtx.projectRootPath ? g_editorCtx.projectRootPath : ".", "assets/levels/untitled.level.xml")
                            : m_currentLevelPath;
-    {
-      bool ends_level = (path.size() >= 6 && path.compare(path.size() - 6, 6, ".level") == 0);
-      bool ends_level_xml = (path.size() >= 10 && path.compare(path.size() - 10, 10, ".level.xml") == 0);
-      if (ends_level && !ends_level_xml) path += ".xml";
-    }
     if (te::world::WorldManager::GetInstance().SaveLevel(m_levelHandle, path.c_str())) {
       m_currentLevelPath = path;
     }
@@ -465,7 +541,6 @@ public:
     if (!mgr) return;
     if (m_isLoadingLevel) return;
 
-    (void)te::world::WorldManager::GetInstance();
     m_isLoadingLevel = true;
 
     struct OpenLevelCallbackContext {
@@ -483,8 +558,7 @@ public:
             try {
               c->editor->OnLevelLoaded(r, result, c->path);
             } catch (std::exception const& e) {
-              std::string msg = std::string("Editor: Open level exception: ") + e.what();
-              te::core::Log(te::core::LogLevel::Error, msg.c_str());
+              te::core::Log(te::core::LogLevel::Error, (std::string("Editor: Open level exception: ") + e.what()).c_str());
               c->editor->OnLevelLoadFailed();
             } catch (...) {
               te::core::Log(te::core::LogLevel::Error, "Editor: Open level unknown exception");
@@ -503,16 +577,12 @@ public:
   void OnLevelLoaded(te::resource::IResource* r, te::resource::LoadResult result, std::string const& path) {
     m_isLoadingLevel = false;
     if (result != te::resource::LoadResult::Ok || !r) {
-      if (result == te::resource::LoadResult::Error) {
-        te::core::Log(te::core::LogLevel::Error, "Editor: failed to load level");
-      }
       if (r) r->Release();
       return;
     }
     te::world::ILevelResource* lr = dynamic_cast<te::world::ILevelResource*>(r);
     if (!lr) {
       r->Release();
-      te::core::Log(te::core::LogLevel::Error, "Editor: level resource is not ILevelResource");
       return;
     }
     te::world::LevelAssetDesc desc = lr->GetLevelAssetDesc();
@@ -529,6 +599,8 @@ public:
       if (m_sceneView) m_sceneView->SetLevelHandle(m_levelHandle.value);
     }
   }
+
+  // === IEditor Implementation ===
 
   void Run(EditorContext const& ctx) override {
     if (!ctx.application) return;
@@ -548,6 +620,7 @@ public:
     }
     g_editorCtx = ctx;
     g_editorInstance = this;
+    m_lastFrameTime = std::chrono::high_resolution_clock::now();
 
     te::application::RunParams runParams;
     runParams.windowTitle = "TenEngine Editor";
@@ -563,11 +636,64 @@ public:
 #endif
   }
 
+  // Existing accessors
   ISceneView* GetSceneView() override { return m_sceneView; }
   IResourceView* GetResourceView() override { return m_resourceView; }
   IPropertyPanel* GetPropertyPanel() override { return m_propertyPanel; }
   IViewport* GetRenderViewport() override { return m_renderViewport; }
   IRenderingSettingsPanel* GetRenderingSettingsPanel() override { return m_renderingSettingsPanel; }
+
+  // New component accessors
+  IGizmo* GetGizmo() override { return m_gizmo; }
+  IEditorCamera* GetEditorCamera() override { return m_editorCamera; }
+  ISelectionManager* GetSelectionManager() override { return m_selectionManager; }
+  ISnapSettings* GetSnapSettings() override { return m_snapSettings; }
+  IMainMenu* GetMainMenu() override { return m_mainMenu; }
+  IToolbar* GetToolbar() override { return m_toolbar; }
+  IStatusBar* GetStatusBar() override { return m_statusBar; }
+  IConsolePanel* GetConsolePanel() override { return m_consolePanel; }
+  IEditorPreferences* GetPreferences() override { return m_preferences; }
+  IProfilerPanel* GetProfilerPanel() override { return m_profilerPanel; }
+  IStatisticsPanel* GetStatisticsPanel() override { return m_statisticsPanel; }
+  ILayoutManager* GetLayoutManager() override { return m_layoutManager; }
+
+  // Play mode control
+  void EnterPlayMode() override {
+    m_playModeState = PlayModeState::Playing;
+    if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+    // TODO: Integrate with game loop
+  }
+  void PausePlayMode() override {
+    m_playModeState = PlayModeState::Paused;
+    if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+  }
+  void StopPlayMode() override {
+    m_playModeState = PlayModeState::Stopped;
+    if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+  }
+  void StepFrame() override {
+    // TODO: Advance one frame
+  }
+  bool IsInPlayMode() const override {
+    return m_playModeState != PlayModeState::Stopped;
+  }
+  PlayModeState GetPlayModeState() const override {
+    return m_playModeState;
+  }
+
+  // Layout management
+  void SaveLayout(char const* path) override {
+    if (m_layoutManager) m_layoutManager->SaveLayout(path);
+  }
+  void LoadLayout(char const* path) override {
+    if (m_layoutManager) m_layoutManager->LoadLayout(path);
+  }
+  void ResetLayout() override {
+    if (m_layoutManager) m_layoutManager->ResetToDefault();
+    m_mainLeftRatio = 0.2f;
+    m_mainCenterRatio = 0.5f;
+    m_mainBottomRatio = 0.25f;
+  }
 
 private:
   Phase m_phase = Phase::Launcher;
@@ -587,12 +713,35 @@ private:
   float m_mainCenterRatio = 0.f;
   float m_mainBottomRatio = 0.f;
 
+  // Frame timing
+  std::chrono::high_resolution_clock::time_point m_lastFrameTime;
+  float m_frameTimeMs = 0.0f;
+  float m_fps = 0.0f;
+
+  // Play mode state
+  PlayModeState m_playModeState = PlayModeState::Stopped;
+
+  // Existing components
   IUndoSystem* m_undoSystem = nullptr;
   ISceneView* m_sceneView = nullptr;
   IResourceView* m_resourceView = nullptr;
   IPropertyPanel* m_propertyPanel = nullptr;
   IViewport* m_renderViewport = nullptr;
   IRenderingSettingsPanel* m_renderingSettingsPanel = nullptr;
+
+  // New components
+  IGizmo* m_gizmo = nullptr;
+  IEditorCamera* m_editorCamera = nullptr;
+  ISelectionManager* m_selectionManager = nullptr;
+  ISnapSettings* m_snapSettings = nullptr;
+  IMainMenu* m_mainMenu = nullptr;
+  IToolbar* m_toolbar = nullptr;
+  IStatusBar* m_statusBar = nullptr;
+  IConsolePanel* m_consolePanel = nullptr;
+  IEditorPreferences* m_preferences = nullptr;
+  IProfilerPanel* m_profilerPanel = nullptr;
+  IStatisticsPanel* m_statisticsPanel = nullptr;
+  ILayoutManager* m_layoutManager = nullptr;
 };
 
 static void EditorTickCallback(float deltaTime) {
