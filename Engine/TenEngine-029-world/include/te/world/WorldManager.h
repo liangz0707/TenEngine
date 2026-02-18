@@ -18,6 +18,9 @@
 #include <vector>
 
 namespace te {
+namespace scene {
+struct ISceneNode;
+}
 namespace world {
 
 /**
@@ -64,6 +67,34 @@ public:
 
     /** Traverse level (delegate to 004). */
     void Traverse(LevelHandle handle, std::function<void(te::scene::ISceneNode*)> const& callback) const;
+
+    /**
+     * Collect renderables from a level.
+     * Traverses the scene and calls the callback for each entity with a ModelComponent.
+     * @param handle Level handle
+     * @param callback Callback function receiving (ISceneNode*, RenderableItem)
+     */
+    void CollectRenderables(LevelHandle handle,
+                           std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
+
+    /**
+     * Collect renderables from a scene.
+     * @param sceneRef Scene reference
+     * @param callback Callback function receiving (ISceneNode*, RenderableItem)
+     */
+    void CollectRenderables(te::scene::SceneRef sceneRef,
+                           std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
+
+    /**
+     * Collect renderables with resource manager for model resolution.
+     * Resolves modelResourceId to IModelResource via IResourceManager::GetCached.
+     * @param sceneRef Scene reference
+     * @param resourceManager Resource manager for model resolution
+     * @param callback Callback function receiving (ISceneNode*, RenderableItem)
+     */
+    void CollectRenderables(te::scene::SceneRef sceneRef,
+                           te::resource::IResourceManager* resourceManager,
+                           std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const;
 
     /**
      * Export level scene to LevelAssetDesc (for Save).

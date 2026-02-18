@@ -5,6 +5,7 @@
 
 #include <te/pipeline/RenderPipeline.h>
 #include <te/pipeline/PipelineContext.h>
+#include <te/pipeline/LogicalCommandBufferExecutor.h>
 
 #include <te/pipelinecore/FrameGraph.h>
 #include <te/pipelinecore/LogicalPipeline.h>
@@ -13,6 +14,7 @@
 #include <te/pipelinecore/SubmitContext.h>
 #include <te/rhi/device.hpp>
 #include <te/rhi/swapchain.hpp>
+#include <te/rhi/sync.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -22,6 +24,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace te::pipeline {
 
@@ -41,7 +44,7 @@ char const* GetPhaseName(RenderPhase phase) {
   }
 }
 
-bool IsGPUPhase(RenderPhase phase) {
+bool IsGPUPound(RenderPhase phase) {
   return phase >= RenderPhase::Prepare && phase <= RenderPhase::Present;
 }
 
@@ -58,6 +61,10 @@ public:
     device_ = device;
     if (pipelineCtx_) {
       pipelineCtx_->SetDevice(device);
+    }
+    // Create frame fences for synchronization
+    if (device) {
+      InitFrameFences();
     }
   }
 
@@ -111,6 +118,12 @@ public:
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
+    // Get current frame slot
+    uint32_t slot = GetCurrentSlot().value;
+
+    // Wait for previous frame at this slot to complete
+    WaitForSlot(slot);
+
     // Phase B: Build logical pipeline
     pipelineCtx_->BeginFrame(ctx);
     pipelineCtx_->BuildLogicalPipeline();
@@ -133,6 +146,9 @@ public:
     // Phase D: Submit
     pipelineCtx_->Submit();
 
+    // Signal fence for this slot
+    SignalSlot(slot);
+
     // Phase D: Present
     pipelineCtx_->Present();
 
@@ -143,6 +159,7 @@ public:
     double frameTime = std::chrono::duration<double, std::milli>(endTime - startTime).count();
 
     UpdateStats(frameTime);
+    frameIndex_++;
   }
 
   bool TickPipeline(pipelinecore::FrameContext const& ctx) override {
@@ -151,8 +168,10 @@ public:
     switch (currentPhase_.load()) {
       case RenderPhase::Idle:
         // Start new frame
-        currentPhase_ = RenderPhase::BuildPipeline;
         frameCtx_ = ctx;
+        frameSlot_ = GetCurrentSlot().value;
+        WaitForSlot(frameSlot_);
+        currentPhase_ = RenderPhase::BuildPipeline;
         pipelineCtx_->BeginFrame(ctx);
         [[fallthrough]];
 
@@ -180,6 +199,7 @@ public:
 
       case RenderPhase::Submit:
         pipelineCtx_->Submit();
+        SignalSlot(frameSlot_);
         currentPhase_ = RenderPhase::Present;
         [[fallthrough]];
 
@@ -202,6 +222,8 @@ public:
   void TriggerRender(pipelinecore::FrameContext const& ctx) override {
     // Start the render process
     frameCtx_ = ctx;
+    frameSlot_ = GetCurrentSlot().value;
+    WaitForSlot(frameSlot_);
     currentPhase_ = RenderPhase::BuildPipeline;
     pipelineCtx_->BeginFrame(ctx);
   }
@@ -220,7 +242,7 @@ public:
   // === Frame Slot Management ===
 
   pipelinecore::FrameSlotId GetCurrentSlot() const override {
-    return frameIndex_ % config_->maxFramesInFlight;
+    return pipelinecore::FrameSlotId(frameIndex_ % config_->maxFramesInFlight);
   }
 
   uint32_t GetFramesInFlight() const override {
@@ -228,8 +250,12 @@ public:
   }
 
   void SetFramesInFlight(uint32_t count) override {
-    const_cast<RenderingConfig*>(config_)->maxFramesInFlight =
-      std::clamp(count, 1u, 4u);
+    uint32_t newCount = std::clamp(count, 1u, 4u);
+    if (newCount != config_->maxFramesInFlight) {
+      const_cast<RenderingConfig*>(config_)->maxFramesInFlight = newCount;
+      // Recreate fences for new frame count
+      InitFrameFences();
+    }
   }
 
   // === Resource Management ===
@@ -249,25 +275,15 @@ public:
   // === Submission ===
 
   void SubmitLogicalCommandBuffer(pipelinecore::ILogicalCommandBuffer* cb) override {
-    if (!cb) return;
+    if (!cb || !device_) return;
 
     auto* cmd = pipelineCtx_->BeginCommandList();
     if (!cmd) return;
 
-    // Execute logical command buffer onto RHI command list
-    for (size_t i = 0; i < cb->GetDrawCount(); ++i) {
-      pipelinecore::LogicalDraw draw;
-      cb->GetDraw(i, &draw);
+    uint32_t slot = GetCurrentSlot().value;
 
-      // Set up vertex and index buffers
-      // Draw indexed instanced
-      cmd->DrawIndexed(
-        draw.indexCount,
-        draw.instanceCount,
-        draw.firstIndex,
-        draw.vertexOffset,
-        draw.firstInstance);
-    }
+    // Execute logical command buffer using the new executor
+    ExecuteLogicalCommandBufferOnDeviceThread(cmd, cb, slot);
 
     pipelineCtx_->EndCommandList(cmd);
     pipelineCtx_->Submit();
@@ -317,6 +333,17 @@ public:
 
     WaitForFrame();
 
+    // Wait for all fences and destroy them
+    if (device_) {
+      for (auto* fence : slotFences_) {
+        if (fence) {
+          fence->Wait();
+          device_->DestroyFence(fence);
+        }
+      }
+      slotFences_.clear();
+    }
+
     pipelineCtx_.reset();
     isInitialized_ = false;
   }
@@ -341,6 +368,36 @@ private:
     }
   }
 
+  void InitFrameFences() {
+    // Clean up existing fences
+    for (auto* fence : slotFences_) {
+      if (fence && device_) {
+        fence->Wait();
+        device_->DestroyFence(fence);
+      }
+    }
+    slotFences_.clear();
+
+    // Create new fences (signaled = true means initially ready)
+    slotFences_.resize(config_->maxFramesInFlight);
+    for (uint32_t i = 0; i < config_->maxFramesInFlight; ++i) {
+      slotFences_[i] = device_->CreateFence(true);
+    }
+  }
+
+  void WaitForSlot(uint32_t slot) {
+    if (slot < slotFences_.size() && slotFences_[slot]) {
+      slotFences_[slot]->Wait();
+      slotFences_[slot]->Reset();
+    }
+  }
+
+  void SignalSlot(uint32_t slot) {
+    if (slot < slotFences_.size() && slotFences_[slot]) {
+      slotFences_[slot]->Signal();
+    }
+  }
+
 private:
   rhi::IDevice* device_{nullptr};
   RenderingConfig const* config_{&defaultConfig_};
@@ -353,6 +410,10 @@ private:
   pipelinecore::FrameContext frameCtx_;
   std::atomic<RenderPhase> currentPhase_{RenderPhase::Idle};
   uint64_t frameIndex_{0};
+  uint32_t frameSlot_{0};
+
+  // Frame synchronization fences
+  std::vector<rhi::IFence*> slotFences_;
 
   double lastFrameTime_{0.0};
   double averageFPS_{0.0};

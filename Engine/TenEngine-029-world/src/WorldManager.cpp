@@ -205,5 +205,106 @@ bool WorldManager::SaveLevel(LevelHandle handle, char const* path) const {
     return ok;
 }
 
+void WorldManager::CollectRenderables(LevelHandle handle,
+                                      std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const {
+    te::scene::SceneRef sceneRef = GetSceneRef(handle);
+    if (!sceneRef.IsValid()) return;
+    CollectRenderables(sceneRef, callback);
+}
+
+void WorldManager::CollectRenderables(te::scene::SceneRef sceneRef,
+                                      std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const {
+    if (!sceneRef.IsValid()) return;
+
+    te::scene::SceneManager& sceneMgr = te::scene::SceneManager::GetInstance();
+    te::scene::SceneWorld* world = sceneMgr.GetWorld(sceneRef);
+    if (!world) return;
+
+    // Traverse all nodes and collect entities with ModelComponent
+    world->Traverse([&callback](te::scene::ISceneNode* node) {
+        if (!node) return;
+
+        // Try to cast to Entity
+        te::entity::Entity* entity = dynamic_cast<te::entity::Entity*>(node);
+        if (!entity) return;
+
+        // Check if entity has ModelComponent
+        te::world::ModelComponent* modelComp = entity->GetComponent<te::world::ModelComponent>();
+        if (!modelComp) return;
+
+        // Build RenderableItem
+        RenderableItem item{};
+
+        // Get world matrix from entity's scene node
+        te::scene::ISceneNode* sceneNode = entity->GetSceneNode();
+        if (sceneNode) {
+            // Get world transform (assuming 4x4 matrix)
+            // The actual implementation depends on the transform API
+            // For now, initialize with identity
+            float* matrix = item.worldMatrix;
+            matrix[0] = 1.0f; matrix[1] = 0.0f; matrix[2] = 0.0f; matrix[3] = 0.0f;
+            matrix[4] = 0.0f; matrix[5] = 1.0f; matrix[6] = 0.0f; matrix[7] = 0.0f;
+            matrix[8] = 0.0f; matrix[9] = 0.0f; matrix[10] = 1.0f; matrix[11] = 0.0f;
+            matrix[12] = 0.0f; matrix[13] = 0.0f; matrix[14] = 0.0f; matrix[15] = 1.0f;
+        }
+
+        // Store model resource ID for later resolution
+        item.modelResourceId = modelComp->modelResourceId.value;
+        item.userData = entity;
+
+        // Callback with this renderable
+        callback(node, item);
+    });
+}
+
+void WorldManager::CollectRenderables(te::scene::SceneRef sceneRef,
+                                      te::resource::IResourceManager* resourceManager,
+                                      std::function<void(te::scene::ISceneNode*, RenderableItem const&)> const& callback) const {
+    if (!sceneRef.IsValid() || !resourceManager) return;
+
+    te::scene::SceneManager& sceneMgr = te::scene::SceneManager::GetInstance();
+    te::scene::SceneWorld* world = sceneMgr.GetWorld(sceneRef);
+    if (!world) return;
+
+    // Traverse all nodes and collect entities with ModelComponent
+    world->Traverse([&callback, resourceManager](te::scene::ISceneNode* node) {
+        if (!node) return;
+
+        // Try to cast to Entity
+        te::entity::Entity* entity = dynamic_cast<te::entity::Entity*>(node);
+        if (!entity) return;
+
+        // Check if entity has ModelComponent
+        te::world::ModelComponent* modelComp = entity->GetComponent<te::world::ModelComponent>();
+        if (!modelComp) return;
+
+        // Try to resolve model resource
+        // Note: IModelResource resolution requires the model module
+        // For now, we just pass the resource ID and let the pipeline resolve it
+        // If the resource is not loaded, modelResource will be null in the callback
+
+        // Build RenderableItem
+        RenderableItem item{};
+
+        // Get world matrix from entity's scene node
+        te::scene::ISceneNode* sceneNode = entity->GetSceneNode();
+        if (sceneNode) {
+            // Get world transform
+            float* matrix = item.worldMatrix;
+            matrix[0] = 1.0f; matrix[1] = 0.0f; matrix[2] = 0.0f; matrix[3] = 0.0f;
+            matrix[4] = 0.0f; matrix[5] = 1.0f; matrix[6] = 0.0f; matrix[7] = 0.0f;
+            matrix[8] = 0.0f; matrix[9] = 0.0f; matrix[10] = 1.0f; matrix[11] = 0.0f;
+            matrix[12] = 0.0f; matrix[13] = 0.0f; matrix[14] = 0.0f; matrix[15] = 1.0f;
+        }
+
+        // Store model resource ID for resolution
+        item.modelResourceId = modelComp->modelResourceId.value;
+        item.userData = entity;
+
+        // Callback with this renderable
+        callback(node, item);
+    });
+}
+
 }  // namespace world
 }  // namespace te

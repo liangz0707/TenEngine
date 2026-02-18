@@ -4,6 +4,7 @@
  */
 
 #include <te/pipeline/PipelineContext.h>
+#include <te/pipeline/LogicalCommandBufferExecutor.h>
 
 #include <te/pipelinecore/FrameGraph.h>
 #include <te/pipelinecore/LogicalPipeline.h>
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 
 namespace te::pipeline {
 
@@ -306,12 +308,43 @@ void PipelineContext::ExecutePasses() {
   auto* cmd = BeginCommandList();
   if (!cmd) return;
 
+  // Get viewport dimensions
+  uint32_t width = GetWidth();
+  uint32_t height = GetHeight();
+  if (width == 0 || height == 0) {
+    width = 800;
+    height = 600;
+  }
+
+  // Setup viewport and scissor
+  rhi::Viewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = static_cast<float>(width);
+  viewport.height = static_cast<float>(height);
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  cmd->SetViewport(0, 1, &viewport);
+
+  rhi::ScissorRect scissor{};
+  scissor.x = 0;
+  scissor.y = 0;
+  scissor.width = width;
+  scissor.height = height;
+  cmd->SetScissor(0, 1, &scissor);
+
+  // Get back buffer for render target
+  rhi::ITexture* backBuffer = GetBackBuffer();
+
   // Insert barriers for each pass
   if (impl_->resourcePool) {
     for (size_t i = 0; i < impl_->stats.passCount; ++i) {
       impl_->resourcePool->InsertBarriersForPass(static_cast<uint32_t>(i), cmd);
     }
   }
+
+  // Get frame slot for resource updates
+  uint32_t frameSlot = impl_->frameCtx.frameSlotId;
 
   // Execute each pass
   pipelinecore::PassContext passCtx;
@@ -322,7 +355,69 @@ void PipelineContext::ExecutePasses() {
     }
     passCtx.SetLightItemList(impl_->lights);
 
+    // Build RenderPass description
+    rhi::RenderPassDesc rpDesc{};
+    rpDesc.colorAttachmentCount = 1;
+    rpDesc.colorAttachments[0].texture = backBuffer;
+    rpDesc.colorAttachments[0].loadOp = rhi::LoadOp::Clear;
+    rpDesc.colorAttachments[0].storeOp = rhi::StoreOp::Store;
+    rpDesc.colorAttachments[0].clearColor[0] = 0.1f;
+    rpDesc.colorAttachments[0].clearColor[1] = 0.1f;
+    rpDesc.colorAttachments[0].clearColor[2] = 0.2f;
+    rpDesc.colorAttachments[0].clearColor[3] = 1.0f;
+    // Set format to 0 (auto-infer from texture)
+    rpDesc.colorAttachments[0].format = 0;
+    rpDesc.subpassCount = 0;  // Single subpass mode
+
+    // Begin render pass
+    cmd->BeginRenderPass(rpDesc, nullptr);
+
+    // For the first pass (main geometry pass), execute logical command buffer
+    if (i == 0 && impl_->logicalCB) {
+      ExecutionStats execStats{};
+      ExecuteLogicalCommandBufferOnDeviceThreadWithStats(cmd, impl_->logicalCB, frameSlot, &execStats);
+
+      // Update stats
+      impl_->stats.drawCallCount += execStats.drawCalls;
+      impl_->stats.instanceCount += execStats.instanceCount;
+      impl_->stats.triangleCount += execStats.triangleCount;
+      impl_->stats.vertexCount += execStats.vertexCount;
+    }
+
+    // Execute pass callback from FrameGraph
     impl_->frameGraph->ExecutePass(i, passCtx, cmd);
+
+    // End render pass
+    cmd->EndRenderPass();
+  }
+
+  // If no passes defined, do a simple clear pass
+  if (impl_->stats.passCount == 0 && backBuffer) {
+    rhi::RenderPassDesc rpDesc{};
+    rpDesc.colorAttachmentCount = 1;
+    rpDesc.colorAttachments[0].texture = backBuffer;
+    rpDesc.colorAttachments[0].loadOp = rhi::LoadOp::Clear;
+    rpDesc.colorAttachments[0].storeOp = rhi::StoreOp::Store;
+    rpDesc.colorAttachments[0].clearColor[0] = 0.1f;
+    rpDesc.colorAttachments[0].clearColor[1] = 0.1f;
+    rpDesc.colorAttachments[0].clearColor[2] = 0.2f;
+    rpDesc.colorAttachments[0].clearColor[3] = 1.0f;
+    rpDesc.subpassCount = 0;
+
+    cmd->BeginRenderPass(rpDesc, nullptr);
+
+    // Execute logical command buffer if we have one
+    if (impl_->logicalCB) {
+      ExecutionStats execStats{};
+      ExecuteLogicalCommandBufferOnDeviceThreadWithStats(cmd, impl_->logicalCB, frameSlot, &execStats);
+
+      impl_->stats.drawCallCount += execStats.drawCalls;
+      impl_->stats.instanceCount += execStats.instanceCount;
+      impl_->stats.triangleCount += execStats.triangleCount;
+      impl_->stats.vertexCount += execStats.vertexCount;
+    }
+
+    cmd->EndRenderPass();
   }
 
   EndCommandList(cmd);
