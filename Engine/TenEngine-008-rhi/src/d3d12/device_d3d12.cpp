@@ -53,6 +53,12 @@ struct FenceD3D12 final : IFence {
   }
 };
 
+struct SemaphoreD3D12 final : ISemaphore {
+  ComPtr<ID3D12Fence> fence;
+  UINT64 value = 0;
+  ~SemaphoreD3D12() override = default;
+};
+
 struct BufferD3D12 final : IBuffer {
   ComPtr<ID3D12Resource> resource;
   ~BufferD3D12() override = default;
@@ -177,13 +183,65 @@ struct CommandListD3D12 final : ICommandList {
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
-    (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
+    if (!list || !recording || !src || !dst) return;
+    BufferD3D12* srcD = static_cast<BufferD3D12*>(src);
+    BufferD3D12* dstD = static_cast<BufferD3D12*>(dst);
+    if (!srcD->resource || !dstD->resource) return;
+    list->CopyBufferRegion(dstD->resource.Get(), dstOffset, srcD->resource.Get(), srcOffset, size);
   }
   void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) override {
-    (void)src;(void)srcOffset;(void)dst;(void)dstRegion;
+    if (!list || !recording || !src || !dst) return;
+    BufferD3D12* srcD = static_cast<BufferD3D12*>(src);
+    TextureD3D12* dstD = static_cast<TextureD3D12*>(dst);
+    if (!srcD->resource || !dstD->resource) return;
+    
+    D3D12_TEXTURE_COPY_LOCATION dstLoc = {};
+    dstLoc.pResource = dstD->resource.Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dstLoc.SubresourceIndex = dstRegion.mipLevel + dstRegion.arrayLayer;
+    
+    D3D12_TEXTURE_COPY_LOCATION srcLoc = {};
+    srcLoc.pResource = srcD->resource.Get();
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    srcLoc.PlacedFootprint.Offset = srcOffset;
+    srcLoc.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Default format
+    srcLoc.PlacedFootprint.Footprint.Width = dstRegion.width;
+    srcLoc.PlacedFootprint.Footprint.Height = dstRegion.height;
+    srcLoc.PlacedFootprint.Footprint.Depth = dstRegion.depth;
+    srcLoc.PlacedFootprint.Footprint.RowPitch = dstRegion.width * 4; // 4 bytes per pixel
+    
+    list->CopyTextureRegion(&dstLoc, dstRegion.x, dstRegion.y, dstRegion.z, &srcLoc, nullptr);
   }
   void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) override {
-    (void)src;(void)srcRegion;(void)dst;(void)dstOffset;
+    if (!list || !recording || !src || !dst) return;
+    TextureD3D12* srcD = static_cast<TextureD3D12*>(src);
+    BufferD3D12* dstD = static_cast<BufferD3D12*>(dst);
+    if (!srcD->resource || !dstD->resource) return;
+    
+    D3D12_TEXTURE_COPY_LOCATION srcLoc = {};
+    srcLoc.pResource = srcD->resource.Get();
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    srcLoc.SubresourceIndex = srcRegion.mipLevel + srcRegion.arrayLayer;
+    
+    D3D12_TEXTURE_COPY_LOCATION dstLoc = {};
+    dstLoc.pResource = dstD->resource.Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dstLoc.PlacedFootprint.Offset = dstOffset;
+    dstLoc.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    dstLoc.PlacedFootprint.Footprint.Width = srcRegion.width;
+    dstLoc.PlacedFootprint.Footprint.Height = srcRegion.height;
+    dstLoc.PlacedFootprint.Footprint.Depth = srcRegion.depth;
+    dstLoc.PlacedFootprint.Footprint.RowPitch = srcRegion.width * 4;
+    
+    D3D12_BOX srcBox = {};
+    srcBox.left = srcRegion.x;
+    srcBox.top = srcRegion.y;
+    srcBox.front = srcRegion.z;
+    srcBox.right = srcRegion.x + srcRegion.width;
+    srcBox.bottom = srcRegion.y + srcRegion.height;
+    srcBox.back = srcRegion.z + srcRegion.depth;
+    
+    list->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
   }
   /** Raytracing: explicit unsupported when DXR SDK not in build (documented no-op). */
   void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) override {
@@ -444,9 +502,20 @@ struct DeviceD3D12 final : IDevice {
     f->event = ev;
     return f;
   }
-  ISemaphore* CreateSemaphore() override { return nullptr; }
+  ISemaphore* CreateSemaphore() override {
+    if (!device) return nullptr;
+    ComPtr<ID3D12Fence> fence;
+    if (FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&fence))))
+      return nullptr;
+    auto* sem = new SemaphoreD3D12();
+    sem->fence = fence;
+    sem->value = 0;
+    return sem;
+  }
   void DestroyFence(IFence* f) override { delete static_cast<FenceD3D12*>(f); }
-  void DestroySemaphore(ISemaphore* s) override { (void)s; }
+  void DestroySemaphore(ISemaphore* s) override {
+    if (s) delete static_cast<SemaphoreD3D12*>(s);
+  }
   ISwapChain* CreateSwapChain(SwapChainDesc const& desc) override {
     if (!device || desc.width == 0 || desc.height == 0) return nullptr;
     TextureDesc td = {};

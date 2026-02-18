@@ -65,10 +65,25 @@ endif()
 
 set(TE_PIPELINE_SOURCES
   src/ThreadQueue.cpp
+  src/PipelineContext.cpp
+  src/RenderPipeline.cpp
+  src/BuiltinMeshes.cpp
+  src/BuiltinMaterials.cpp
+  src/Culling.cpp
+  src/RenderableCollector.cpp
+  src/PipelineScheduler.cpp
 )
 
 set(TE_PIPELINE_HEADERS
   include/te/pipeline/ThreadQueue.h
+  include/te/pipeline/RenderingConfig.h
+  include/te/pipeline/PipelineContext.h
+  include/te/pipeline/RenderPipeline.h
+  include/te/pipeline/BuiltinMeshes.h
+  include/te/pipeline/BuiltinMaterials.h
+  include/te/pipeline/Culling.h
+  include/te/pipeline/PipelineScheduler.h
+  include/te/pipeline/detail/RenderableCollector.h
 )
 
 add_library(te_pipeline STATIC ${TE_PIPELINE_SOURCES} ${TE_PIPELINE_HEADERS})

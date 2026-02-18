@@ -41,6 +41,15 @@ struct FenceVulkan final : IFence {
   }
 };
 
+struct SemaphoreVulkan final : ISemaphore {
+  VkDevice device = VK_NULL_HANDLE;
+  VkSemaphore semaphore = VK_NULL_HANDLE;
+  ~SemaphoreVulkan() override {
+    if (semaphore != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+      vkDestroySemaphore(device, semaphore, nullptr);
+  }
+};
+
 struct BufferVulkan final : IBuffer {
   VkDevice device = VK_NULL_HANDLE;
   VkBuffer buffer = VK_NULL_HANDLE;
@@ -311,14 +320,52 @@ struct CommandListVulkan final : ICommandList {
   void BeginOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void EndOcclusionQuery(uint32_t queryIndex) override { (void)queryIndex; }
   void CopyBuffer(IBuffer* src, size_t srcOffset, IBuffer* dst, size_t dstOffset, size_t size) override {
-    (void)src;(void)srcOffset;(void)dst;(void)dstOffset;(void)size;
-    if (cmd == VK_NULL_HANDLE || !recording) return;
+    if (cmd == VK_NULL_HANDLE || !recording || !src || !dst) return;
+    BufferVulkan* srcV = static_cast<BufferVulkan*>(src);
+    BufferVulkan* dstV = static_cast<BufferVulkan*>(dst);
+    if (srcV->buffer == VK_NULL_HANDLE || dstV->buffer == VK_NULL_HANDLE) return;
+    
+    VkBufferCopy region = {};
+    region.srcOffset = srcOffset;
+    region.dstOffset = dstOffset;
+    region.size = size;
+    vkCmdCopyBuffer(cmd, srcV->buffer, dstV->buffer, 1, &region);
   }
   void CopyBufferToTexture(IBuffer* src, size_t srcOffset, ITexture* dst, TextureRegion const& dstRegion) override {
-    (void)src;(void)srcOffset;(void)dst;(void)dstRegion;
+    if (cmd == VK_NULL_HANDLE || !recording || !src || !dst) return;
+    BufferVulkan* srcV = static_cast<BufferVulkan*>(src);
+    TextureVulkan* dstV = static_cast<TextureVulkan*>(dst);
+    if (srcV->buffer == VK_NULL_HANDLE || dstV->image == VK_NULL_HANDLE) return;
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = srcOffset;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = dstRegion.mipLevel;
+    region.imageSubresource.baseArrayLayer = dstRegion.arrayLayer;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = { static_cast<int32_t>(dstRegion.x), static_cast<int32_t>(dstRegion.y), static_cast<int32_t>(dstRegion.z) };
+    region.imageExtent = { dstRegion.width, dstRegion.height, dstRegion.depth };
+    vkCmdCopyBufferToImage(cmd, srcV->buffer, dstV->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
   }
   void CopyTextureToBuffer(ITexture* src, TextureRegion const& srcRegion, IBuffer* dst, size_t dstOffset) override {
-    (void)src;(void)srcRegion;(void)dst;(void)dstOffset;
+    if (cmd == VK_NULL_HANDLE || !recording || !src || !dst) return;
+    TextureVulkan* srcV = static_cast<TextureVulkan*>(src);
+    BufferVulkan* dstV = static_cast<BufferVulkan*>(dst);
+    if (srcV->image == VK_NULL_HANDLE || dstV->buffer == VK_NULL_HANDLE) return;
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = dstOffset;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = srcRegion.mipLevel;
+    region.imageSubresource.baseArrayLayer = srcRegion.arrayLayer;
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = { static_cast<int32_t>(srcRegion.x), static_cast<int32_t>(srcRegion.y), static_cast<int32_t>(srcRegion.z) };
+    region.imageExtent = { srcRegion.width, srcRegion.height, srcRegion.depth };
+    vkCmdCopyImageToBuffer(cmd, srcV->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstV->buffer, 1, &region);
   }
   /** Raytracing unsupported on Vulkan backend (no VK_KHR_ray_tracing in this build). */
   void BuildAccelerationStructure(RaytracingAccelerationStructureDesc const& desc, IBuffer* scratch, IBuffer* result) override {
@@ -1021,9 +1068,22 @@ struct DeviceVulkan final : IDevice {
     fv->fence = vkFence;
     return fv;
   }
-  ISemaphore* CreateSemaphore() override { return nullptr; }
+  ISemaphore* CreateSemaphore() override {
+    if (device == VK_NULL_HANDLE) return nullptr;
+    VkSemaphoreCreateInfo sci = {};
+    sci.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VkSemaphore vkSem = VK_NULL_HANDLE;
+    if (vkCreateSemaphore(device, &sci, nullptr, &vkSem) != VK_SUCCESS) return nullptr;
+    auto* sv = new SemaphoreVulkan();
+    sv->device = device;
+    sv->semaphore = vkSem;
+    return sv;
+  }
   void DestroyFence(IFence* f) override { delete static_cast<FenceVulkan*>(f); }
-  void DestroySemaphore(ISemaphore* s) override { (void)s; }
+  void DestroySemaphore(ISemaphore* s) override {
+    if (!s) return;
+    delete static_cast<SemaphoreVulkan*>(s);
+  }
   ISwapChain* CreateSwapChain(SwapChainDesc const& desc) override {
     if (device == VK_NULL_HANDLE || desc.width == 0 || desc.height == 0) return nullptr;
     TextureDesc td = {};

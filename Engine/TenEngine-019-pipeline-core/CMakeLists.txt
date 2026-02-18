@@ -38,6 +38,8 @@ set(TE_PIPELINECORE_SOURCES
   src/CollectPass.cpp
   src/LogicalCommandBuffer.cpp
   src/Profiling.cpp
+  src/ResourceManager.cpp
+  src/SubmitContext.cpp
 )
 
 set(TE_PIPELINECORE_HEADERS
@@ -49,6 +51,8 @@ set(TE_PIPELINECORE_HEADERS
   include/te/pipelinecore/LogicalPipeline.h
   include/te/pipelinecore/Profiling.h
   include/te/pipelinecore/RenderItem.h
+  include/te/pipelinecore/ResourceManager.h
+  include/te/pipelinecore/SubmitContext.h
 )
 
 add_library(te_pipelinecore STATIC ${TE_PIPELINECORE_SOURCES} ${TE_PIPELINECORE_HEADERS})

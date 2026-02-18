@@ -22,6 +22,8 @@ endif()
 
 set(TE_RENDERCORE_SOURCES
   src/rendercore_stub.cpp
+  src/UniformBuffer.cpp
+  src/PassProtocol.cpp
 )
 
 set(TE_RENDERCORE_HEADERS
