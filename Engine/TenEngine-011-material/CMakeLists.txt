@@ -40,6 +40,7 @@ set(TE_MATERIAL_SOURCES
   src/parameters.cpp
   src/instancing.cpp
   src/binding.cpp
+  src/RenderMaterial.cpp
 )
 set(TE_MATERIAL_HEADERS
   include/te/material/api.hpp
@@ -54,6 +55,7 @@ set(TE_MATERIAL_HEADERS
   include/te/material/parameters.hpp
   include/te/material/storage_format.hpp
   include/te/material/types.hpp
+  include/te/material/RenderMaterial.hpp
 )
 
 add_library(te_material STATIC ${TE_MATERIAL_SOURCES} ${TE_MATERIAL_HEADERS})

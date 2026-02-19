@@ -72,6 +72,7 @@ set(TE_PIPELINE_SOURCES
   src/Culling.cpp
   src/RenderableCollector.cpp
   src/PipelineScheduler.cpp
+  src/LogicalCommandBufferExecutor.cpp
 )
 
 set(TE_PIPELINE_HEADERS
@@ -83,6 +84,7 @@ set(TE_PIPELINE_HEADERS
   include/te/pipeline/BuiltinMaterials.h
   include/te/pipeline/Culling.h
   include/te/pipeline/PipelineScheduler.h
+  include/te/pipeline/LogicalCommandBufferExecutor.h
   include/te/pipeline/detail/RenderableCollector.h
 )
 

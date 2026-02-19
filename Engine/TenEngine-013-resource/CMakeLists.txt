@@ -63,6 +63,16 @@ set(RESOURCE_HEADERS
   include/te/resource/ShaderResource.h
   include/te/resource/TerrainResource.h
   include/te/resource/TextureResource.h
+  # New headers for enhanced resource system
+  include/te/resource/ResourceGroup.h
+  include/te/resource/ResourceTag.h
+  include/te/resource/ResourceMetadata.h
+  include/te/resource/ResourceEvent.h
+  include/te/resource/ResourceHotReload.h
+  include/te/resource/ResourceImport.h
+  include/te/resource/ResourceStreaming.h
+  include/te/resource/RemoteResource.h
+  include/te/resource/ResourceDebug.h
 )
 
 add_library(te_resource STATIC

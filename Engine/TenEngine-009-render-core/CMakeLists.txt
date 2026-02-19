@@ -41,6 +41,7 @@ set(TE_RENDERCORE_HEADERS
   include/te/rendercore/IRenderMesh.hpp
   include/te/rendercore/IRenderElement.hpp
   include/te/rendercore/IRenderTexture.hpp
+  include/te/rendercore/RenderElement.hpp
 )
 
 add_library(te_rendercore STATIC ${TE_RENDERCORE_SOURCES} ${TE_RENDERCORE_HEADERS})

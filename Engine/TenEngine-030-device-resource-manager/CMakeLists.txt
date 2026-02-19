@@ -86,6 +86,7 @@ set(DEVICE_RESOURCE_MANAGER_HEADERS
   include/te/deviceresource/DeviceResourceManager.h
   include/te/deviceresource/CommandListPool.h
   include/te/deviceresource/StagingBufferManager.h
+  include/te/deviceresource/ResourceOperationTypes.h
 )
 
 add_library(te_deviceresource STATIC
