@@ -1,12 +1,14 @@
 /**
  * @file BuiltinMaterials.cpp
- * @brief Implementation of BuiltinMaterials.
+ * @brief Implementation of BuiltinMaterials with actual material creation.
  */
 
 #include <te/pipeline/BuiltinMaterials.h>
+#include <te/material/RenderMaterial.hpp>
 
 #include <te/rhi/device.hpp>
 #include <te/rendercore/IRenderMaterial.hpp>
+#include <te/rendercore/IRenderPipelineState.hpp>
 
 #include <cstring>
 #include <memory>
@@ -19,6 +21,19 @@ namespace te::pipeline {
 // === Shader paths ===
 static char const* kDefaultShaderPath = "builtin/shaders/";
 
+// === Embedded shader bytecode (stubs - would be populated by shader compilation) ===
+// For a real implementation, these would be generated from .hlsl/.frag files
+
+struct BuiltinShaderData {
+    char const* name;
+    // Placeholder - in real implementation, these would contain compiled bytecode
+    void const* vertexBytecode{nullptr};
+    size_t vertexSize{0};
+    void const* fragmentBytecode{nullptr};
+    size_t fragmentSize{0};
+    rendercore::PipelineStateDesc pipelineState;
+};
+
 // === Material names to IDs ===
 static std::unordered_map<std::string, BuiltinMaterialId> sMaterialNames = {
   {"post_process/copy", BuiltinMaterialId::PostProcessCopy},
@@ -29,45 +44,189 @@ static std::unordered_map<std::string, BuiltinMaterialId> sMaterialNames = {
   {"lighting/directional", BuiltinMaterialId::LightDirectional},
 };
 
+// === Builtin shader entry implementation ===
+
+class BuiltinShaderEntry : public rendercore::IShaderEntry {
+public:
+    BuiltinShaderData const* data{nullptr};
+
+    void const* GetVertexBytecode() const override {
+        return data ? data->vertexBytecode : nullptr;
+    }
+    std::size_t GetVertexBytecodeSize() const override {
+        return data ? data->vertexSize : 0;
+    }
+    void const* GetFragmentBytecode() const override {
+        return data ? data->fragmentBytecode : nullptr;
+    }
+    std::size_t GetFragmentBytecodeSize() const override {
+        return data ? data->fragmentSize : 0;
+    }
+    rendercore::VertexFormatDesc const* GetVertexInput() const override {
+        // Default vertex format: position + uv
+        static rendercore::VertexFormatDesc desc{};
+        return &desc;
+    }
+    rendercore::ShaderReflectionDesc const* GetVertexReflection() const override {
+        static rendercore::ShaderReflectionDesc desc{};
+        return &desc;
+    }
+    rendercore::ShaderReflectionDesc const* GetFragmentReflection() const override {
+        static rendercore::ShaderReflectionDesc desc{};
+        return &desc;
+    }
+};
+
 // === BuiltinMaterials::Impl ===
 
 struct CachedMaterial {
-  rendercore::IRenderMaterial* material{nullptr};
-  BuiltinMaterialId id;
-  size_t memoryUsed{0};
+    rendercore::IRenderMaterial* material{nullptr};
+    BuiltinMaterialId id;
+    size_t memoryUsed{0};
 };
 
 struct BuiltinMaterials::Impl {
-  rhi::IDevice* device{nullptr};
-  std::string shaderPath{kDefaultShaderPath};
-  std::unordered_map<uint32_t, CachedMaterial> cache;
-  std::mutex mutex;
-  size_t totalMemory{0};
+    rhi::IDevice* device{nullptr};
+    std::string shaderPath{kDefaultShaderPath};
+    std::unordered_map<uint32_t, CachedMaterial> cache;
+    std::mutex mutex;
+    size_t totalMemory{0};
 
-  uint32_t MakeKey(BuiltinMaterialId id, uint32_t param = 0) {
-    return (static_cast<uint32_t>(id) << 8) | (param & 0xFF);
-  }
+    // Shader entries
+    std::vector<std::unique_ptr<BuiltinShaderEntry>> shaderEntries;
 
-  void Clear() {
-    std::lock_guard<std::mutex> lock(mutex);
-    // Materials are managed externally (by 011-material module)
-    cache.clear();
-    totalMemory = 0;
-  }
+    // Default pipeline states
+    std::unique_ptr<rendercore::IRenderPipelineState> opaquePipelineState;
+    std::unique_ptr<rendercore::IRenderPipelineState> postProcessPipelineState;
+    std::unique_ptr<rendercore::IRenderPipelineState> transparentPipelineState;
 
-  // Create a stub material for the given ID
-  // Real implementation would load shaders and create PSOs
-  rendercore::IRenderMaterial* CreateMaterial(BuiltinMaterialId id) {
-    // This is a stub - actual material creation would:
-    // 1. Load shader bytecode from disk or embedded
-    // 2. Create IShaderEntry
-    // 3. Create IRenderMaterial with PSO, descriptor sets, etc.
+    uint32_t MakeKey(BuiltinMaterialId id, uint32_t param = 0) {
+        return (static_cast<uint32_t>(id) << 8) | (param & 0xFF);
+    }
 
-    // For now, return nullptr to indicate the pattern
-    // The 011-material module would implement this properly
-    (void)id;
-    return nullptr;
-  }
+    void Clear() {
+        std::lock_guard<std::mutex> lock(mutex);
+        // Clean up materials
+        for (auto& [key, cached] : cache) {
+            if (cached.material) {
+                auto* renderMat = dynamic_cast<material::RenderMaterial*>(cached.material);
+                if (renderMat) {
+                    material::DestroyRenderMaterial(renderMat);
+                }
+            }
+        }
+        cache.clear();
+        totalMemory = 0;
+        shaderEntries.clear();
+    }
+
+    void InitPipelineStates() {
+        if (!device) return;
+
+        // Create default pipeline state for opaque materials
+        // (This would normally come from shader reflection or preset)
+    }
+
+    // Get or create shader entry for builtin material
+    BuiltinShaderEntry* GetOrCreateShaderEntry(BuiltinMaterialId id) {
+        auto entry = std::make_unique<BuiltinShaderEntry>();
+
+        // Get shader data for this material ID
+        BuiltinShaderData* shaderData = GetBuiltinShaderData(id);
+        if (shaderData) {
+            entry->data = shaderData;
+        }
+
+        BuiltinShaderEntry* ptr = entry.get();
+        shaderEntries.push_back(std::move(entry));
+        return ptr;
+    }
+
+    // Get shader data for builtin material ID
+    BuiltinShaderData* GetBuiltinShaderData(BuiltinMaterialId id) {
+        static std::unordered_map<BuiltinMaterialId, BuiltinShaderData> shaderDataMap = {
+            // Post-process materials
+            {BuiltinMaterialId::PostProcessCopy, {"post_process_copy"}},
+            {BuiltinMaterialId::PostProcessTonemap, {"post_process_tonemap"}},
+            {BuiltinMaterialId::PostProcessBloom, {"post_process_bloom"}},
+            // Lighting materials
+            {BuiltinMaterialId::LightPoint, {"light_point"}},
+            {BuiltinMaterialId::LightSpot, {"light_spot"}},
+            {BuiltinMaterialId::LightDirectional, {"light_directional"}},
+        };
+
+        auto it = shaderDataMap.find(id);
+        return it != shaderDataMap.end() ? &it->second : nullptr;
+    }
+
+    // Get default pipeline state for material category
+    rendercore::PipelineStateDesc GetDefaultPipelineState(BuiltinMaterialId id) {
+        rendercore::PipelineStateDesc desc{};
+
+        // Configure based on material type
+        uint32_t idValue = static_cast<uint32_t>(id);
+
+        // Post-process materials (no depth, additive blend)
+        if (idValue >= 0 && idValue < 10) {
+            desc.blendState = rhi::BlendStateDesc{};
+            desc.depthStencilState = rhi::DepthStencilStateDesc{};
+            desc.depthStencilState->depthEnable = false;
+            desc.rasterizerState = rhi::RasterizerStateDesc{};
+            desc.rasterizerState->cullMode = rhi::CullMode::None;
+        }
+        // Lighting materials
+        else if (idValue >= 20 && idValue < 30) {
+            desc.blendState = rhi::BlendStateDesc{};
+            desc.blendState->enable = true;
+            desc.blendState->srcBlend = rhi::Blend::One;
+            desc.blendState->dstBlend = rhi::Blend::One;
+            desc.depthStencilState = rhi::DepthStencilStateDesc{};
+            desc.depthStencilState->depthEnable = true;
+            desc.depthStencilState->depthWriteEnable = false;
+            desc.rasterizerState = rhi::RasterizerStateDesc{};
+        }
+        // Shadow materials
+        else if (idValue >= 30 && idValue < 40) {
+            desc.blendState = rhi::BlendStateDesc{};
+            desc.blendState->enable = false;
+            desc.depthStencilState = rhi::DepthStencilStateDesc{};
+            desc.depthStencilState->depthEnable = true;
+            desc.depthStencilState->depthWriteEnable = true;
+            desc.rasterizerState = rhi::RasterizerStateDesc{};
+            desc.rasterizerState->cullMode = rhi::CullMode::Front;  // Peter panning mitigation
+        }
+        // Default
+        else {
+            desc.blendState = rhi::BlendStateDesc{};
+            desc.depthStencilState = rhi::DepthStencilStateDesc{};
+            desc.rasterizerState = rhi::RasterizerStateDesc{};
+        }
+
+        return desc;
+    }
+
+    // Create actual material
+    rendercore::IRenderMaterial* CreateMaterial(BuiltinMaterialId id) {
+        if (!device) return nullptr;
+
+        // Get shader entry
+        BuiltinShaderEntry* shaderEntry = GetOrCreateShaderEntry(id);
+        if (!shaderEntry) return nullptr;
+
+        // Get pipeline state
+        rendercore::PipelineStateDesc pipelineState = GetDefaultPipelineState(id);
+
+        // Create RenderMaterial
+        auto* renderMat = material::CreateRenderMaterial(shaderEntry, pipelineState);
+        if (!renderMat) return nullptr;
+
+        renderMat->SetDevice(device);
+
+        // Create GPU resources
+        renderMat->CreateDeviceResource();
+
+        return renderMat;
+    }
 };
 
 // === BuiltinMaterials ===
@@ -82,6 +241,7 @@ BuiltinMaterials::~BuiltinMaterials() {
 
 void BuiltinMaterials::SetDevice(rhi::IDevice* device) {
   impl_->device = device;
+  impl_->InitPipelineStates();
 }
 
 rendercore::IRenderMaterial* BuiltinMaterials::GetPostProcessCopy() {
@@ -205,7 +365,7 @@ rendercore::IRenderMaterial* BuiltinMaterials::GetMaterial(
   CachedMaterial cached;
   cached.id = id;
   cached.material = impl_->CreateMaterial(id);
-  cached.memoryUsed = 0; // Would calculate actual size
+  cached.memoryUsed = sizeof(material::RenderMaterial);  // Approximate
 
   impl_->cache[key] = cached;
   impl_->totalMemory += cached.memoryUsed;

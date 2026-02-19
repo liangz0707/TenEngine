@@ -187,12 +187,45 @@ struct CommandListD3D11 final : ICommandList {
   }
   void BeginRenderPass(RenderPassDesc const& desc, IRenderPass* pass) override {
     (void)pass;
-    if (!deferredCtx || !recording || desc.colorAttachmentCount == 0) return;
-    ITexture* tex = desc.colorAttachments[0].texture;
-    if (!tex) return;
-    TextureD3D11* t = static_cast<TextureD3D11*>(tex);
-    if (t->rtv)
-      deferredCtx->OMSetRenderTargets(1, &t->rtv, nullptr);
+    if (!deferredCtx || !recording) return;
+
+    // Collect color render targets
+    ID3D11RenderTargetView* rtvs[8] = {};
+    uint32_t rtCount = std::min(desc.colorAttachmentCount, 8u);
+    for (uint32_t i = 0; i < rtCount; ++i) {
+      if (desc.colorAttachments[i].texture) {
+        TextureD3D11* t = static_cast<TextureD3D11*>(desc.colorAttachments[i].texture);
+        if (t->rtv) {
+          rtvs[i] = t->rtv;
+          // Clear color if requested
+          if (desc.colorAttachments[i].loadOp == LoadOp::Clear) {
+            deferredCtx->ClearRenderTargetView(t->rtv, desc.colorAttachments[i].clearColor);
+          }
+        }
+      }
+    }
+
+    // Get depth-stencil view if present
+    ID3D11DepthStencilView* dsv = nullptr;
+    if (desc.depthStencilAttachment.texture) {
+      TextureD3D11* depthTex = static_cast<TextureD3D11*>(desc.depthStencilAttachment.texture);
+      if (depthTex->dsv) {
+        dsv = depthTex->dsv;
+        // Clear depth-stencil if requested
+        if (desc.depthStencilAttachment.depthLoadOp == LoadOp::Clear) {
+          UINT clearFlags = D3D11_CLEAR_DEPTH;
+          if (desc.depthStencilAttachment.stencilLoadOp == LoadOp::Clear) {
+            clearFlags |= D3D11_CLEAR_STENCIL;
+          }
+          deferredCtx->ClearDepthStencilView(dsv, clearFlags,
+                                             desc.depthStencilAttachment.clearDepth,
+                                             desc.depthStencilAttachment.clearStencil);
+        }
+      }
+    }
+
+    // Bind render targets
+    deferredCtx->OMSetRenderTargets(rtCount, rtvs, dsv);
   }
   void NextSubpass() override {}
   void EndRenderPass() override {}
@@ -237,7 +270,9 @@ struct CommandListD3D11 final : ICommandList {
 struct TextureD3D11 final : ITexture {
   ID3D11Texture2D* texture = nullptr;
   ID3D11RenderTargetView* rtv = nullptr;  /* optional; used when bound as color target in BeginRenderPass */
+  ID3D11DepthStencilView* dsv = nullptr;  /* optional; used when bound as depth target in BeginRenderPass */
   ~TextureD3D11() override {
+    if (dsv) { dsv->Release(); dsv = nullptr; }
     if (rtv) { rtv->Release(); rtv = nullptr; }
     if (texture) { texture->Release(); texture = nullptr; }
   }
@@ -404,11 +439,49 @@ struct DeviceD3D11 final : IDevice {
     td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     td.CPUAccessFlags = 0;
     td.MiscFlags = 0;
+
+    // Check if this is a depth-stencil format
+    bool isDepthFormat = (fmt == DXGI_FORMAT_D16_UNORM ||
+                          fmt == DXGI_FORMAT_D24_UNORM_S8_UINT ||
+                          fmt == DXGI_FORMAT_D32_FLOAT ||
+                          fmt == DXGI_FORMAT_D32_FLOAT_S8X24_UINT);
+
+    // Set bind flags based on usage
+    if (desc.usage & static_cast<uint32_t>(TextureUsage::DepthStencil)) {
+      td.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+      // For depth formats, use the typeless version if we also want shader resource
+      if (desc.usage & static_cast<uint32_t>(TextureUsage::ShaderResource)) {
+        td.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+      }
+    } else if (desc.usage & static_cast<uint32_t>(TextureUsage::RenderTarget)) {
+      td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    }
+
     ID3D11Texture2D* tex = nullptr;
     if (FAILED(device->CreateTexture2D(&td, nullptr, &tex)) || !tex)
       return nullptr;
+
     auto* t = new TextureD3D11();
     t->texture = tex;
+
+    // Create DSV for depth textures
+    if (isDepthFormat || (desc.usage & static_cast<uint32_t>(TextureUsage::DepthStencil))) {
+      D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+      dsvDesc.Format = fmt;
+      dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+      dsvDesc.Texture2D.MipSlice = 0;
+      device->CreateDepthStencilView(tex, &dsvDesc, &t->dsv);
+    }
+
+    // Create RTV for render target textures
+    if (desc.usage & static_cast<uint32_t>(TextureUsage::RenderTarget)) {
+      D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+      rtvDesc.Format = fmt;
+      rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+      rtvDesc.Texture2D.MipSlice = 0;
+      device->CreateRenderTargetView(tex, &rtvDesc, &t->rtv);
+    }
+
     return t;
   }
   ISampler* CreateSampler(SamplerDesc const& desc) override {

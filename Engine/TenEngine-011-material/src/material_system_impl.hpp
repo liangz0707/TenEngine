@@ -1,4 +1,4 @@
-// 011-Material internal: concrete IMaterialSystem implementation (stub until T009–T011)
+// 011-Material internal: concrete IMaterialSystem implementation
 #ifndef TE_MATERIAL_MATERIAL_SYSTEM_IMPL_HPP
 #define TE_MATERIAL_MATERIAL_SYSTEM_IMPL_HPP
 
@@ -6,16 +6,24 @@
 #include "te/material/types.hpp"
 
 namespace te {
+namespace rhi {
+struct IDevice;
+}
 namespace shader {
 class IShaderCompiler;
 struct VariantKey;
 }
 namespace material {
 
+class RenderMaterial;
+
 class MaterialSystemImpl : public IMaterialSystem {
 public:
   explicit MaterialSystemImpl(te::shader::IShaderCompiler* compiler);
   ~MaterialSystemImpl() override;
+
+  // Device setup
+  void SetDevice(rhi::IDevice* device);
 
   MaterialHandle Load(char const* path) override;
   uint32_t GetParameters(MaterialHandle h, te::rendercore::UniformMember* out, uint32_t maxCount) override;
@@ -35,8 +43,13 @@ public:
   te::shader::VariantKey GetVariantKey(MaterialHandle h) override;
   void SubmitToPipeline(MaterialInstanceHandle inst, void* pipelineContext) override;
 
+  // Create RenderMaterial for GPU rendering
+  RenderMaterial* CreateRenderMaterial(MaterialHandle h);
+
 private:
+  class Impl;
   te::shader::IShaderCompiler* compiler_{nullptr};
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace material

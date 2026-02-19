@@ -251,6 +251,14 @@ public:
   /// Get current viewport height
   uint32_t GetHeight() const;
 
+  // === Post-Process Support ===
+
+  /// Execute a post-process pass with the given configuration
+  void ExecutePostProcessPass(size_t passIndex, rhi::ICommandList* cmd);
+
+  /// Get depth buffer texture
+  rhi::ITexture* GetDepthBuffer() const;
+
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;

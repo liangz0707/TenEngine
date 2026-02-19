@@ -199,6 +199,17 @@ public:
   /// Get total memory used (approximate, for profiling)
   size_t GetTotalMemoryUsed() const;
 
+  /// Set default dimensions (used when attachment width/height is 0)
+  void SetDefaultDimensions(uint32_t width, uint32_t height);
+
+  /// Create transient texture from PassAttachmentDesc
+  /// Uses default dimensions if desc.width/height is 0
+  rhi::ITexture* CreateTextureFromAttachment(
+      uint32_t width, 
+      uint32_t height,
+      uint32_t format,
+      rhi::ResourceState initialState = rhi::ResourceState::RenderTarget);
+
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;

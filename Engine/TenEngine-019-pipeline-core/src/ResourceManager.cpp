@@ -53,6 +53,10 @@ struct TransientResourcePool::Impl {
 
   size_t totalMemoryUsed{0};
 
+  // Default dimensions for transient textures
+  uint32_t defaultWidth_{800};
+  uint32_t defaultHeight_{600};
+
   void Reset() {
     // Destroy all RHI resources
     for (auto& pair : textures) {
@@ -429,6 +433,32 @@ size_t TransientResourcePool::GetAllocatedBufferSize() const {
 
 size_t TransientResourcePool::GetTotalMemoryUsed() const {
   return impl_->totalMemoryUsed;
+}
+
+void TransientResourcePool::SetDefaultDimensions(uint32_t width, uint32_t height) {
+  impl_->defaultWidth_ = width;
+  impl_->defaultHeight_ = height;
+}
+
+rhi::ITexture* TransientResourcePool::CreateTextureFromAttachment(
+    uint32_t width,
+    uint32_t height,
+    uint32_t format,
+    rhi::ResourceState initialState) {
+  
+  // Use default dimensions if zero
+  uint32_t w = (width > 0) ? width : impl_->defaultWidth_;
+  uint32_t h = (height > 0) ? height : impl_->defaultHeight_;
+
+  TransientTextureDesc desc{};
+  desc.width = w;
+  desc.height = h;
+  desc.depth = 1;
+  desc.format = format;
+  desc.initialState = initialState;
+
+  auto handle = DeclareTransientTexture(desc);
+  return GetOrCreateTexture(handle);
 }
 
 // === ResourceBarrierBuilder::Impl ===

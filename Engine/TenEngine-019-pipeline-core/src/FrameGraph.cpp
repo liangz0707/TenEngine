@@ -189,6 +189,7 @@ class FrameGraphImpl : public IFrameGraph {
     auto t0 = std::chrono::steady_clock::now();
 #endif
     sortedIndices_.clear();
+    passOutputs_.clear();
     if (passes_.empty()) {
 #if TE_PIPELINECORE_PROFILING
       if (g_onCompileProfiling) {
@@ -226,7 +227,30 @@ class FrameGraphImpl : public IFrameGraph {
       for (size_t w : kv.second)
         for (size_t r : it->second) addEdge(w, r);
     }
-    // 资源生命周期（Transient, ReleaseAfterPass）与 RHI ResourceBarrier 协同由 020 实现；首版此处不扩展
+
+    // === 资源链接：将 sourcePassIndex 的输出连接到当前 Pass 的输入 ===
+    // 存储 pass -> attachment -> output texture handle 映射
+    passOutputs_.resize(n);
+    for (size_t i = 0; i < n; ++i) {
+      passOutputs_[i].resize(passes_[i].colorAttachmentCount);
+    }
+    
+    // 链接 attachments
+    for (size_t i = 0; i < n; ++i) {
+      PassData& pass = passes_[i];
+      for (uint32_t j = 0; j < pass.colorAttachmentCount; ++j) {
+        PassAttachmentDesc& att = pass.colorAttachments[j];
+        if (att.sourcePassIndex != static_cast<size_t>(-1) && 
+            att.sourcePassIndex < n) {
+          // 从源 Pass 获取输出
+          PassData const& sourcePass = passes_[att.sourcePassIndex];
+          if (att.sourceAttachmentIndex < sourcePass.colorAttachmentCount) {
+            // 链接到源 Pass 的输出 attachment
+            att.handle = sourcePass.colorAttachments[att.sourceAttachmentIndex].handle;
+          }
+        }
+      }
+    }
 
     // Kahn 拓扑排序 + 环检测
     std::vector<size_t> stack;
@@ -287,6 +311,7 @@ class FrameGraphImpl : public IFrameGraph {
   std::vector<PassData> passes_;
   std::vector<std::unique_ptr<IPassBuilder>> builders_;
   std::vector<size_t> sortedIndices_;
+  std::vector<std::vector<te::rendercore::ResourceHandle>> passOutputs_;  // Pass -> Attachment -> Handle
 };
 
 }  // namespace

@@ -5,6 +5,7 @@
 
 #include <te/pipeline/PipelineContext.h>
 #include <te/pipeline/LogicalCommandBufferExecutor.h>
+#include <te/pipeline/BuiltinMaterials.h>
 
 #include <te/pipelinecore/FrameGraph.h>
 #include <te/pipelinecore/LogicalPipeline.h>
@@ -15,6 +16,7 @@
 #include <te/rhi/device.hpp>
 #include <te/rhi/command_list.hpp>
 #include <te/rhi/swapchain.hpp>
+#include <te/rendercore/IRenderMaterial.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -54,6 +56,11 @@ struct PipelineContext::Impl {
   RenderTarget renderTarget;
   std::vector<RenderBatchData> batches;
 
+  // Depth buffer management
+  rhi::ITexture* depthBuffer{nullptr};
+  uint32_t depthWidth{0};
+  uint32_t depthHeight{0};
+
   FrameStats stats;
   uint64_t frameIndex{0};
 
@@ -75,6 +82,47 @@ struct PipelineContext::Impl {
     batches.clear();
     stats = FrameStats{};
     stats.frameIndex = frameIndex;
+  }
+
+  // Create or resize depth buffer
+  rhi::ITexture* EnsureDepthBuffer(rhi::IDevice* dev, uint32_t width, uint32_t height) {
+    if (!dev) return nullptr;
+
+    // Check if resize needed
+    if (depthBuffer && (depthWidth != width || depthHeight != height)) {
+      dev->DestroyTexture(depthBuffer);
+      depthBuffer = nullptr;
+    }
+
+    // Create new depth buffer if needed
+    if (!depthBuffer) {
+      rhi::TextureDesc desc{};
+      desc.width = width;
+      desc.height = height;
+      desc.depth = 1;
+      desc.arraySize = 1;
+      desc.mipLevels = 1;
+      desc.format = static_cast<uint32_t>(rhi::Format::D32_Float);
+      desc.usage = static_cast<uint32_t>(rhi::TextureUsage::DepthStencil) |
+                   static_cast<uint32_t>(rhi::TextureUsage::RenderTarget);
+
+      depthBuffer = dev->CreateTexture(desc);
+      if (depthBuffer) {
+        depthWidth = width;
+        depthHeight = height;
+      }
+    }
+
+    return depthBuffer;
+  }
+
+  void DestroyDepthBuffer(rhi::IDevice* dev) {
+    if (depthBuffer && dev) {
+      dev->DestroyTexture(depthBuffer);
+      depthBuffer = nullptr;
+      depthWidth = 0;
+      depthHeight = 0;
+    }
   }
 };
 
@@ -107,6 +155,8 @@ PipelineContext::~PipelineContext() {
   if (impl_->cameras) {
     pipelinecore::DestroyCameraItemList(impl_->cameras);
   }
+  // Destroy depth buffer
+  impl_->DestroyDepthBuffer(impl_->device);
 }
 
 PipelineContext::PipelineContext(PipelineContext&& other) noexcept
@@ -336,6 +386,9 @@ void PipelineContext::ExecutePasses() {
   // Get back buffer for render target
   rhi::ITexture* backBuffer = GetBackBuffer();
 
+  // Create/ensure depth buffer
+  rhi::ITexture* depthBuffer = impl_->EnsureDepthBuffer(impl_->device, width, height);
+
   // Insert barriers for each pass
   if (impl_->resourcePool) {
     for (size_t i = 0; i < impl_->stats.passCount; ++i) {
@@ -355,7 +408,7 @@ void PipelineContext::ExecutePasses() {
     }
     passCtx.SetLightItemList(impl_->lights);
 
-    // Build RenderPass description
+    // Build RenderPass description with depth buffer
     rhi::RenderPassDesc rpDesc{};
     rpDesc.colorAttachmentCount = 1;
     rpDesc.colorAttachments[0].texture = backBuffer;
@@ -365,9 +418,19 @@ void PipelineContext::ExecutePasses() {
     rpDesc.colorAttachments[0].clearColor[1] = 0.1f;
     rpDesc.colorAttachments[0].clearColor[2] = 0.2f;
     rpDesc.colorAttachments[0].clearColor[3] = 1.0f;
-    // Set format to 0 (auto-infer from texture)
-    rpDesc.colorAttachments[0].format = 0;
+    rpDesc.colorAttachments[0].format = 0;  // Auto-infer from texture
     rpDesc.subpassCount = 0;  // Single subpass mode
+
+    // Configure depth-stencil attachment
+    if (depthBuffer) {
+      rpDesc.depthStencilAttachment.texture = depthBuffer;
+      rpDesc.depthStencilAttachment.depthLoadOp = rhi::LoadOp::Clear;
+      rpDesc.depthStencilAttachment.depthStoreOp = rhi::StoreOp::Store;
+      rpDesc.depthStencilAttachment.stencilLoadOp = rhi::LoadOp::DontCare;
+      rpDesc.depthStencilAttachment.stencilStoreOp = rhi::StoreOp::DontCare;
+      rpDesc.depthStencilAttachment.clearDepth = 1.0f;
+      rpDesc.depthStencilAttachment.clearStencil = 0;
+    }
 
     // Begin render pass
     cmd->BeginRenderPass(rpDesc, nullptr);
@@ -403,6 +466,17 @@ void PipelineContext::ExecutePasses() {
     rpDesc.colorAttachments[0].clearColor[2] = 0.2f;
     rpDesc.colorAttachments[0].clearColor[3] = 1.0f;
     rpDesc.subpassCount = 0;
+
+    // Add depth buffer to clear pass
+    if (depthBuffer) {
+      rpDesc.depthStencilAttachment.texture = depthBuffer;
+      rpDesc.depthStencilAttachment.depthLoadOp = rhi::LoadOp::Clear;
+      rpDesc.depthStencilAttachment.depthStoreOp = rhi::StoreOp::Store;
+      rpDesc.depthStencilAttachment.stencilLoadOp = rhi::LoadOp::DontCare;
+      rpDesc.depthStencilAttachment.stencilStoreOp = rhi::StoreOp::DontCare;
+      rpDesc.depthStencilAttachment.clearDepth = 1.0f;
+      rpDesc.depthStencilAttachment.clearStencil = 0;
+    }
 
     cmd->BeginRenderPass(rpDesc, nullptr);
 
@@ -504,6 +578,91 @@ uint32_t PipelineContext::GetWidth() const {
 
 uint32_t PipelineContext::GetHeight() const {
   return impl_->frameCtx.viewport.height;
+}
+
+void PipelineContext::ExecutePostProcessPass(size_t passIndex, rhi::ICommandList* cmd) {
+  if (!cmd || !impl_->frameGraph || !impl_->device) return;
+
+  // Get pass configuration
+  pipelinecore::PassCollectConfig config;
+  impl_->frameGraph->GetPassCollectConfig(passIndex, &config);
+
+  // Get material for post-process
+  // For now, use a simplified approach - in full implementation would use BuiltinMaterials
+  rendercore::IRenderMaterial* material = nullptr;
+  
+  // Check if we have a material name
+  if (config.materialName) {
+    // Would look up material from material system
+    // material = MaterialSystem::Get()->GetMaterial(config.materialName);
+  }
+
+  if (!material) {
+    // No material - skip this pass
+    return;
+  }
+
+  // Get input texture from previous pass output
+  rhi::ITexture* inputTexture = nullptr;
+  if (passIndex > 0) {
+    // Would get output from previous pass
+    // This is simplified - full implementation would use FrameGraph's resource tracking
+    inputTexture = GetBackBuffer();  // Fallback to back buffer
+  }
+
+  // Get output texture
+  rhi::ITexture* outputTexture = GetBackBuffer();
+  if (config.colorAttachmentCount > 0) {
+    // Would use actual output attachment if specified
+  }
+
+  // Set input texture to material
+  if (inputTexture) {
+    material->SetDataTexture(0, inputTexture);
+  }
+
+  // Update material GPU resources
+  material->UpdateDeviceResource(impl_->device, impl_->frameCtx.frameSlotId);
+
+  // Build render pass description (no depth for post-process)
+  rhi::RenderPassDesc rpDesc{};
+  rpDesc.colorAttachmentCount = 1;
+  rpDesc.colorAttachments[0].texture = outputTexture;
+  rpDesc.colorAttachments[0].loadOp = rhi::LoadOp::Clear;
+  rpDesc.colorAttachments[0].storeOp = rhi::StoreOp::Store;
+  rpDesc.colorAttachments[0].clearColor[0] = 0.0f;
+  rpDesc.colorAttachments[0].clearColor[1] = 0.0f;
+  rpDesc.colorAttachments[0].clearColor[2] = 0.0f;
+  rpDesc.colorAttachments[0].clearColor[3] = 1.0f;
+  // No depth attachment for post-process
+
+  cmd->BeginRenderPass(rpDesc, nullptr);
+
+  // Bind PSO
+  rhi::IPSO* pso = material->GetGraphicsPSO(0);
+  if (pso) {
+    cmd->SetGraphicsPSO(pso);
+  }
+
+  // Bind descriptor set
+  rhi::IDescriptorSet* ds = material->GetDescriptorSet();
+  if (ds) {
+    cmd->BindDescriptorSet(ds);
+  }
+
+  // Draw fullscreen quad
+  // For now, we use a simple triangle strip approach
+  // In full implementation, would get from BuiltinMeshes
+  cmd->Draw(3, 1, 0, 0);  // Draw 3 vertices for fullscreen triangle
+
+  cmd->EndRenderPass();
+
+  // Update stats
+  impl_->stats.drawCallCount++;
+}
+
+rhi::ITexture* PipelineContext::GetDepthBuffer() const {
+  return impl_->depthBuffer;
 }
 
 // === Free Functions ===
