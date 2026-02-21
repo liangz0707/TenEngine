@@ -1,61 +1,153 @@
-# 019-PipelineCore 模块 ABI
+# 019-PipelineCore Module ABI
 
-- **契约**：[019-pipelinecore-public-api.md](./019-pipelinecore-public-api.md)（能力与类型描述）
-- **本文件**：019-PipelineCore 对外 ABI 显式表。
-- **CMake Target 名称**：**`te_pipelinecore`**（与 `te_rhi`、`te_rendercore` 命名风格一致）。下游在 `target_link_libraries` 中应使用 **`te_pipelinecore`**。依赖 `te_rhi`、`te_rendercore`。
-- **命名空间**：**`te::pipelinecore`**（与 `te::rhi`、`te::rendercore` 风格一致）。实现文件统一使用此命名空间。
-- **头文件路径**：**`te/pipelinecore/`**（与 `te/rhi/`、`te/rendercore/` 一致）。
-- **渲染资源显式控制位置**：**创建逻辑渲染资源**（CreateRenderItem）；**创建/收集逻辑上的 CommandBuffer**（CollectCommandBuffer，即 convertToLogicalCommandBuffer）；**准备渲染资源**（PrepareRenderMaterial、PrepareRenderMesh 等，即 prepareRenderResources 或细粒度 API）；**提交到实际 GPU Command** 见 020-Pipeline/008-RHI（SubmitCommandBuffer）；**准备/创建/更新 GPU 资源**（CreateDeviceResource、UpdateDeviceResource）见 008-RHI。
+- **Contract**: [019-pipelinecore-public-api.md](./019-pipelinecore-public-api.md) (capabilities and type descriptions)
+- **This File**: 019-PipelineCore external ABI explicit table.
+- **CMake Target Name**: **`te_pipelinecore`** (consistent with `te_rhi`, `te_rendercore` naming). Downstream should use **`te_pipelinecore`** in `target_link_libraries`. Depends on `te_rhi`, `te_rendercore`.
+- **Namespace**: **`te::pipelinecore`** (consistent with `te::rhi`, `te::rendercore` style).
+- **Header Path**: **`te/pipelinecore/`** (consistent with `te/rhi/`, `te/rendercore/`).
+- **Render Resource Explicit Control Points**: **Create logical render resources** (CreateRenderItem); **Create/collect logical CommandBuffer** (ConvertToLogicalCommandBuffer/CollectCommandBuffer); **Prepare render resources** (PrepareRenderResources, PrepareRenderElement); **Submit to actual GPU Command** see 020-Pipeline/008-RHI; **Create/update GPU resources** see 008-RHI.
 
-## ABI 表
+## ABI Table
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+Column definitions: **Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description**
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 019-PipelineCore | te::pipelinecore | — | 常量 | 最大在途帧数 | te/pipelinecore/Config.h | kMaxFramesInFlight | 建议 2～4；实现可配置 |
-| 019-PipelineCore | te::pipelinecore | — | struct | 管线配置 | te/pipelinecore/Config.h | PipelineConfig | 含 frameInFlightCount（2～4）；创建 Pipeline/SwapChain 时传入 |
-| 019-PipelineCore | te::pipelinecore | — | 类型别名 | 帧 slot 索引 | te/pipelinecore/Config.h | FrameSlotId | uint32_t，范围 [0, frameInFlightCount) |
-| 019-PipelineCore | te::pipelinecore | — | struct | FrameContext | te/pipelinecore/FrameContext.h | FrameContext | scene (ISceneWorld const*), camera, viewport (ViewportDesc), frameSlotId 等；020 构造并传入 BuildLogicalPipeline、CollectRenderItemsParallel |
-| 019-PipelineCore | te::pipelinecore | — | struct | 视口描述 | te/pipelinecore/FrameContext.h | ViewportDesc | width, height 等视口参数 |
-| 019-PipelineCore | te::pipelinecore | ISceneWorld | 抽象接口 | 场景世界最小接口 | te/pipelinecore/FrameGraph.h | ISceneWorld | 020/004 实现；SetScene 绑定；提供查询可见实体、场景根等 |
-| 019-PipelineCore | te::pipelinecore | IFrameGraph | 抽象接口 | FrameGraph 入口 | te/pipelinecore/FrameGraph.h | IFrameGraph::AddPass | `IPassBuilder* AddPass(char const* name);` 将 Pass 加入图，返回 Builder 供配置 |
-| 019-PipelineCore | te::pipelinecore | IFrameGraph | 抽象接口 | 编译图 | te/pipelinecore/FrameGraph.h | IFrameGraph::Compile | `bool Compile();` 编译为可执行图；依赖与顺序由实现解析 |
-| 019-PipelineCore | te::pipelinecore | IFrameGraph | 抽象接口 | Pass 数量与按序执行 | te/pipelinecore/FrameGraph.h | IFrameGraph::GetPassCount, ExecutePass | `size_t GetPassCount() const = 0;` `void ExecutePass(size_t executionOrder, PassContext& ctx, te::rhi::ICommandList* cmd) = 0;` 020 在 Device 任务内按 GetPassCount 循环调用 ExecutePass |
-| 019-PipelineCore | te::pipelinecore | IPassBuilder | 抽象接口 | Pass 配置 | te/pipelinecore/FrameGraph.h | IPassBuilder::SetScene, SetCullMode, SetObjectTypeFilter, SetRenderType, SetOutput, SetExecuteCallback | `void SetScene(ISceneWorld const* scene);` `void SetCullMode(CullMode mode);` `void SetObjectTypeFilter(...);` `void SetRenderType(RenderType type);` `void SetOutput(PassOutputDesc const& desc);` `void SetExecuteCallback(PassExecuteCallback cb);` |
-| 019-PipelineCore | te::pipelinecore | — | 枚举 | 收集/剔除方式 | te/pipelinecore/FrameGraph.h | CullMode | `enum class CullMode { None, FrustumCull, OcclusionCull, FrustumAndOcclusion };` |
-| 019-PipelineCore | te::pipelinecore | — | 枚举 | 渲染类型 | te/pipelinecore/FrameGraph.h | RenderType | `enum class RenderType { Opaque, Transparent, Overlay, Custom };` |
-| 019-PipelineCore | te::pipelinecore | — | struct | Pass 输出描述 | te/pipelinecore/FrameGraph.h | PassOutputDesc | 渲染目标、深度、多 RT、分辨率、格式等；程序员配置自定义输出 |
-| 019-PipelineCore | te::pipelinecore | PassContext | struct/抽象 | Pass 执行时上下文 | te/pipelinecore/FrameGraph.h | PassContext::GetCollectedObjects, SetCollectedObjects | `IRenderObjectList const* GetCollectedObjects() const;` `void SetCollectedObjects(IRenderObjectList const* o);` 020 按 Pass 填充 collectedObjects 后调用 ExecutePass |
-| 019-PipelineCore | te::pipelinecore | — | 回调类型 | Pass 执行回调 | te/pipelinecore/FrameGraph.h | PassExecuteCallback | `void (*PassExecuteCallback)(PassContext& ctx, ICommandList* cmd);` 在 ctx 中取 collectedObjects 与输出 |
-| 019-PipelineCore | te::pipelinecore | — | 接口 | 收集到的物体列表 | te/pipelinecore/FrameGraph.h | IRenderObjectList | 只读列表/迭代器，供 Pass 回调遍历绘制；由 Pipeline 在收集阶段填充 |
-| 019-PipelineCore | te::pipelinecore | ILogicalPipeline | 抽象/struct | 逻辑管线描述 | te/pipelinecore/LogicalPipeline.h | ILogicalPipeline | 由 BuildLogicalPipeline 产出；含 Pass 列表、每 Pass 收集配置与输出；供线程 C 消费 |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | 构建逻辑管线（线程 B） | te/pipelinecore/LogicalPipeline.h | BuildLogicalPipeline | `ILogicalPipeline* BuildLogicalPipeline(IFrameGraph const* graph, FrameContext const& ctx);` 仅产出逻辑数据，不录 GPU 命令 |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | **创建逻辑渲染资源**（显式控制位置） | te/pipelinecore/RenderItem.h | CreateRenderItem | `RenderItem* CreateRenderItem(...);` 或由收集阶段产出；创建逻辑上的可渲染项，供后续 CollectCommandBuffer / PrepareRenderResources 使用 |
-| 019-PipelineCore | te::pipelinecore | — | struct | 单条可渲染项 | te/pipelinecore/RenderItem.h | RenderItem | mesh, material, sortKey；扩展 **transform**（void*）、**bounds**（RenderItemBounds：min[3]/max[3]）；收集阶段产出或 CreateRenderItem 创建 |
-| 019-PipelineCore | te::pipelinecore | — | 接口/容器 | RenderItem 列表 | te/pipelinecore/RenderItem.h | IRenderItemList | 合并后的 RenderItem 列表；线程 C 多线程收集后 merge 得到 |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | 多线程收集 RenderItem（线程 C） | te/pipelinecore/CollectPass.h | CollectRenderItemsParallel | `void CollectRenderItemsParallel(ILogicalPipeline const* pipeline, FrameContext const& ctx, IRenderItemList* out);` 多线程并行，内部或调用方 merge |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | 合并 RenderItem 列表 | te/pipelinecore/CollectPass.h | MergeRenderItems | `void MergeRenderItems(IRenderItemList const* partial_lists, size_t count, IRenderItemList* merged);` 线程 C 并行结束后合并 |
-| 019-PipelineCore | te::pipelinecore | ILogicalCommandBuffer | 抽象接口 | 逻辑 CommandBuffer | te/pipelinecore/LogicalCommandBuffer.h | ILogicalCommandBuffer | CPU 侧逻辑命令序列；由 ConvertToLogicalCommandBuffer 产出 |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | 线程 D：渲染资源准备（整体） | te/pipelinecore/RenderItem.h | PrepareRenderResources | `ResultCode PrepareRenderResources(IRenderItemList const* items, IDevice* device);` **必须在线程 D 调用**；遇 RHI 失败返回 ResultCode（te::rendercore::ResultCode），由调用方决定跳过/重试/中止 |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | **准备渲染资源：材质**（显式控制位置） | te/pipelinecore/RenderItem.h | PrepareRenderMaterial | `ResultCode PrepareRenderMaterial(IMaterialHandle const* material, IDevice* device);` **必须在线程 D 调用**；遇失败返回 ResultCode |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | **准备渲染资源：网格**（显式控制位置） | te/pipelinecore/RenderItem.h | PrepareRenderMesh | `ResultCode PrepareRenderMesh(IMeshHandle const* mesh, IDevice* device);` **必须在线程 D 调用**；遇失败返回 ResultCode |
-| 019-PipelineCore | te::pipelinecore | — | 自由函数/接口 | **创建/收集逻辑上的 CommandBuffer**（显式控制位置） | te/pipelinecore/LogicalCommandBuffer.h | ConvertToLogicalCommandBuffer / CollectCommandBuffer | `ResultCode ConvertToLogicalCommandBuffer(IRenderItemList const* items, ILogicalPipeline const* pipeline, ILogicalCommandBuffer** out);` 别名 CollectCommandBuffer；**必须在线程 D 调用**；遇失败返回 ResultCode；实现按 (material, mesh, submeshIndex) 排序并合并为 instanced draw（同组 instanceCount 累加）；LogicalDraw 含 indexCount、firstIndex（来自 012 GetSubmesh） |
-| 019-PipelineCore | te::pipelinecore | — | 宏 | Profiling 开关 | te/pipelinecore/Profiling.h | TE_PIPELINECORE_PROFILING | 启用 profiling 时定义；开发版可获取 Pass 耗时、Compile 耗时等 |
-| 019-PipelineCore | te::pipelinecore | PassProfilingScope | struct | Pass 计时 | te/pipelinecore/Profiling.h | PassProfilingScope | RAII，Pass 开始/结束计时 |
-| 019-PipelineCore | te::pipelinecore | — | 回调 | Compile 耗时 | te/pipelinecore/Profiling.h | OnCompileProfiling | Compile 耗时回调；宏或配置控制 |
+### Configuration
 
-**ResultCode**：使用 009-RenderCore 的 `te::rendercore::ResultCode`。
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | — | Constant | Max frames in flight | te/pipelinecore/Config.h | kMaxFramesInFlight | `constexpr uint32_t kMaxFramesInFlight = 4u;` Suggested 2-4; implementation configurable |
+| 019-PipelineCore | te::pipelinecore | PipelineConfig | struct | Pipeline configuration | te/pipelinecore/Config.h | PipelineConfig | `struct PipelineConfig { uint32_t frameInFlightCount{2u}; };` Passed when creating Pipeline/SwapChain |
+| 019-PipelineCore | te::pipelinecore | FrameSlotId | Type Alias | Frame slot index | te/pipelinecore/Config.h | FrameSlotId | `using FrameSlotId = uint32_t;` Range [0, frameInFlightCount) |
 
-*来源：用户故事 US-004（流水线式多帧渲染）、US-rendering-003（FrameGraph AddPass）、US-rendering-004（多线程管线阶段；线程 D = 唯一 GPU/Device 线程，所有 GPU 操作与资源创建须在线程 D）。*
+### Frame Context
 
----
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | ViewportDesc | struct | Viewport description | te/pipelinecore/FrameContext.h | ViewportDesc | `struct ViewportDesc { uint32_t width{0}; uint32_t height{0}; };` |
+| 019-PipelineCore | te::pipelinecore | FrameContext | struct | Frame context | te/pipelinecore/FrameContext.h | FrameContext | `struct FrameContext { ISceneWorld const* scene{nullptr}; void const* camera{nullptr}; ViewportDesc viewport{}; FrameSlotId frameSlotId{0u}; };` 020 constructs and passes to BuildLogicalPipeline, CollectRenderItemsParallel |
 
-数据与接口 TODO 已迁移至本模块契约 [019-pipelinecore-public-api.md](./019-pipelinecore-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
+### Scene World
 
-## 变更记录
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | ISceneWorld | Abstract Interface | Scene world minimal interface | te/pipelinecore/FrameGraph.h | ISceneWorld | `struct ISceneWorld { virtual ~ISceneWorld() = default; };` 020/004 implements; provides visible entity queries, scene root, etc. |
 
-| 日期 | 变更说明 |
-|------|----------|
-| 2026-02-10 | ABI 同步：IFrameGraph 增加 GetPassCount、ExecutePass；PassContext 增加 SetCollectedObjects；RenderItem 扩展 transform、bounds；ConvertToLogicalCommandBuffer 排序与 instanced 合批 |
-| 2026-02-11 | FrameGraph 扩展：PassKind、PassContentSource、PassAttachmentDesc；IFrameGraph::AddPass(name, PassKind)、GetPassCollectConfig；IPassBuilder SetPassKind/SetContentSource/AddColorAttachment/SetDepthStencilAttachment；IScenePassBuilder、ILightPassBuilder、IPostProcessPassBuilder、IEffectPassBuilder；PassContext GetRenderItemList(slot)、GetLightItemList、SetLightItemList；ILogicalPipeline::GetPassConfig(index, PassCollectConfig*)；RenderItem.h 增加 LightItem、ILightItemList、CameraItem、ICameraItemList、ReflectionProbeItem、IReflectionProbeItemList、DecalItem、IDecalItemList 及 Create/Destroy |
+### Frame Graph
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | CullMode | enum | Cull mode | te/pipelinecore/FrameGraph.h | CullMode | `enum class CullMode : uint32_t { None = 0, FrustumCull, OcclusionCull, FrustumAndOcclusion };` |
+| 019-PipelineCore | te::pipelinecore | RenderType | enum | Render type | te/pipelinecore/FrameGraph.h | RenderType | `enum class RenderType : uint32_t { Opaque = 0, Transparent, Overlay, Custom };` |
+| 019-PipelineCore | te::pipelinecore | PassKind | enum | Pass kind | te/pipelinecore/FrameGraph.h | PassKind | `enum class PassKind : uint32_t { Scene = 0, Light, PostProcess, Effect, Custom };` |
+| 019-PipelineCore | te::pipelinecore | PassContentSource | enum | Pass content source | te/pipelinecore/FrameGraph.h | PassContentSource | `enum class PassContentSource : uint32_t { FromModelComponent = 0, FromLightComponent, FromPassDefined, Custom };` |
+| 019-PipelineCore | te::pipelinecore | AttachmentLoadOp | enum | Attachment load op | te/pipelinecore/FrameGraph.h | AttachmentLoadOp | `enum class AttachmentLoadOp : uint32_t { LoadOp_Load = 0, Clear = 1, DontCare = 2 };` |
+| 019-PipelineCore | te::pipelinecore | AttachmentStoreOp | enum | Attachment store op | te/pipelinecore/FrameGraph.h | AttachmentStoreOp | `enum class AttachmentStoreOp : uint32_t { StoreOp_Store = 0, DontCare = 1 };` |
+| 019-PipelineCore | te::pipelinecore | AttachmentLifetime | enum | Attachment lifetime | te/pipelinecore/FrameGraph.h | AttachmentLifetime | `enum class AttachmentLifetime : uint32_t { Transient = 0, Persistent = 1 };` |
+| 019-PipelineCore | te::pipelinecore | PassOutputDesc | struct | Pass output description | te/pipelinecore/FrameGraph.h | PassOutputDesc | Width, height, colorAttachmentCount, useDepthStencil, colorFormats[] |
+| 019-PipelineCore | te::pipelinecore | PassAttachmentDesc | struct | Pass attachment description | te/pipelinecore/FrameGraph.h | PassAttachmentDesc | handle, width, height, format, isDepthStencil, loadOp, storeOp, lifetime, sourcePassIndex |
+| 019-PipelineCore | te::pipelinecore | PassCollectConfig | struct | Pass collect configuration | te/pipelinecore/FrameGraph.h | PassCollectConfig | scene, cullMode, renderType, output, passKind, contentSource, colorAttachments[], depthStencilAttachment, passName, materialName, meshName, readResourceIds[] |
+| 019-PipelineCore | te::pipelinecore | IRenderObjectList | Abstract Interface | Render object list | te/pipelinecore/FrameGraph.h | IRenderObjectList | `virtual size_t Size() const = 0;` Read-only list |
+| 019-PipelineCore | te::pipelinecore | PassContext | struct | Pass execution context | te/pipelinecore/FrameGraph.h | PassContext | GetCollectedObjects, SetCollectedObjects, GetRenderItemList(slot), GetLightItemList, SetRenderItemList, SetLightItemList |
+| 019-PipelineCore | te::pipelinecore | PassExecuteCallback | Callback | Pass execution callback | te/pipelinecore/FrameGraph.h | PassExecuteCallback | `using PassExecuteCallback = void (*)(PassContext& ctx, te::rhi::ICommandList* cmd);` |
+| 019-PipelineCore | te::pipelinecore | IPassBuilder | Abstract Interface | Pass builder | te/pipelinecore/FrameGraph.h | IPassBuilder | SetScene, SetCullMode, SetObjectTypeFilter, SetRenderType, SetOutput, SetExecuteCallback, DeclareRead, DeclareWrite, SetPassKind, SetContentSource, GetPassKind, GetContentSource, AddColorAttachment, SetDepthStencilAttachment |
+| 019-PipelineCore | te::pipelinecore | IScenePassBuilder | Abstract Interface | Scene pass builder | te/pipelinecore/FrameGraph.h | IScenePassBuilder | Inherits IPassBuilder |
+| 019-PipelineCore | te::pipelinecore | ILightPassBuilder | Abstract Interface | Light pass builder | te/pipelinecore/FrameGraph.h | ILightPassBuilder | Inherits IPassBuilder |
+| 019-PipelineCore | te::pipelinecore | IPostProcessPassBuilder | Abstract Interface | Post-process pass builder | te/pipelinecore/FrameGraph.h | IPostProcessPassBuilder | SetMaterial, SetMesh, SetFullscreenQuest |
+| 019-PipelineCore | te::pipelinecore | IEffectPassBuilder | Abstract Interface | Effect pass builder | te/pipelinecore/FrameGraph.h | IEffectPassBuilder | Inherits IPassBuilder |
+| 019-PipelineCore | te::pipelinecore | IFrameGraph | Abstract Interface | Frame graph | te/pipelinecore/FrameGraph.h | IFrameGraph | AddPass(name), AddPass(name, PassKind), Compile, GetPassCount, GetPassCollectConfig, ExecutePass |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Create frame graph | te/pipelinecore/FrameGraph.h | CreateFrameGraph | `IFrameGraph* CreateFrameGraph();` |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Destroy frame graph | te/pipelinecore/FrameGraph.h | DestroyFrameGraph | `void DestroyFrameGraph(IFrameGraph* g);` |
+
+### Logical Pipeline
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | ILogicalPipeline | Abstract Interface | Logical pipeline | te/pipelinecore/LogicalPipeline.h | ILogicalPipeline | `virtual size_t GetPassCount() const = 0;` `virtual void GetPassConfig(size_t index, PassCollectConfig* out) const = 0;` |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Build logical pipeline | te/pipelinecore/LogicalPipeline.h | BuildLogicalPipeline | `ILogicalPipeline* BuildLogicalPipeline(IFrameGraph const* graph, FrameContext const& ctx);` Thread B; produces logical data only |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Destroy logical pipeline | te/pipelinecore/LogicalPipeline.h | DestroyLogicalPipeline | `void DestroyLogicalPipeline(ILogicalPipeline* p);` |
+
+### Render Items
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | RenderItemBounds | struct | Render item bounds | te/pipelinecore/RenderItem.h | RenderItemBounds | `struct RenderItemBounds { float min[3]; float max[3]; };` |
+| 019-PipelineCore | te::pipelinecore | RenderItem | struct | Render item | te/pipelinecore/RenderItem.h | RenderItem | `struct RenderItem { IRenderElement* element; uint64_t sortKey; uint32_t submeshIndex; void* transform; RenderItemBounds bounds; void* skinMatrixBuffer; uint32_t skinMatrixOffset; };` |
+| 019-PipelineCore | te::pipelinecore | IRenderItemList | Abstract Interface | Render item list | te/pipelinecore/RenderItem.h | IRenderItemList | Size, At, Clear, Push |
+| 019-PipelineCore | te::pipelinecore | LightType | enum | Light type | te/pipelinecore/RenderItem.h | LightType | `enum class LightType : uint32_t { Point = 0, Directional, Spot };` |
+| 019-PipelineCore | te::pipelinecore | LightItem | struct | Light item | te/pipelinecore/RenderItem.h | LightItem | type, position, direction, color, intensity, range, spotAngle, transform |
+| 019-PipelineCore | te::pipelinecore | ILightItemList | Abstract Interface | Light item list | te/pipelinecore/RenderItem.h | ILightItemList | Size, At, Clear, Push |
+| 019-PipelineCore | te::pipelinecore | CameraItem | struct | Camera item | te/pipelinecore/RenderItem.h | CameraItem | fovY, nearZ, farZ, isActive, transform |
+| 019-PipelineCore | te::pipelinecore | ICameraItemList | Abstract Interface | Camera item list | te/pipelinecore/RenderItem.h | ICameraItemList | Size, At, Clear, Push |
+| 019-PipelineCore | te::pipelinecore | ReflectionProbeItemType | enum | Reflection probe type | te/pipelinecore/RenderItem.h | ReflectionProbeItemType | `enum class ReflectionProbeItemType : uint32_t { Box = 0, Sphere };` |
+| 019-PipelineCore | te::pipelinecore | ReflectionProbeItem | struct | Reflection probe item | te/pipelinecore/RenderItem.h | ReflectionProbeItem | type, extent, resolution, transform |
+| 019-PipelineCore | te::pipelinecore | IReflectionProbeItemList | Abstract Interface | Reflection probe list | te/pipelinecore/RenderItem.h | IReflectionProbeItemList | Size, At, Clear, Push |
+| 019-PipelineCore | te::pipelinecore | DecalItem | struct | Decal item | te/pipelinecore/RenderItem.h | DecalItem | albedoTexture, size, blend, transform |
+| 019-PipelineCore | te::pipelinecore | IDecalItemList | Abstract Interface | Decal item list | te/pipelinecore/RenderItem.h | IDecalItemList | Size, At, Clear, Push |
+| 019-PipelineCore | te::pipelinecore | — | Free Functions | Create/Destroy items | te/pipelinecore/RenderItem.h | CreateRenderItem, DestroyRenderItem, CreateRenderItemList, DestroyRenderItemList, CreateLightItem, DestroyLightItem, CreateLightItemList, DestroyLightItemList, etc. | Factory functions for all item types |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Prepare render resources | te/pipelinecore/RenderItem.h | PrepareRenderResources | Multiple overloads with IDevice, IRenderPass, IDescriptorSetLayout, IResourceManager; **must be called on Thread D** |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Prepare render element | te/pipelinecore/RenderItem.h | PrepareRenderElement | Multiple overloads; **must be called on Thread D** |
+
+### Logical Command Buffer
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | LogicalDraw | struct | Logical draw command | te/pipelinecore/LogicalCommandBuffer.h | LogicalDraw | element, submeshIndex, indexCount, firstIndex, vertexOffset, instanceCount, firstInstance, skinMatrixBuffer, skinMatrixOffset |
+| 019-PipelineCore | te::pipelinecore | ILogicalCommandBuffer | Abstract Interface | Logical command buffer | te/pipelinecore/LogicalCommandBuffer.h | ILogicalCommandBuffer | `virtual size_t GetDrawCount() const = 0;` `virtual void GetDraw(size_t index, LogicalDraw* out) const = 0;` |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Convert to logical command buffer | te/pipelinecore/LogicalCommandBuffer.h | ConvertToLogicalCommandBuffer | `ResultCode ConvertToLogicalCommandBuffer(IRenderItemList const* items, ILogicalPipeline const* pipeline, ILogicalCommandBuffer** out);` Alias CollectCommandBuffer; **must be called on Thread D** |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Destroy logical command buffer | te/pipelinecore/LogicalCommandBuffer.h | DestroyLogicalCommandBuffer | `void DestroyLogicalCommandBuffer(ILogicalCommandBuffer* cb);` |
+
+### Collection
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Collect render items parallel | te/pipelinecore/CollectPass.h | CollectRenderItemsParallel | `void CollectRenderItemsParallel(ILogicalPipeline const* pipeline, FrameContext const& ctx, IRenderItemList* out);` Thread C; multi-threaded |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Merge render items | te/pipelinecore/CollectPass.h | MergeRenderItems | `void MergeRenderItems(IRenderItemList const* const* partialLists, size_t count, IRenderItemList* merged);` Thread C merge |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Sort render items | te/pipelinecore/CollectPass.h | SortRenderItemsByDistance | `void SortRenderItemsByDistance(IRenderItemList* list, float const* cameraPosition);` For transparent objects |
+| 019-PipelineCore | te::pipelinecore | — | Free Function | Cull render items | te/pipelinecore/CollectPass.h | CullRenderItems | `void CullRenderItems(IRenderItemList const* input, float const* frustumPlanes, IRenderItemList* output);` Frustum culling |
+
+### Profiling
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | — | Macro | Profiling switch | te/pipelinecore/Profiling.h | TE_PIPELINECORE_PROFILING | Define to enable profiling; dev build can get pass timing |
+| 019-PipelineCore | te::pipelinecore | PassProfilingScope | struct | Pass timing | te/pipelinecore/Profiling.h | PassProfilingScope | RAII, pass start/end timing |
+| 019-PipelineCore | te::pipelinecore | OnCompileProfiling | Callback | Compile timing | te/pipelinecore/Profiling.h | OnCompileProfiling | `using OnCompileProfiling = void (*)(uint64_t compileTimeMicros);` |
+
+### Transient Resource Pool
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | TransientResourceType | enum | Transient resource type | te/pipelinecore/ResourceManager.h | TransientResourceType | `enum class TransientResourceType : uint8_t { Texture = 0, Buffer = 1 };` |
+| 019-PipelineCore | te::pipelinecore | TransientTextureDesc | struct | Transient texture desc | te/pipelinecore/ResourceManager.h | TransientTextureDesc | width, height, depth, format, mipLevels, arrayLayers, sampleCount, initialState, debugName |
+| 019-PipelineCore | te::pipelinecore | TransientBufferDesc | struct | Transient buffer desc | te/pipelinecore/ResourceManager.h | TransientBufferDesc | size, usage, initialState, debugName |
+| 019-PipelineCore | te::pipelinecore | TransientResourceHandle | struct | Transient resource handle | te/pipelinecore/ResourceManager.h | TransientResourceHandle | id, type; IsValid, IsTexture, IsBuffer, Invalid |
+| 019-PipelineCore | te::pipelinecore | ResourceLifetimeInfo | struct | Resource lifetime info | te/pipelinecore/ResourceManager.h | ResourceLifetimeInfo | handle, firstUsePass, lastUsePass, createPass, releasePass, isUsed |
+| 019-PipelineCore | te::pipelinecore | ResourceBarrier | struct | Resource barrier | te/pipelinecore/ResourceManager.h | ResourceBarrier | resource, srcState, dstState, beforePass |
+| 019-PipelineCore | te::pipelinecore | TransientResourcePool | class | Transient resource pool | te/pipelinecore/ResourceManager.h | TransientResourcePool | SetDevice, SetCreateCallbacks, BeginFrame, EndFrame, DeclareTransientTexture/Buffer, GetTextureDesc/BufferDesc, MarkResourceRead/Write, ReleaseAfterPass, Compile, GetBarriersForPass, GetAllBarriers, GetOrCreateTexture/Buffer, GetTexture/Buffer, IsResourceCreated, InsertBarriersForPass, GetLifetimeInfo, GetAllocatedTextureCount/BufferSize, GetTotalMemoryUsed, SetDefaultDimensions, CreateTextureFromAttachment |
+| 019-PipelineCore | te::pipelinecore | ResourceBarrierBuilder | class | Resource barrier builder | te/pipelinecore/ResourceManager.h | ResourceBarrierBuilder | AddTextureTransition, AddBufferTransition, Build, Clear |
+| 019-PipelineCore | te::pipelinecore | — | Free Functions | Create/Destroy pool | te/pipelinecore/ResourceManager.h | CreateTransientResourcePool, DestroyTransientResourcePool, CreateResourceBarrierBuilder, DestroyResourceBarrierBuilder | |
+
+### Submit Context
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 019-PipelineCore | te::pipelinecore | QueueId | enum | Queue type | te/pipelinecore/SubmitContext.h | QueueId | `enum class QueueId : uint8_t { Graphics = 0, Compute = 1, Copy = 2, Count = 3 };` |
+| 019-PipelineCore | te::pipelinecore | SyncPrimitiveType | enum | Sync primitive type | te/pipelinecore/SubmitContext.h | SyncPrimitiveType | `enum class SyncPrimitiveType : uint8_t { Fence, Semaphore };` |
+| 019-PipelineCore | te::pipelinecore | SyncPoint | class | Sync point | te/pipelinecore/SubmitContext.h | SyncPoint | InitializeAsFence, InitializeAsSemaphore, IsValid, GetFence, GetSemaphore, Wait, Signal, Reset, GetType |
+| 019-PipelineCore | te::pipelinecore | QueueSyncPoint | struct | Queue sync point | te/pipelinecore/SubmitContext.h | QueueSyncPoint | queue, waitSemaphore, signalSemaphore, waitValue, signalValue |
+| 019-PipelineCore | te::pipelinecore | SubmitBatch | struct | Submit batch | te/pipelinecore/SubmitContext.h | SubmitBatch | queue, commandLists, waitSyncs, signalSyncs, signalFence |
+| 019-PipelineCore | te::pipelinecore | SubmitContext | class | Submit context | te/pipelinecore/SubmitContext.h | SubmitContext | SetDevice, GetQueue, GetGraphicsQueue, GetComputeQueue, GetCopyQueue, BeginCommandList, EndCommandList, SubmitQueue, SubmitAll, SubmitBatch, CreateSemaphore, DestroySemaphore, CreateFence, DestroyFence, WaitQueueIdle, WaitAllIdle, GetCurrentFrameFence, WaitForCurrentFrame, AdvanceFrame, GetCurrentFrameIndex, GetFramesInFlight, Reset |
+| 019-PipelineCore | te::pipelinecore | MultiQueueScheduler | class | Multi-queue scheduler | te/pipelinecore/SubmitContext.h | MultiQueueScheduler | Initialize, SetQueuePriority, GetQueuePriority, SubmitGraphics, SubmitCompute, SubmitCopy, CreateComputeToGraphicsSync, CreateCopyToGraphicsSync, CreateCopyToComputeSync, Execute, WaitAll, NextFrame, GetPendingWorkCount |
+| 019-PipelineCore | te::pipelinecore | — | Free Functions | Create/Destroy | te/pipelinecore/SubmitContext.h | CreateSubmitContext, DestroySubmitContext, CreateMultiQueueScheduler, DestroyMultiQueueScheduler | |
+
+**ResultCode**: Uses `te::rendercore::ResultCode` from 009-RenderCore.
+
+*Source: User stories US-004 (pipeline-style multi-frame rendering), US-rendering-003 (FrameGraph AddPass), US-rendering-004 (multi-thread pipeline phases; Thread D = sole GPU/Device thread, all GPU operations and resource creation must be on Thread D).*
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| 2026-02-10 | ABI sync: IFrameGraph GetPassCount, ExecutePass; PassContext SetCollectedObjects; RenderItem transform, bounds; ConvertToLogicalCommandBuffer sorting and instanced batching |
+| 2026-02-11 | FrameGraph extension: PassKind, PassContentSource, PassAttachmentDesc; IFrameGraph AddPass(name, PassKind), GetPassCollectConfig; IPassBuilder SetPassKind/SetContentSource/AddColorAttachment/SetDepthStencilAttachment; derived PassBuilder; PassContext GetRenderItemList(slot), GetLightItemList, SetLightItemList; ILogicalPipeline GetPassConfig; RenderItem.h LightItem, CameraItem, ReflectionProbeItem, DecalItem and Create/Destroy |
+| 2026-02-22 | Synchronized with code; added TransientResourcePool, TransientResourceHandle, ResourceBarrierBuilder, ResourceBarrier, ResourceLifetimeInfo; added SubmitContext, SyncPoint, QueueSyncPoint, SubmitBatch, MultiQueueScheduler, QueueId, SyncPrimitiveType; updated all function signatures to match implementation |

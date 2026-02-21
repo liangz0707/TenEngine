@@ -1,137 +1,129 @@
-# 010-Shader 模块 ABI
+# 010-Shader Module ABI
 
-- **契约**：[010-shader-public-api.md](./010-shader-public-api.md)（能力与类型描述）
-- **本文件**：010-Shader 对外 ABI 显式表。
-- **CMake Target 名称**：**`te_shader`**。依赖上游 target: **`te_rhi`** (008-RHI)、**`te_rendercore`** (009-RenderCore)、**`te_core`** (001-Core)、**`te_resource`** (013-Resource)、**`te_object`** (002-Object)。
-- **命名空间**：**`te::shader`**。实现文件统一使用此命名空间。
-- **头文件路径**：**`te/shader/`**。
+- **Contract**: [010-shader-public-api.md](./010-shader-public-api.md) (capabilities and types description)
+- **This file**: 010-Shader external ABI explicit table.
+- **CMake Target Name**: **`te_shader`**. Depends on upstream target: **`te_rhi`** (008-RHI), **`te_rendercore`** (009-RenderCore), **`te_core`** (001-Core), **`te_resource`** (013-Resource), **`te_object`** (002-Object).
+- **Namespace**: **`te::shader`**. Implementation files use this namespace uniformly.
+- **Header Path**: **`te/shader/`**.
 
-## ABI 表
+## ABI Table
 
-列定义：**模块名 | 命名空间 | 符号/类型 | 导出形式 | 接口说明 | 头文件 | 说明**
+Column definitions: **Module | Namespace | Symbol/Type | Export Form | Interface Description | Header | Description**
 
-### 类型与枚举（te/shader/types.hpp）
+### Types and Enums (te/shader/types.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | ShaderSourceFormat | 枚举 | 源码格式 | te/shader/types.hpp | `enum class ShaderSourceFormat { HLSL, GLSL };` 支持 HLSL/GLSL 加载与编译 |
-| 010-Shader | te::shader | MacroSet | struct | 宏名-值集合 | te/shader/types.hpp | 用于宏切换代码路径 |
-| 010-Shader | te::shader | VariantKey | struct | 变体键 | te/shader/types.hpp | 关键字/宏组合；变体枚举与预编译 |
-| 010-Shader | te::shader | ShaderStage | 枚举 | 着色器阶段 | te/shader/types.hpp | `enum class ShaderStage { Vertex, Fragment, Compute, Geometry, TessControl, TessEvaluation, Unknown };` Unknown 时由路径或默认 Vertex 推断 |
-| 010-Shader | te::shader | CompileOptions | struct | 编译选项 | te/shader/types.hpp | targetBackend, optimizationLevel, generateDebugInfo, stage, entryPoint[kMaxEntryPointLen]；编译参数与后端选项 |
-| 010-Shader | te::shader | BackendType | 枚举 | 目标后端类型 | te/shader/types.hpp | `enum class BackendType { SPIRV, DXIL, MSL, HLSL_SOURCE, DXBC };` DXBC 供 D3D11 顶点/像素着色器字节码 |
-| 010-Shader | te::shader | IVariantEnumerator | 抽象接口 | 变体枚举回调 | te/shader/types.hpp | 虚析构；用于 EnumerateVariants 输出 |
-| 010-Shader | te::shader | SourceChangedCallback | 类型别名 | 源码变更回调 | te/shader/types.hpp | `using SourceChangedCallback = void (*)(char const* path, void* userData);` |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | ShaderSourceFormat | enum | Source format | te/shader/types.hpp | `enum class ShaderSourceFormat : uint32_t { HLSL, GLSL };` Supports HLSL/GLSL loading and compilation |
+| 010-Shader | te::shader | BackendType | enum | Target backend type | te/shader/types.hpp | `enum class BackendType : uint32_t { SPIRV, DXIL, DXBC, MSL, HLSL_SOURCE };` DXBC for D3D11 vertex/pixel shader bytecode; HLSL_SOURCE for SPIR-V -> HLSL via SPIRV-Cross |
+| 010-Shader | te::shader | ShaderStage | enum | Shader stage | te/shader/types.hpp | `enum class ShaderStage : uint32_t { Vertex = 0, Fragment, Compute, Geometry, TessControl, TessEvaluation, Unknown };` Unknown = infer from path or default Vertex |
+| 010-Shader | te::shader | MacroSet | struct | Macro name-value set | te/shader/types.hpp | `static constexpr size_t kMaxPairs = 32; char names[kMaxPairs][64]; char values[kMaxPairs][64]; uint32_t count = 0;` Used for macro switching code paths |
+| 010-Shader | te::shader | VariantKey | struct | Variant key | te/shader/types.hpp | `uint64_t hash = 0; bool operator==(VariantKey const& o) const; bool operator!=(VariantKey const& o) const;` Keyword/macro combination; variant enumeration and precompilation |
+| 010-Shader | te::shader | CompileOptions | struct | Compile options | te/shader/types.hpp | `BackendType targetBackend = BackendType::SPIRV; uint32_t optimizationLevel = 1; bool generateDebugInfo = false; ShaderStage stage = ShaderStage::Unknown; static constexpr size_t kMaxEntryPointLen = 64; char entryPoint[kMaxEntryPointLen] = "main";` Compile parameters and backend options |
+| 010-Shader | te::shader | IVariantEnumerator | abstract interface | Variant enumeration callback | te/shader/types.hpp | `virtual ~IVariantEnumerator() = default; virtual void OnVariant(VariantKey key) = 0;` Used for EnumerateVariants output |
+| 010-Shader | te::shader | SourceChangedCallback | type alias | Source change callback | te/shader/types.hpp | `using SourceChangedCallback = void (*)(char const* path, void* userData);` |
 
-### 编译器（te/shader/compiler.hpp）
+### Handle (te/shader/handle.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | IShaderCompiler | 抽象接口 | Shader 编译器 | te/shader/compiler.hpp | 见下表 IShaderCompiler 成员 |
-| 010-Shader | te::shader | IShaderCompiler::LoadSource | 成员函数 | 加载源码 | te/shader/compiler.hpp | `IShaderHandle* LoadSource(char const* path, ShaderSourceFormat format) = 0;` 失败返回 nullptr |
-| 010-Shader | te::shader | IShaderCompiler::Compile | 成员函数 | 编译 | te/shader/compiler.hpp | `bool Compile(IShaderHandle* handle, CompileOptions const& options) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::GetBytecode | 成员函数 | 取字节码 | te/shader/compiler.hpp | `void const* GetBytecode(IShaderHandle* handle, size_t* out_size) = 0;` 返回 SPIR-V/DXIL/MSL/DXBC |
-| 010-Shader | te::shader | IShaderCompiler::GetBytecodeForStage | 成员函数 | 按阶段取字节码 | te/shader/compiler.hpp | `void const* GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size) = 0;` 按 stage 编译并返回该阶段字节码，不改变 handle 状态；011 建 PSO 时取 vertex/fragment |
-| 010-Shader | te::shader | IShaderCompiler::GetLastError | 成员函数 | 取编译错误 | te/shader/compiler.hpp | `char const* GetLastError() const = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::GetTargetBackend | 成员函数 | 取目标后端 | te/shader/compiler.hpp | `BackendType GetTargetBackend() const = 0;` SPIR-V/DXIL/MSL |
-| 010-Shader | te::shader | IShaderCompiler::DefineKeyword | 成员函数 | 定义宏 | te/shader/compiler.hpp | `void DefineKeyword(char const* name, char const* value) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::EnumerateVariants | 成员函数 | 枚举变体 | te/shader/compiler.hpp | `void EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::Precompile | 成员函数 | 预编译 | te/shader/compiler.hpp | `bool Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::SetCache | 成员函数 | 设置缓存 | te/shader/compiler.hpp | `void SetCache(IShaderCache* cache);` 可选 |
-| 010-Shader | te::shader | IShaderCompiler::LoadSourceFromMemory | 成员函数 | 从内存加载 | te/shader/compiler.hpp | `IShaderHandle* LoadSourceFromMemory(void const* data, size_t size, ShaderSourceFormat format) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::ReleaseHandle | 成员函数 | 释放句柄 | te/shader/compiler.hpp | `void ReleaseHandle(IShaderHandle* handle) = 0;` |
-| 010-Shader | te::shader | IShaderCompiler::GetReflection | 成员函数 | 取 Uniform 反射 | te/shader/compiler.hpp | `bool GetReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::UniformLayoutDesc* |
-| 010-Shader | te::shader | IShaderCompiler::GetShaderReflection | 成员函数 | 取完整反射 | te/shader/compiler.hpp | `bool GetShaderReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::ShaderReflectionDesc*；含 Uniform、Texture、Sampler |
-| 010-Shader | te::shader | IShaderCompiler::GetVertexInputReflection | 成员函数 | 取顶点输入反射 | te/shader/compiler.hpp | `bool GetVertexInputReflection(IShaderHandle* handle, void* outDesc);` outDesc 为 te::rendercore::VertexFormatDesc*；从 SPIR-V vertex stage 的 stage_inputs 解析，供 PSO 与 Mesh 顶点布局比对 |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | IShaderHandle | abstract interface | Shader handle | te/shader/handle.hpp | See IShaderHandle members table below |
+| 010-Shader | te::shader | IShaderHandle::SetMacros | member | Set macros | te/shader/handle.hpp | `void SetMacros(MacroSet const& macros) = 0;` |
+| 010-Shader | te::shader | IShaderHandle::GetVariantKey | member | Get variant key | te/shader/handle.hpp | `VariantKey GetVariantKey() const = 0;` |
+| 010-Shader | te::shader | IShaderHandle::SelectVariant | member | Select variant | te/shader/handle.hpp | `void SelectVariant(VariantKey key) = 0;` Dynamic macro switching in game |
 
-### 工厂（te/shader/factory.hpp）
+### Compiler (te/shader/compiler.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | CreateShaderCompiler | 自由函数 | 创建编译器 | te/shader/factory.hpp | `IShaderCompiler* CreateShaderCompiler();` |
-| 010-Shader | te::shader | DestroyShaderCompiler | 自由函数 | 销毁编译器 | te/shader/factory.hpp | `void DestroyShaderCompiler(IShaderCompiler* c);` |
-| 010-Shader | te::shader | CreateShaderCache | 自由函数 | 创建缓存 | te/shader/factory.hpp | `IShaderCache* CreateShaderCache();` |
-| 010-Shader | te::shader | DestroyShaderCache | 自由函数 | 销毁缓存 | te/shader/factory.hpp | `void DestroyShaderCache(IShaderCache* c);` |
-| 010-Shader | te::shader | CreateShaderHotReload | 自由函数 | 创建热重载 | te/shader/factory.hpp | `IShaderHotReload* CreateShaderHotReload(IShaderCompiler* compiler, IShaderCache* cache);` |
-| 010-Shader | te::shader | DestroyShaderHotReload | 自由函数 | 销毁热重载 | te/shader/factory.hpp | `void DestroyShaderHotReload(IShaderHotReload* h);` |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | IShaderCompiler | abstract interface | Shader compiler | te/shader/compiler.hpp | See IShaderCompiler members table below |
+| 010-Shader | te::shader | IShaderCompiler::LoadSource | member | Load source | te/shader/compiler.hpp | `IShaderHandle* LoadSource(char const* path, ShaderSourceFormat format) = 0;` Returns nullptr on failure |
+| 010-Shader | te::shader | IShaderCompiler::LoadSourceFromMemory | member | Load from memory | te/shader/compiler.hpp | `IShaderHandle* LoadSourceFromMemory(void const* data, size_t size, ShaderSourceFormat format) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::ReleaseHandle | member | Release handle | te/shader/compiler.hpp | `void ReleaseHandle(IShaderHandle* handle) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::Compile | member | Compile | te/shader/compiler.hpp | `bool Compile(IShaderHandle* handle, CompileOptions const& options) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::GetBytecode | member | Get bytecode | te/shader/compiler.hpp | `void const* GetBytecode(IShaderHandle* handle, size_t* out_size) = 0;` Returns SPIR-V/DXIL/MSL/DXBC |
+| 010-Shader | te::shader | IShaderCompiler::GetBytecodeForStage | member | Get bytecode for stage | te/shader/compiler.hpp | `void const* GetBytecodeForStage(IShaderHandle* handle, ShaderStage stage, size_t* out_size);` Compile for given stage and return bytecode; result valid until next GetBytecodeForStage or Compile; does not change handle variant selection; default returns nullptr |
+| 010-Shader | te::shader | IShaderCompiler::GetLastError | member | Get compile error | te/shader/compiler.hpp | `char const* GetLastError() const = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::GetTargetBackend | member | Get target backend | te/shader/compiler.hpp | `BackendType GetTargetBackend() const = 0;` SPIR-V/DXIL/MSL/DXBC |
+| 010-Shader | te::shader | IShaderCompiler::DefineKeyword | member | Define macro | te/shader/compiler.hpp | `void DefineKeyword(char const* name, char const* value) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::EnumerateVariants | member | Enumerate variants | te/shader/compiler.hpp | `void EnumerateVariants(IShaderHandle* handle, IVariantEnumerator* out) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::Precompile | member | Precompile | te/shader/compiler.hpp | `bool Precompile(IShaderHandle* handle, VariantKey const* keys, size_t count) = 0;` |
+| 010-Shader | te::shader | IShaderCompiler::SetCache | member | Set cache | te/shader/compiler.hpp | `void SetCache(IShaderCache* cache);` Optional; default no-op |
+| 010-Shader | te::shader | IShaderCompiler::GetReflection | member | Get Uniform reflection | te/shader/compiler.hpp | `bool GetReflection(IShaderHandle* handle, void* outDesc);` outDesc is te::rendercore::UniformLayoutDesc*; default returns false |
+| 010-Shader | te::shader | IShaderCompiler::GetShaderReflection | member | Get full reflection | te/shader/compiler.hpp | `bool GetShaderReflection(IShaderHandle* handle, void* outDesc);` outDesc is te::rendercore::ShaderReflectionDesc*; includes Uniform, Texture, Sampler; default returns false |
+| 010-Shader | te::shader | IShaderCompiler::GetVertexInputReflection | member | Get vertex input reflection | te/shader/compiler.hpp | `bool GetVertexInputReflection(IShaderHandle* handle, void* outDesc);` outDesc is te::rendercore::VertexFormatDesc*; parses from SPIR-V vertex stage stage_inputs; for PSO and Mesh vertex layout comparison; default returns false |
 
-### 句柄与变体（te/shader/handle.hpp）
+### Cache (te/shader/cache.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | IShaderHandle | 抽象接口 | Shader 句柄 | te/shader/handle.hpp | 见下表 IShaderHandle 成员 |
-| 010-Shader | te::shader | IShaderHandle::SetMacros | 成员函数 | 设置宏 | te/shader/handle.hpp | `void SetMacros(MacroSet const& macros) = 0;` |
-| 010-Shader | te::shader | IShaderHandle::GetVariantKey | 成员函数 | 取变体键 | te/shader/handle.hpp | `VariantKey GetVariantKey() const = 0;` |
-| 010-Shader | te::shader | IShaderHandle::SelectVariant | 成员函数 | 选择变体 | te/shader/handle.hpp | `void SelectVariant(VariantKey key) = 0;` 游戏中动态切换宏 |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | IShaderCache | abstract interface | Shader cache | te/shader/cache.hpp | See IShaderCache members table below |
+| 010-Shader | te::shader | IShaderCache::LoadCache | member | Load cache | te/shader/cache.hpp | `bool LoadCache(char const* path) = 0;` |
+| 010-Shader | te::shader | IShaderCache::SaveCache | member | Save cache | te/shader/cache.hpp | `bool SaveCache(char const* path) = 0;` |
+| 010-Shader | te::shader | IShaderCache::Invalidate | member | Invalidate | te/shader/cache.hpp | `void Invalidate(IShaderHandle* handle) = 0;` Invalidate on hot reload |
 
-### 缓存（te/shader/cache.hpp）
+### Hot Reload (te/shader/hot_reload.hpp) (Optional)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | IShaderCache | 抽象接口 | Shader 缓存 | te/shader/cache.hpp | 见下表 IShaderCache 成员 |
-| 010-Shader | te::shader | IShaderCache::LoadCache | 成员函数 | 加载缓存 | te/shader/cache.hpp | `bool LoadCache(char const* path) = 0;` |
-| 010-Shader | te::shader | IShaderCache::SaveCache | 成员函数 | 保存缓存 | te/shader/cache.hpp | `bool SaveCache(char const* path) = 0;` |
-| 010-Shader | te::shader | IShaderCache::Invalidate | 成员函数 | 失效 | te/shader/cache.hpp | `void Invalidate(IShaderHandle* handle) = 0;` 热重载时按需 Invalidate |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | IShaderHotReload | abstract interface | Hot reload | te/shader/hot_reload.hpp | Optional; see IShaderHotReload members table below |
+| 010-Shader | te::shader | IShaderHotReload::ReloadShader | member | Reload shader | te/shader/hot_reload.hpp | `bool ReloadShader(IShaderHandle* handle) = 0;` |
+| 010-Shader | te::shader | IShaderHotReload::OnSourceChanged | member | Source change callback | te/shader/hot_reload.hpp | `void OnSourceChanged(char const* path, SourceChangedCallback callback, void* userData = nullptr) = 0;` |
+| 010-Shader | te::shader | IShaderHotReload::NotifyShaderUpdated | member | Notify shader updated | te/shader/hot_reload.hpp | `void NotifyShaderUpdated(IShaderHandle* handle) = 0;` Takes effect at runtime |
 
-### 热重载（te/shader/hot_reload.hpp）（可选）
+### Factory (te/shader/factory.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | IShaderHotReload | 抽象接口 | 热重载 | te/shader/hot_reload.hpp | 可选；见下表 IShaderHotReload 成员 |
-| 010-Shader | te::shader | IShaderHotReload::ReloadShader | 成员函数 | 重载 Shader | te/shader/hot_reload.hpp | `bool ReloadShader(IShaderHandle* handle) = 0;` |
-| 010-Shader | te::shader | IShaderHotReload::OnSourceChanged | 成员函数 | 源码变更回调 | te/shader/hot_reload.hpp | `void OnSourceChanged(char const* path, SourceChangedCallback callback, void* userData = nullptr) = 0;` |
-| 010-Shader | te::shader | IShaderHotReload::NotifyShaderUpdated | 成员函数 | 通知 Shader 已更新 | te/shader/hot_reload.hpp | `void NotifyShaderUpdated(IShaderHandle* handle) = 0;` 运行中实时生效 |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | CreateShaderCompiler | free function | Create compiler | te/shader/factory.hpp | `IShaderCompiler* CreateShaderCompiler();` |
+| 010-Shader | te::shader | DestroyShaderCompiler | free function | Destroy compiler | te/shader/factory.hpp | `void DestroyShaderCompiler(IShaderCompiler* c);` |
+| 010-Shader | te::shader | CreateShaderCache | free function | Create cache | te/shader/factory.hpp | `IShaderCache* CreateShaderCache();` |
+| 010-Shader | te::shader | DestroyShaderCache | free function | Destroy cache | te/shader/factory.hpp | `void DestroyShaderCache(IShaderCache* c);` |
+| 010-Shader | te::shader | CreateShaderHotReload | free function | Create hot reload | te/shader/factory.hpp | `IShaderHotReload* CreateShaderHotReload(IShaderCompiler* compiler, IShaderCache* cache);` |
+| 010-Shader | te::shader | DestroyShaderHotReload | free function | Destroy hot reload | te/shader/factory.hpp | `void DestroyShaderHotReload(IShaderHotReload* h);` |
 
-### Shader 资源与模块初始化（te/shader/ShaderAssetDesc.h, ShaderResource.h, ShaderModuleInit.h）
+### Aggregate Header (te/shader/api.hpp)
 
-| 模块名 | 命名空间 | 符号 | 导出形式 | 接口说明 | 头文件 | 说明 |
-|--------|----------|------|----------|----------|--------|------|
-| 010-Shader | te::shader | ShaderAssetDesc | 结构体 | Shader 资产描述 | te/shader/ShaderAssetDesc.h | guid (ResourceId)、sourceFileName[256]、sourceFormat、compileOptions；IsValid()；一目录一 Shader：.shader + 同目录源码文件；与 002 注册序列化 |
-| 010-Shader | te::shader | kShaderSourceFileNameMaxLen | 常量 | 源码文件名最大长度 | te/shader/ShaderAssetDesc.h | `constexpr size_t kShaderSourceFileNameMaxLen = 256;` |
-| 010-Shader | te::shader | ShaderResource | 类 | Shader 资源实现 | te/shader/ShaderResource.h | 实现 resource::IShaderResource；Load/Save/Import 完整；GetShaderHandle() 返回 void*（即 IShaderHandle*）；持 IShaderHandle*、ShaderAssetDesc、源码缓冲 |
-| 010-Shader | te::shader | InitializeShaderModule | 自由函数 | 初始化 Shader 模块 | te/shader/ShaderModuleInit.h | `void InitializeShaderModule(resource::IResourceManager* manager);` 注册 Shader 工厂与 ShaderAssetDesc/CompileOptions（002）；ResourceManager 就绪后调用 |
-| 010-Shader | te::shader | LoadAllShaders | 自由函数 | 按清单加载全部 Shader | te/shader/ShaderModuleInit.h | `bool LoadAllShaders(resource::IResourceManager* manager, char const* manifestPath);` 清单每行一个 .shader 路径；任一行失败即中止返回 false |
-| 010-Shader | te::shader | ShutdownShaderModule | 自由函数 | 关闭 Shader 模块 | te/shader/ShaderModuleInit.h | `void ShutdownShaderModule();` 清理（002 无 UnregisterType 则类型保持注册） |
-| 010-Shader | te::resource | AssetDescTypeName\<shader::ShaderAssetDesc\> | 特化 | AssetDesc 类型名 | 010 ShaderResource.cpp | `static const char* Get() { return "ShaderAssetDesc"; }` 供 IResource::LoadAssetDesc/SaveAssetDesc 使用 |
+| Module | Namespace | Symbol | Export Form | Interface Description | Header | Description |
+|--------|-----------|--------|-------------|----------------------|--------|-------------|
+| 010-Shader | te::shader | api.hpp | aggregate header | API aggregate | te/shader/api.hpp | `#include <te/shader/cache.hpp> #include <te/shader/compiler.hpp> #include <te/shader/factory.hpp> #include <te/shader/handle.hpp> #include <te/shader/hot_reload.hpp> #include <te/shader/types.hpp>` Downstream only needs this header |
 
-### 头文件与包含关系
+### Header Files and Include Relationships
 
-| 头文件 | 依赖 | 说明 |
-|--------|------|------|
-| te/shader/types.hpp | \<cstddef\>, \<cstdint\> | ShaderSourceFormat, BackendType, ShaderStage, MacroSet, VariantKey, CompileOptions, IVariantEnumerator, SourceChangedCallback |
-| te/shader/ShaderAssetDesc.h | te/resource/ResourceId.h, te/shader/types.hpp | ShaderAssetDesc, kShaderSourceFileNameMaxLen |
-| te/shader/ShaderResource.h | te/resource/ShaderResource.h, te/resource/Resource.h, te/shader/api.hpp, te/shader/ShaderAssetDesc.h | ShaderResource（实现 IShaderResource） |
-| te/shader/ShaderModuleInit.h | 前向声明 resource::IResourceManager | InitializeShaderModule, LoadAllShaders, ShutdownShaderModule |
-| te/shader/compiler.hpp | te/shader/types.hpp, te/shader/handle.hpp, te/shader/cache.hpp（前向声明） | IShaderCompiler |
-| te/shader/factory.hpp | te/shader/compiler.hpp, te/shader/cache.hpp, te/shader/hot_reload.hpp | Create/Destroy 工厂 |
+| Header | Dependencies | Description |
+|--------|--------------|-------------|
+| te/shader/types.hpp | <cstddef>, <cstdint> | ShaderSourceFormat, BackendType, ShaderStage, MacroSet, VariantKey, CompileOptions, IVariantEnumerator, SourceChangedCallback |
 | te/shader/handle.hpp | te/shader/types.hpp | IShaderHandle |
 | te/shader/cache.hpp | te/shader/handle.hpp | IShaderCache |
-| te/shader/hot_reload.hpp | te/shader/handle.hpp | IShaderHotReload（可选） |
-| te/shader/api.hpp | 以上所有 | 聚合头，下游只需 `#include <te/shader/api.hpp>` |
+| te/shader/compiler.hpp | te/shader/handle.hpp, te/shader/types.hpp, <cstddef>, IShaderCache (forward decl) | IShaderCompiler |
+| te/shader/hot_reload.hpp | te/shader/handle.hpp, te/shader/types.hpp, IShaderCompiler (forward decl), IShaderCache (forward decl) | IShaderHotReload (optional) |
+| te/shader/factory.hpp | te/shader/compiler.hpp, te/shader/cache.hpp, te/shader/hot_reload.hpp | Create/Destroy factories |
+| te/shader/api.hpp | all above | Aggregate header; downstream only needs `#include <te/shader/api.hpp>` |
 
 ---
 
-*来源：契约能力 Source & Compilation、Macros & Variants、Cache、Hot Reload、Shader 资源与 013 集成；与 008-RHI、009-RenderCore、013-Resource、002-Object、011-Material、020-Pipeline 对接。*
+*Source: Contract capabilities Source & Compilation, Macros & Variants, Cache, Hot Reload, Shader resource and 013 integration; interfaces with 008-RHI, 009-RenderCore, 013-Resource, 002-Object, 011-Material, 020-Pipeline.*
 
-## 001-Core 接口使用
+## 001-Core Interface Usage
 
-本模块**必须**使用 001-Core 下列接口（当链接 te_core 时，TE_SHADER_USE_CORE=1）：
+This module **must** use the following 001-Core interfaces (when linking te_core, TE_SHADER_USE_CORE=1):
 
-| 用途 | 符号 | 头文件 |
-|------|------|--------|
-| LoadSource 读文件 | te::core::FileRead | te/core/platform.h |
-| 错误日志 | te::core::Log | te/core/log.h |
-| 工厂内存分配 | te::core::Alloc, te::core::Free | te/core/alloc.h |
+| Usage | Symbol | Header |
+|--------|--------|--------|
+| LoadSource file read | te::core::FileRead | te/core/platform.h |
+| Error logging | te::core::Log | te/core/log.h |
+| Factory memory allocation | te::core::Alloc, te::core::Free | te/core/alloc.h |
 | LoadCache/SaveCache | te::core::FileRead, te::core::FileWrite | te/core/platform.h |
 
-STANDALONE 构建时无 te_core，则回退到 std::ifstream / new-delete。
+STANDALONE build without te_core falls back to std::ifstream / new-delete.
 
 ---
 
-数据与接口 TODO 已迁移至本模块契约 [010-shader-public-api.md](./010-shader-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
+Data and interface TODOs have been migrated to this module's contract [010-shader-public-api.md](./010-shader-public-api.md) TODO list; this file only retains the ABI table and implementation notes.
 
-## 变更记录
+## Change Log
 
-| 日期 | 变更说明 |
-|------|----------|
-| 2026-02-10 | BackendType 增加 DXBC；IShaderCompiler::GetBytecodeForStage(handle, stage, out_size) 按阶段取字节码供 011 建 PSO |
+| Date | Change Description |
+|------|-------------------|
+| 2026-02-10 | Added BackendType::DXBC; IShaderCompiler::GetBytecodeForStage(handle, stage, out_size) for per-stage bytecode for 011 PSO creation |
+| 2026-02-22 | Code-aligned update: clarified IShaderHandle methods (SetMacros, GetVariantKey, SelectVariant), IShaderCompiler methods (ReleaseHandle, LoadSourceFromMemory), IShaderCache methods (LoadCache, SaveCache, Invalidate), IShaderHotReload methods (ReloadShader, OnSourceChanged, NotifyShaderUpdated), factory functions (CreateShaderCompiler, DestroyShaderCompiler, CreateShaderCache, DestroyShaderCache, CreateShaderHotReload, DestroyShaderHotReload), aggregate header api.hpp; all symbols match te/shader/*.hpp implementation |

@@ -1,62 +1,92 @@
-# 契约：009-RenderCore 模块对外 API
+# Contract: 009-RenderCore Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：009-RenderCore（L2；Shader 参数结构、渲染资源描述、Pass 参数协议、Uniform Buffer；介于 RHI 与管线之间）
-- **对应规格**：`docs/module-specs/009-render-core.md`
-- **依赖**：001-Core、008-RHI
+- **Implementer**: 009-RenderCore (L2; Shader parameter structures, render resource descriptions, Pass parameter protocol, Uniform Buffer; between RHI and pipeline)
+- **Corresponding Spec**: `docs/module-specs/009-render-core.md`
+- **Dependencies**: 001-Core, 008-RHI
 
-## 消费者
+## Consumers
 
-- 010-Shader、011-Material、012-Mesh、019-PipelineCore、020-Pipeline、021-Effects、022-2D、023-Terrain、028-Texture
+- 010-Shader, 011-Material, 012-Mesh, 019-PipelineCore, 020-Pipeline, 021-Effects, 022-2D, 023-Terrain, 028-Texture
 
-## 能力列表
+## Capability List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| UniformLayout | Uniform Buffer 布局、常量块、与 Shader 名称/类型一致 | 定义后直至卸载 |
-| VertexFormat / IndexFormat | 顶点/索引格式描述，与 RHI 创建参数对接 | 定义后直至卸载 |
-| PassResourceDecl | Pass 输入/输出资源声明、与 PipelineCore RDG 对接 | 单次 Pass 图构建周期 |
-| UniformBufferHandle | Uniform 缓冲句柄；布局、更新、多帧环缓冲、与 RHI 绑定 | 创建后直至显式释放 |
-| TextureDesc / BufferDesc | 纹理/缓冲描述，与 RHI 资源创建桥接 | 由调用方管理 |
-| PassHandle | Pass 标识/句柄，用于 DeclareRead/DeclareWrite | 单次 Pass 图构建或由 PipelineCore 管理 |
-| ResourceHandle | 资源句柄，用于声明 Pass 读/写资源 | 与资源生命周期一致 |
-| ShaderReflectionDesc（可选） | ShaderResourceKind、ShaderResourceBinding；Uniform、Texture、Sampler 反射 | 与 Shader 或缓存绑定 |
+| Name | Semantics | Lifetime |
+|------|-----------|----------|
+| ResultCode | Result code enumeration (Success, InvalidHandle, UnsupportedFormat, UnsupportedSize, ValidationFailed, RingBufferExhausted, Unknown) | Enum type |
+| PassHandle | Pass identifier/handle, used for DeclareRead/DeclareWrite | Single Pass graph construction cycle or managed by PipelineCore |
+| ResourceHandle | Resource handle, used to declare Pass read/write resources | Consistent with resource lifetime |
+| FrameSlotId | Frame slot ID type alias (`using FrameSlotId = uint32_t;`) | Per-frame |
+| ResourceLifetime | Resource lifetime enumeration (Transient, Persistent, External) | Enum type |
+| BindSlot | Bind slot struct (set, binding) | Consistent with Shader/RHI slot convention |
+| UniformLayout | Uniform Buffer layout, constant block, consistent with Shader name/type | Defined until unloaded |
+| IUniformLayout | Uniform layout interface; GetOffset(name), GetTotalSize() | Created until explicit release |
+| UniformMemberType | Uniform member type enumeration (Float, Float2, Float3, Float4, Mat3, Mat4, Int, Int2, Int3, Int4, Unknown) | Enum type |
+| UniformMember | Uniform member struct (name[64], type, offset, size) | Defined until unloaded |
+| UniformLayoutDesc | Uniform layout description (members, memberCount, totalSize) | Used for layout creation |
+| VertexFormat / IndexFormat | Vertex/index format description, interfaces with RHI creation parameters | Defined until unloaded |
+| VertexAttributeFormat | Vertex attribute format enumeration (Float, Float2, Float3, Float4, Int, Int2, Int3, Int4, UInt, UInt2, UInt3, UInt4, Unknown) | Enum type |
+| VertexAttribute | Vertex attribute struct (location, format, offset) | Defined until unloaded |
+| VertexFormatDesc | Vertex format description for CreateVertexFormat | Used for format creation |
+| IndexType | Index type enumeration (UInt16, UInt32, Unknown) | Enum type |
+| IndexFormatDesc | Index format description for CreateIndexFormat | Used for format creation |
+| TextureFormat | Texture format enumeration (R8_UNorm, RGBA8_UNorm, RGBA8_SRGB, Depth16, Depth24_Stencil8, etc.) | Enum type |
+| TextureUsage | Texture usage bitmask (Sampled, Storage, RenderTarget, DepthStencil, TransferSrc, TransferDst) | Bitmask type |
+| TextureDesc / TextureDescParams | Texture description, bridges with RHI resource creation | Managed by caller |
+| BufferUsage | Buffer usage bitmask (Vertex, Index, Uniform, Storage, TransferSrc, TransferDst) | Bitmask type |
+| BufferDesc / BufferDescParams | Buffer description, bridges with RHI resource creation | Managed by caller |
+| PassResourceDecl | Pass input/output resource declaration, interfaces with PipelineCore RDG | Single Pass graph construction cycle |
+| IUniformBuffer | Uniform buffer handle; layout, update, multi-frame ring buffer, bind to RHI | Created until explicit release |
+| ShaderReflectionDesc | Full shader reflection: Uniform block + resource bindings (Texture, Sampler) | Bound to Shader or cache |
+| ShaderResourceKind | Shader resource kind enumeration (UniformBuffer, SampledImage, Sampler, StorageBuffer, StorageImage, Unknown) | Enum type |
+| ShaderResourceBinding | Single resource binding struct (name[64], kind, set, binding) | Defined until unloaded |
+| IRenderElement | Single draw resource set = IRenderMesh + IRenderMaterial | Managed by caller |
+| IRenderMesh | GPU mesh interface; vertex/index buffers, submeshes | Managed by caller |
+| IRenderMaterial | Render material interface; IShadingState + uniform buffer + bindings | Managed by caller |
+| IRenderPipelineState | Render state interface; maps directly to RHI | Managed by caller |
+| IRenderTexture | GPU texture abstraction (sampled or attachment) | Managed by caller |
+| IShaderEntry | Shader entry interface; bytecode and reflection for PSO creation | Managed by caller |
+| IShadingState | Shading state interface; IRenderPipelineState + IShaderEntry | Managed by caller |
+| SubmeshRange | Submesh range struct for draw (indexOffset, indexCount, vertexOffset) | Per-submesh |
 
-不直接暴露 RHI 资源，由 RenderCore 与 RHI 桥接。
+Does not directly expose RHI resources; RenderCore bridges to RHI.
 
-### 能力（提供方保证）
+### Capabilities (Provider Guarantees)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | ShaderParams | DefineLayout、GetOffset；Uniform 布局与 Shader 反射或手写布局对接 |
-| 2 | ResourceDesc | VertexFormat、IndexFormat、TextureDesc、BufferDesc；与 RHI 创建参数对接 |
-| 3 | PassProtocol | DeclareRead、DeclareWrite、ResourceLifetime；与 PipelineCore RDG 协议对接 |
-| 4 | UniformBuffer | CreateLayout、Update、RingBuffer、Bind、GetBuffer（供 descriptor set 写入）；与 Shader 及 RHI 缓冲绑定对接 |
+| # | Capability | Description |
+|---|------------|-------------|
+| 1 | Types | ResultCode, PassHandle, ResourceHandle, FrameSlotId, ResourceLifetime, BindSlot; basic types for render core operations |
+| 2 | ResourceDesc | VertexFormat, IndexFormat, TextureDesc, BufferDesc, VertexAttribute, VertexAttributeFormat, IndexType, TextureFormat, TextureUsage, BufferUsage; CreateVertexFormat, CreateIndexFormat, CreateTextureDesc, CreateBufferDesc; interfaces with RHI creation parameters |
+| 3 | UniformLayout | UniformMemberType, UniformMember, UniformLayoutDesc, IUniformLayout; CreateUniformLayout, ReleaseUniformLayout; GetOffset, GetTotalSize; Uniform layout consistent with Shader reflection or hand-written layout |
+| 4 | ShaderReflection | ShaderResourceKind, ShaderResourceBinding, ShaderReflectionDesc; full shader reflection: Uniform block + Texture + Sampler bindings |
+| 5 | PassProtocol | PassResourceDecl, DeclareRead, DeclareWrite, SetResourceLifetime; interfaces with PipelineCore RDG protocol |
+| 6 | UniformBuffer | IUniformBuffer; CreateUniformBuffer, ReleaseUniformBuffer; Update, Bind, GetBuffer (for descriptor set write), GetRingBufferOffset, SetCurrentFrameSlot; interfaces with Shader and RHI buffer binding |
+| 7 | RenderElement | IRenderElement, SimpleRenderElement, OwningRenderElement; CreateRenderElement, DestroyRenderElement; aggregates mesh and material for one draw |
+| 8 | RenderMesh | IRenderMesh, SubmeshRange; vertex/index buffers, submesh support; SetDataVertex, SetDataIndex, SetDataIndexType, SetDataSubmeshCount, SetDataSubmesh, UpdateDeviceResource |
+| 9 | RenderMaterial | IRenderMaterial; IShadingState + uniform buffer + descriptor set + PSO; GetUniformBuffer, GetDescriptorSet, GetGraphicsPSO; SetDataParameter, SetDataTexture, SetDataTextureByName; CreateDeviceResource, UpdateDeviceResource, IsDeviceReady |
+| 10 | RenderPipelineState | IRenderPipelineState; GetRHIStateDesc(); render state (blend, depth, raster) maps directly to RHI |
+| 11 | RenderTexture | IRenderTexture; GetRHITexture, GetUsage, IsAttachment; GPU-side texture (sampled or render target attachment) |
+| 12 | ShaderEntry | IShaderEntry; GetVertexBytecode, GetFragmentBytecode, GetVertexInput, GetVertexReflection, GetFragmentReflection; bytecode and reflection per stage |
+| 13 | ShadingState | IShadingState; IRenderPipelineState + IShaderEntry; GetPipelineState, GetShaderEntry; used to create PSO |
 
-命名空间 `te::rendercore`。
+Namespace `te::rendercore`.
 
-## 版本 / ABI
+## Version / ABI
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
 
-## 约束
+## Constraints
 
-- 须在 Core、RHI 初始化之后使用；与 Shader 的 Uniform 布局约定须一致。Pass 资源声明与 PipelineCore（019）的 Pass 图协议须一致。
+- Must be used after Core and RHI initialization; Uniform layout convention with Shader must be consistent. Pass resource declaration must be consistent with PipelineCore (019) Pass graph protocol.
 
-## TODO 列表
+## Change Log
 
-（以下任务来自原 ABI 数据相关 TODO。）
-
-- [ ] **数据**：IUniformLayout 与 010 GetReflection 产出的 UniformLayoutDesc 对齐（成员名、类型、偏移、std140）。
-- [ ] **接口**：CreateUniformBuffer(layout, device)→IUniformBuffer*、IUniformBuffer::Update(data, size)、IUniformBuffer::Bind(cmd, slot)；调用 008 CreateBuffer(usage=Uniform)、UpdateBuffer、SetUniformBuffer。
-
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 009-RenderCore 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
-| 2026-02-10 | 能力 4：IUniformBuffer::GetBuffer() 供 011 写 descriptor set |
+| Date | Change Description |
+|------|-------------------|
+| T0 Initial | 009-RenderCore contract |
+| 2026-02-05 | Unified directory; capability list in table format |
+| 2026-02-10 | Capability 6: IUniformBuffer::GetBuffer() for 011 descriptor set write |
+| 2026-02-22 | Code-aligned update: added IRenderElement (SimpleRenderElement, OwningRenderElement), IRenderMesh (SubmeshRange, SetData* methods, UpdateDeviceResource), IRenderMaterial (CreateDeviceResource overloads, SetDataParameter, SetDataTexture, SetDataTextureByName), IRenderPipelineState, IRenderTexture, IShaderEntry, IShadingState; extended resource_desc.hpp (VertexFormatDesc, IndexFormatDesc, TextureDescParams, BufferDescParams, Create* functions); added shader_reflection.hpp details; added api.hpp aggregate header |

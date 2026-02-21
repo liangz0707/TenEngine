@@ -1,48 +1,62 @@
-# 契约：025-Tools 模块对外 API
+# Contract: 025-Tools Module Public API
 
-## 适用模块
+## Status: **TO BE IMPLEMENTED**
 
-- **实现方**：025-Tools（L4；构建、批处理、CLI、插件/包管理；按需依赖）
-- **对应规格**：`docs/module-specs/025-tools.md`
-- **依赖**：按需（通常 Core、Object、Resource 等）
+## Applicable Module
 
-## 消费者
+- **Implementer**: 025-Tools (L4; build, batch processing, CLI, plugin/package management; on-demand dependencies)
+- **Specification**: `docs/module-specs/025-tools.md`
+- **Dependencies**: On-demand (typically Core, Object, Resource, etc.)
 
-- 无（L4 消费端；向用户/CI 提供构建产物、批处理、CLI、插件列表）
+## Consumers
 
-## 能力列表
+- None (L4 consumer side; provides build artifacts, batch processing, CLI, and plugin lists to users/CI)
 
-### 类型与句柄（跨边界）
+## Capability List
 
-本模块不向引擎内运行时模块提供跨边界类型；以下为向用户/CI/脚本暴露的抽象。
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| BuildConfig | 项目编译、依赖、多目标、与 CMake/MSBuild 对接 | 单次构建 |
-| BatchJob | 批量导入、批量处理、与 Resource 对接 | 单次批处理 |
-| CLICommand | 命令行、子命令、离线 API | 单次调用 |
-| PluginDescriptor | 插件/包发现、版本、依赖、与 ModuleLoad 对接 | 由 Tools 或包管理管理 |
+This module does not provide cross-boundary types to engine runtime modules; the following are abstractions exposed to users/CI/scripts.
 
-### 能力（提供方保证）
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| BuildConfig | Project compilation, dependencies, multi-target, CMake/MSBuild integration | Single build |
+| BatchJob | Batch import, batch processing, Resource integration | Single batch operation |
+| CLICommand | Command line, subcommands, offline API | Single invocation |
+| PluginDescriptor | Plugin/package discovery, version, dependencies, ModuleLoad integration | Managed by Tools or package manager |
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 构建 | BuildConfig、多目标、与 CMake/MSBuild 对接 |
-| 2 | 批处理 | BatchJob、批量导入、与 Resource 对接 |
-| 3 | CLI | CLICommand、子命令、离线 API |
-| 4 | 插件/包管理 | PluginDescriptor、发现、版本、依赖、与 ModuleLoad 对接 |
+### Capabilities (Provider Guarantees)
 
-## 版本 / ABI
+| ID | Capability | Description |
+|----|------------|-------------|
+| 1 | Build | BuildConfig, multi-target, CMake/MSBuild integration |
+| 2 | Batch Processing | BatchJob, batch import, Resource integration |
+| 3 | CLI | CLICommand, subcommands, offline API |
+| 4 | Plugin/Package Management | PluginDescriptor, discovery, version, dependencies, ModuleLoad integration |
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+## Version / ABI
 
-## 约束
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
+- **Current Status**: Implementation pending. No public headers available.
 
-- 按需依赖；运行时如需查询构建信息或插件列表可在本契约中补充只读接口。
+## Constraints
 
-## 变更记录
+- On-demand dependencies; runtime may query build information or plugin list through read-only interfaces defined in this contract.
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 025-Tools 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+## Implementation Notes
+
+The module directory `Engine/TenEngine-025-tools/include/` currently contains no header files.
+The following interfaces are planned but not yet implemented:
+
+- `te/tools/Build.h` - IBuildSystem interface
+- `te/tools/Batch.h` - IBatchProcessor interface
+- `te/tools/CLI.h` - CLI functions and types
+- `te/tools/PluginManager.h` - IPluginManager interface
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 025-Tools contract |
+| 2026-02-05 | Unified directory; capability list in table format |
+| 2026-02-22 | Updated to reflect actual implementation status (to be implemented) |

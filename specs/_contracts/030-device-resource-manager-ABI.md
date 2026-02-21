@@ -1,93 +1,102 @@
-# 030-DeviceResourceManager 模块 ABI
+# 030-DeviceResourceManager Module ABI
 
-- **契约**：[030-device-resource-manager-public-api.md](./030-device-resource-manager-public-api.md)（能力与类型描述）
-- **本文件**：030-DeviceResourceManager 对外 ABI 显式表。
-- **命名**：成员方法采用**首字母大写的驼峰**（PascalCase）；所有方法在说明列给出**完整函数签名**。
+- **Contract**: [030-device-resource-manager-public-api.md](./030-device-resource-manager-public-api.md) (capabilities and type descriptions)
+- **This file**: 030-DeviceResourceManager public ABI explicit table.
+- **Naming**: Member methods use **PascalCase**; all methods show **complete function signatures** in Description column.
 
-## ABI 表
+## ABI Table
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+Column definitions: **Module | Namespace | Class | Export | Interface | Header | Symbol | Description**
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 类 | GPU资源管理器（静态方法） | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager | 提供静态方法统一管理GPU资源创建（Texture、Buffer等） |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 同步创建GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTexture | `static rhi::ITexture* CreateDeviceTexture(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device);` 从像素数据创建GPU纹理，返回ITexture*，失败返回nullptr |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTextureAsync | `static ResourceOperationHandle CreateDeviceTextureAsync(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device, void (*callback)(rhi::ITexture* texture, bool success, void* user_data), void* user_data);` 异步创建GPU纹理，返回操作句柄用于状态查询，回调在约定线程执行 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 更新GPU纹理数据 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::UpdateDeviceTexture | `static bool UpdateDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device, void const* data, size_t size, rhi::TextureDesc const& textureDesc);` 更新GPU纹理数据，需要提供纹理描述以确定更新区域 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 销毁GPU纹理 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceTexture | `static void DestroyDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device);` 销毁GPU纹理资源 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 同步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBuffer | `static rhi::IBuffer* CreateDeviceBuffer(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device);` 从原始数据创建GPU缓冲（顶点/索引），返回IBuffer*，失败返回nullptr；调用方（如012-Mesh）应在EnsureDeviceResources中获取数据后调用 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 异步创建GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBufferAsync | `static ResourceOperationHandle CreateDeviceBufferAsync(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device, void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data), void* user_data);` 异步创建GPU缓冲，返回操作句柄用于状态查询，回调在约定线程执行 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 查询操作状态 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationStatus | `static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);` 查询异步操作状态，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 查询操作进度 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationProgress | `static float GetOperationProgress(ResourceOperationHandle handle);` 查询异步操作进度（0.0~1.0），线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 取消操作 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CancelOperation | `static void CancelOperation(ResourceOperationHandle handle);` 取消未完成的异步操作，回调仍会触发，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | — | 枚举 | 操作状态 | te/deviceresource/ResourceOperationTypes.h | ResourceOperationStatus | `enum class ResourceOperationStatus { Pending, Uploading, Submitted, Completed, Failed, Cancelled };` 异步操作状态枚举 |
-| 030-DeviceResourceManager | te::deviceresource | — | 类型别名/句柄 | 操作句柄 | te/deviceresource/ResourceOperationTypes.h | ResourceOperationHandle | `using ResourceOperationHandle = void*;` 不透明句柄，由异步创建接口返回 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 销毁GPU缓冲 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceBuffer | `static void DestroyDeviceBuffer(rhi::IBuffer* buffer, rhi::IDevice* device);` 销毁GPU缓冲资源 |
-| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | 静态方法 | 清理设备资源 | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CleanupDevice | `static void CleanupDevice(rhi::IDevice* device);` 清理指定设备的命令列表池和暂存缓冲，应在IDevice销毁前调用 |
-| 030-DeviceResourceManager | te::deviceresource | CommandListPool | 类 | 命令列表池 | te/deviceresource/CommandListPool.h | CommandListPool | 命令列表池管理，用于高效的异步GPU资源创建，按IDevice管理，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | CommandListPool | 构造函数 | 创建命令列表池 | te/deviceresource/CommandListPool.h | CommandListPool::CommandListPool | `explicit CommandListPool(rhi::IDevice* device);` 创建命令列表池 |
-| 030-DeviceResourceManager | te::deviceresource | CommandListPool | 方法 | 获取命令列表 | te/deviceresource/CommandListPool.h | CommandListPool::Acquire | `rhi::ICommandList* Acquire();` 从池中获取命令列表，如果池为空则创建新的，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | CommandListPool | 方法 | 释放命令列表 | te/deviceresource/CommandListPool.h | CommandListPool::Release | `void Release(rhi::ICommandList* cmd);` 将命令列表返回到池中以便重用 |
-| 030-DeviceResourceManager | te::deviceresource | CommandListPool | 方法 | 清空池 | te/deviceresource/CommandListPool.h | CommandListPool::Clear | `void Clear();` 清空所有命令列表 |
-| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | 类 | 暂存缓冲管理器 | te/deviceresource/StagingBufferManager.h | StagingBufferManager | 暂存缓冲管理，用于高效的GPU数据上传，按IDevice管理，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | 构造函数 | 创建暂存缓冲管理器 | te/deviceresource/StagingBufferManager.h | StagingBufferManager::StagingBufferManager | `explicit StagingBufferManager(rhi::IDevice* device);` 创建暂存缓冲管理器 |
-| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | 方法 | 分配暂存缓冲 | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Allocate | `rhi::IBuffer* Allocate(size_t size);` 分配至少请求大小的暂存缓冲，分配失败返回nullptr，线程安全 |
-| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | 方法 | 释放暂存缓冲 | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Release | `void Release(rhi::IBuffer* buffer);` 将暂存缓冲返回到池中 |
-| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | 方法 | 清空所有缓冲 | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Clear | `void Clear();` 清空所有暂存缓冲 |
-
----
-
-## 内部实现（不对外暴露ABI）
-
-以下类为内部实现，不对外暴露ABI：
-
-| 模块名 | 命名空间 | 类名 | 说明 |
-|--------|----------|------|------|
-| 030-DeviceResourceManager | te::deviceresource::internal | TextureDeviceImpl | 纹理GPU资源创建实现（内部实现） |
-| 030-DeviceResourceManager | te::deviceresource::internal | ResourceUploadHelper | 资源上传辅助类（内部实现） |
-| 030-DeviceResourceManager | te::deviceresource::internal | DeviceResources | 设备资源管理结构（内部实现） |
-| 030-DeviceResourceManager | te::deviceresource::internal | AsyncOperationContext | 异步操作上下文（内部实现） |
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | class | GPU resource manager (static methods) | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager | Provides static methods for unified GPU resource creation (Texture, Buffer, etc.) |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Sync create GPU texture | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTexture | `static rhi::ITexture* CreateDeviceTexture(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device);` Creates GPU texture from pixel data, returns ITexture*, nullptr on failure |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Async create GPU texture | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceTextureAsync | `static ResourceOperationHandle CreateDeviceTextureAsync(void const* pixelData, size_t pixelDataSize, rhi::TextureDesc const& textureDesc, rhi::IDevice* device, void (*callback)(rhi::ITexture* texture, bool success, void* user_data), void* user_data);` Async GPU texture creation, returns operation handle for status query, callback on agreed thread |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Update GPU texture data | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::UpdateDeviceTexture | `static bool UpdateDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device, void const* data, size_t size, rhi::TextureDesc const& textureDesc);` Updates GPU texture data, needs texture description for update region |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Destroy GPU texture | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceTexture | `static void DestroyDeviceTexture(rhi::ITexture* texture, rhi::IDevice* device);` Destroys GPU texture resource |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Sync create GPU buffer | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBuffer | `static rhi::IBuffer* CreateDeviceBuffer(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device);` Creates GPU buffer from raw data (vertex/index), returns IBuffer*, nullptr on failure; callers (e.g. 012-Mesh) should call from EnsureDeviceResources |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Async create GPU buffer | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CreateDeviceBufferAsync | `static ResourceOperationHandle CreateDeviceBufferAsync(void const* data, size_t dataSize, rhi::BufferDesc const& bufferDesc, rhi::IDevice* device, void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data), void* user_data);` Async GPU buffer creation, returns operation handle for status query, callback on agreed thread |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Query operation status | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationStatus | `static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);` Query async operation status, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Query operation progress | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::GetOperationProgress | `static float GetOperationProgress(ResourceOperationHandle handle);` Query async operation progress (0.0~1.0), thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Cancel operation | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CancelOperation | `static void CancelOperation(ResourceOperationHandle handle);` Cancel incomplete async operation, callback still triggers, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | -- | enum | Operation status | te/deviceresource/ResourceOperationTypes.h | ResourceOperationStatus | `enum class ResourceOperationStatus { Pending, Uploading, Submitted, Completed, Failed, Cancelled };` Async operation status enum |
+| 030-DeviceResourceManager | te::deviceresource | -- | type alias/handle | Operation handle | te/deviceresource/ResourceOperationTypes.h | ResourceOperationHandle | `using ResourceOperationHandle = void*;` Opaque handle, returned by async creation interfaces |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Destroy GPU buffer | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::DestroyDeviceBuffer | `static void DestroyDeviceBuffer(rhi::IBuffer* buffer, rhi::IDevice* device);` Destroys GPU buffer resource |
+| 030-DeviceResourceManager | te::deviceresource | DeviceResourceManager | static method | Cleanup device resources | te/deviceresource/DeviceResourceManager.h | DeviceResourceManager::CleanupDevice | `static void CleanupDevice(rhi::IDevice* device);` Cleans up command list pool and staging buffers for device, call before IDevice destruction |
+| 030-DeviceResourceManager | te::deviceresource | CommandListPool | class | Command list pool | te/deviceresource/CommandListPool.h | CommandListPool | Command list pool management for efficient async GPU resource creation, managed per IDevice, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | CommandListPool | constructor | Create command list pool | te/deviceresource/CommandListPool.h | CommandListPool::CommandListPool | `explicit CommandListPool(rhi::IDevice* device);` Creates command list pool |
+| 030-DeviceResourceManager | te::deviceresource | CommandListPool | method | Acquire command list | te/deviceresource/CommandListPool.h | CommandListPool::Acquire | `rhi::ICommandList* Acquire();` Gets command list from pool, creates new if empty, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | CommandListPool | method | Release command list | te/deviceresource/CommandListPool.h | CommandListPool::Release | `void Release(rhi::ICommandList* cmd);` Returns command list to pool for reuse |
+| 030-DeviceResourceManager | te::deviceresource | CommandListPool | method | Clear pool | te/deviceresource/CommandListPool.h | CommandListPool::Clear | `void Clear();` Clears all command lists |
+| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | class | Staging buffer manager | te/deviceresource/StagingBufferManager.h | StagingBufferManager | Staging buffer management for efficient GPU data upload, managed per IDevice, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | constructor | Create staging buffer manager | te/deviceresource/StagingBufferManager.h | StagingBufferManager::StagingBufferManager | `explicit StagingBufferManager(rhi::IDevice* device);` Creates staging buffer manager |
+| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | method | Allocate staging buffer | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Allocate | `rhi::IBuffer* Allocate(size_t size);` Allocates at least requested size staging buffer, nullptr on failure, thread-safe |
+| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | method | Release staging buffer | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Release | `void Release(rhi::IBuffer* buffer);` Returns staging buffer to pool |
+| 030-DeviceResourceManager | te::deviceresource | StagingBufferManager | method | Clear all buffers | te/deviceresource/StagingBufferManager.h | StagingBufferManager::Clear | `void Clear();` Clears all staging buffers |
 
 ---
 
-## 依赖关系
+## Internal Implementation (Not Public ABI)
 
-### 上游依赖
+The following classes are internal implementation, not exposed as public ABI:
 
-| 模块 | 依赖内容 | 用途 |
-|------|----------|------|
-| **001-Core** | 日志、内存分配 | 日志记录、内存管理 |
-| **008-RHI** | IDevice、ITexture、IBuffer、ICommandList、IFence、IQueue、ResourceState、TextureDesc、BufferUsage | GPU资源创建、命令列表、同步 |
-| **013-Resource** | （无直接依赖） | 030采用数据导向接口，不依赖013-Resource的具体类型 |
-
-### 下游依赖
-
-| 模块 | 使用内容 | 用途 |
-|------|----------|------|
-| **028-Texture** | CreateDeviceTexture、CreateDeviceTextureAsync | 创建GPU纹理资源 |
-| **012-Mesh** | CreateDeviceBuffer、CreateDeviceBufferAsync | 创建GPU缓冲资源（后续阶段） |
+| Module | Namespace | Class | Description |
+|--------|-----------|-------|-------------|
+| 030-DeviceResourceManager | te::deviceresource::internal | TextureDeviceImpl | Texture GPU resource creation implementation (internal) |
+| 030-DeviceResourceManager | te::deviceresource::internal | ResourceUploadHelper | Resource upload helper class (internal) |
+| 030-DeviceResourceManager | te::deviceresource::internal | DeviceResources | Device resource management structure (internal) |
+| 030-DeviceResourceManager | te::deviceresource::internal | AsyncOperationContext | Async operation context (internal) |
 
 ---
 
-## 设计说明
+## Dependencies
 
-### 数据导向接口
+### Upstream Dependencies
 
-030模块采用数据导向接口设计，避免循环依赖：
-- `CreateDeviceTexture`接受原始像素数据和纹理描述，不直接依赖`TextureResource`类型
-- `CreateDeviceBuffer`接受原始缓冲数据和缓冲描述，不直接依赖`MeshResource`类型
-- 028-Texture模块通过`EnsureDeviceResources`方法调用030，传入`GetPixelData()`等数据参数
-- 012-Mesh模块通过`EnsureDeviceResources`方法调用030，传入`GetVertexData()`等数据参数
-- 这种设计保持了模块间的解耦，符合依赖关系图的要求（030不依赖028或012）
+| Module | Dependency Content | Purpose |
+|--------|-------------------|---------|
+| **001-Core** | Log, memory allocation | Logging, memory management |
+| **008-RHI** | IDevice, ITexture, IBuffer, ICommandList, IFence, IQueue, ResourceState, TextureDesc, BufferUsage | GPU resource creation, command lists, synchronization |
 
-### 命令列表池和暂存缓冲管理
+### Downstream Dependencies
 
-- 命令列表池和暂存缓冲按`IDevice`管理，每个设备有独立的池
-- 使用全局映射表存储每个设备的资源管理器
-- 线程安全，支持多线程并发访问
+| Module | Usage Content | Purpose |
+|--------|---------------|---------|
+| **028-Texture** | CreateDeviceTexture, CreateDeviceTextureAsync | Creates GPU texture resources |
+| **012-Mesh** | CreateDeviceBuffer, CreateDeviceBufferAsync | Creates GPU buffer resources (subsequent phase) |
 
-### 异步操作
+---
 
-- 异步操作使用命令列表池和Fence同步
-- 回调在约定线程执行（默认主线程）
-- 各资源模块（028-Texture、012-Mesh）可在自己的`EnsureDeviceResources`实现中处理批量优化，调用030的单个资源创建接口
+## Design Notes
+
+### Data-Oriented Interface
+
+030 uses data-oriented interface design, avoiding circular dependencies:
+- `CreateDeviceTexture` accepts raw pixel data and texture description, does not directly depend on `TextureResource` type
+- `CreateDeviceBuffer` accepts raw buffer data and buffer description, does not directly depend on `MeshResource` type
+- 028-Texture module calls 030 via `EnsureDeviceResources` method, passing `GetPixelData()` etc. data parameters
+- 012-Mesh module calls 030 via `EnsureDeviceResources` method, passing `GetVertexData()` etc. data parameters
+- This design maintains module decoupling, per dependency graph requirements (030 does not depend on 028 or 012)
+
+### Command List Pool and Staging Buffer Management
+
+- Command list pools and staging buffers managed per `IDevice`, each device has independent pools
+- Uses global map to store resource managers for each device
+- Thread-safe, supports multi-threaded concurrent access
+
+### Async Operations
+
+- Async operations use command list pools and Fence synchronization
+- Callbacks execute on agreed thread (default main thread)
+- Each resource module (028-Texture, 012-Mesh) can handle batch optimization in their own `EnsureDeviceResources` implementation, calling 030's single resource creation interface
+
+---
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| 2026-02-10 | Complete ABI table: DeviceResourceManager static methods, ResourceOperationStatus, ResourceOperationHandle, CommandListPool, StagingBufferManager |
+| 2026-02-11 | Added internal implementation notes; clarified data-oriented interface design |
+| 2026-02-22 | Updated dependencies: removed 013-Resource (030 uses data-oriented interface, no direct dependency); all symbols verified against actual implementation |

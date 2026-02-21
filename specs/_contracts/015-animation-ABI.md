@@ -1,15 +1,18 @@
-﻿# 015-Animation 模块 ABI
+# 015-Animation 模块 ABI
 
 - **契约**：[015-animation-public-api.md](./015-animation-public-api.md)（能力与类型描述）
 - **本文件**：015-Animation 对外 ABI 显式表。
 - **参考**：Unity Animator/AnimationClip、UE AnimSequence/Skeleton；剪辑、骨骼、播放、蒙皮矩阵。
-- **命名**：成员方法采用 **PascalCase**；说明列给出**完整函数签名**。
+
+## 实现状态
+
+**待实现**：当前模块仅包含占位 CMakeLists.txt，无实际代码实现。以下为预期 ABI 表。
 
 ## ABI 表
 
 列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
 
-### 动画剪辑（Clip）
+### 动画剪辑（Clip）- 预期
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
@@ -19,7 +22,7 @@
 | 015-Animation | te::animation | IAnimationClip | 抽象接口 | 剪辑范围 | te/animation/AnimationClip.h | IAnimationClip::GetClipRange | `void GetClipRange(float* start, float* end) const;` |
 | 015-Animation | te::animation | — | 自由函数/工厂 | 创建剪辑 | te/animation/AnimationClip.h | CreateAnimationClip | `IAnimationClip* CreateAnimationClip();` 失败返回 nullptr；Load 后使用 |
 
-### 骨骼（Skeleton）
+### 骨骼（Skeleton）- 预期
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
@@ -29,7 +32,7 @@
 | 015-Animation | te::animation | ISkeleton | 抽象接口 | 骨骼数量 | te/animation/Skeleton.h | ISkeleton::GetBoneCount | `uint32_t GetBoneCount() const;` |
 | 015-Animation | te::animation | — | 自由函数/工厂 | 创建骨骼 | te/animation/Skeleton.h | CreateSkeleton | `ISkeleton* CreateSkeleton(char const* pathOrData);` 失败返回 nullptr |
 
-### 播放（Playback）
+### 播放（Playback）- 预期
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
@@ -40,11 +43,19 @@
 | 015-Animation | te::animation | IAnimator | 抽象接口 | 设置剪辑 | te/animation/Animator.h | IAnimator::SetClip | `void SetClip(IAnimationClip* clip);` |
 | 015-Animation | te::animation | — | 自由函数/工厂 | 创建动画控制器 | te/animation/Animator.h | CreateAnimator | `IAnimator* CreateAnimator(ISkeleton* skeleton);` 失败返回 nullptr |
 
-### 蒙皮矩阵（SkinMatrixBuffer）
+### 蒙皮矩阵（SkinMatrixBuffer）- 预期
 
 | 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
 |--------|----------|------|----------|----------|--------|------|------|
 | 015-Animation | te::animation | IAnimator | 抽象接口 | 获取蒙皮矩阵 | te/animation/Animator.h | IAnimator::GetSkinMatrixBuffer | `float const* GetSkinMatrixBuffer(uint32_t* outCount) const;` 或 IBuffer*；与 Pipeline/Mesh 对接；每帧或按需更新 |
 | 015-Animation | te::animation | — | 自由函数 | 更新蒙皮矩阵 | te/animation/SkinMatrix.h | UpdateSkinMatrices | `void UpdateSkinMatrices(IAnimator* animator, float* outBuffer, uint32_t boneCount);` 可选；由 Animator 内部或调用方调用 |
 
-*来源：契约能力 Clip、Skeleton、Playback、SkinMatrixBuffer；参考 Unity Animator、UE AnimSequence/Skeleton。*
+---
+
+*注：以上为预期 ABI，待模块实现后更新。*
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-22 | 同步代码：标注待实现状态（模块仅有占位 CMakeLists.txt）；保留预期 ABI 表供后续开发参考 |

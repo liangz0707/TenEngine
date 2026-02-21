@@ -1,46 +1,61 @@
-# 契约：021-Effects 模块对外 API
+# Contract: 021-Effects Module Public API
 
-## 适用模块
+## Status: **TO BE IMPLEMENTED**
 
-- **实现方**：021-Effects（L3；后处理、粒子/VFX、光照后处理）
-- **对应规格**：`docs/module-specs/021-effects.md`
-- **依赖**：019-PipelineCore、009-RenderCore、010-Shader、028-Texture
+## Applicable Module
 
-## 消费者
+- **Implementer**: 021-Effects (L3; post-processing, particles/VFX, lighting post-processing)
+- **Specification**: `docs/module-specs/021-effects.md`
+- **Dependencies**: 019-PipelineCore, 009-RenderCore, 010-Shader, 028-Texture
 
-- 020-Pipeline、024-Editor
+## Consumers
 
-## 能力列表
+- 020-Pipeline, 024-Editor
 
-### 类型与句柄（跨边界）
+## Capability List
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| PostProcessStack | 后处理栈、Pass 顺序、与 PipelineCore Fullscreen Pass、参数（强度等） | 由 Pipeline 或调用方管理 |
-| ParticleSystemHandle | 粒子系统句柄；Emit、Update、ParticleBuffer、Atlas、与 RenderCore 对接 | 创建后直至显式释放 |
-| VFXHandle | 高级 VFX 句柄（可选）；VFXGraph、CustomPass、与 Shader 对接 | 创建后直至显式释放 |
-| EffectParams | 后处理/粒子参数；Bloom、TAA、ToneMapping、DOF、Intensity 等 | 与 Pass 或系统绑定 |
+### Types and Handles (Cross-Boundary)
 
-### 能力（提供方保证）
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| PostProcessStack | Post-processing stack, Pass order, PipelineCore Fullscreen Pass, parameters (intensity, etc.) | Managed by Pipeline or caller |
+| ParticleSystemHandle | Particle system handle; Emit, Update, ParticleBuffer, Atlas, RenderCore integration | Created until explicitly released |
+| VFXHandle | Advanced VFX handle (optional); VFXGraph, CustomPass, Shader integration | Created until explicitly released |
+| EffectParams | Post-processing/particle parameters; Bloom, TAA, ToneMapping, DOF, Intensity, etc. | Bound to Pass or system |
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 后处理 | PostProcessStack、Pass 顺序、与 PipelineCore Fullscreen Pass 对接；Bloom、TAA、ToneMapping、DOF 等 |
-| 2 | 粒子 | ParticleSystemHandle、Emit、Update、ParticleBuffer、Atlas |
-| 3 | VFX（可选） | VFXHandle、VFXGraph、CustomPass、与 Shader 对接 |
-| 4 | 光照后处理 | 与 Pipeline 光照 Pass 对接的参数与 Pass |
+### Capabilities (Provider Guarantees)
 
-## 版本 / ABI
+| ID | Capability | Description |
+|----|------------|-------------|
+| 1 | Post-Processing | PostProcessStack, Pass order, PipelineCore Fullscreen Pass integration; Bloom, TAA, ToneMapping, DOF, etc. |
+| 2 | Particles | ParticleSystemHandle, Emit, Update, ParticleBuffer, Atlas |
+| 3 | VFX (Optional) | VFXHandle, VFXGraph, CustomPass, Shader integration |
+| 4 | Lighting Post-Process | Parameters and Passes for Pipeline lighting Pass integration |
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+## Version / ABI
 
-## 约束
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
+- **Current Status**: Implementation pending. No public headers available.
 
-- 须在 PipelineCore、RenderCore、Shader、Texture 初始化之后使用。GPU 资源通过 PipelineCore/RHI 的 RT、Buffer、PSO 使用。
+## Constraints
 
-## 变更记录
+- Must be used after PipelineCore, RenderCore, Shader, and Texture initialization.
+- GPU resources must be used through PipelineCore/RHI RT, Buffer, and PSO.
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 021-Effects 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+## Implementation Notes
+
+The module directory `Engine/TenEngine-021-effects/include/` currently contains no header files.
+The following interfaces are planned but not yet implemented:
+
+- `te/effects/PostProcess.h` - IPostProcessStack interface
+- `te/effects/ParticleSystem.h` - IParticleSystem interface
+- `te/effects/VFX.h` - IVFXGraph interface (optional)
+- `te/effects/EffectParams.h` - EffectParams structure
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 021-Effects contract |
+| 2026-02-05 | Unified directory; capability list in table format |
+| 2026-02-22 | Updated to reflect actual implementation status (to be implemented) |

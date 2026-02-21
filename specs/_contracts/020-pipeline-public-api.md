@@ -1,61 +1,69 @@
-# 契约：020-Pipeline 模块对外 API
+# Contract: 020-Pipeline Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：020-Pipeline（L3；场景收集、剔除、DrawCall、命令缓冲生成、提交；015-Animation 可选）
-- **对应规格**：`docs/module-specs/020-pipeline.md`
-- **依赖**：001-Core、004-Scene、005-Entity、019-PipelineCore、009-RenderCore、010-Shader、011-Material、012-Mesh、028-Texture、013-Resource、021-Effects；015-Animation（可选）
+- **Implementer**: 020-Pipeline (L3; scene collection, culling, DrawCall, command buffer generation, submission; 015-Animation optional)
+- **Corresponding Spec**: `docs/module-specs/020-pipeline.md`
+- **Dependencies**: 001-Core, 004-Scene, 005-Entity, 019-PipelineCore, 009-RenderCore, 010-Shader, 011-Material, 012-Mesh, 028-Texture, 013-Resource, 021-Effects; 015-Animation (optional)
 
-## 消费者
+## Consumers
 
-- 021-Effects、022-2D、023-Terrain、024-Editor、027-XR
+- 021-Effects, 022-2D, 023-Terrain, 024-Editor, 027-XR
 
-## 能力列表
+## Capabilities List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| PipelineContext | 管线上下文；可见集、批次、Pass 图、与 PipelineCore 对接 | 单帧或单次渲染 |
-| RenderTargetHandle | 渲染目标句柄；PresentTarget、与 RHI/SwapChain/XR 对接 | 由 Pipeline 或调用方管理 |
-| DrawCall 接口 | 批次、材质/网格/变换、实例化与合批；与 Material/Mesh/Shader 对接 | 单次 Pass 或帧 |
-| VisibleSet / BatchList | 可见实体/组件、批次列表；CollectVisible、FrustumCull、SelectLOD、BuildBatches | 单帧 |
-| BuiltinMeshes | GetFullscreenQuadMesh、GetSphereMesh、GetConeMesh；020 内建几何（全屏 quad、球体、锥体），供后处理与灯光体积 | 020 内部缓存 |
-| BuiltinMaterials | GetPostProcessMaterial(name)、GetLightMaterial(lightTypeIndex)；预置 Shader/Material 路径（builtin/shaders/），供后处理与灯光 Pass | 020 内部 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| IRenderPipeline | Render pipeline interface; SetDevice, SetSwapChain, SetFrameGraph, RenderFrame, TickPipeline, TriggerRender | Application lifetime |
+| RenderingConfig | Rendering configuration; ValidationLevel, RenderPath, VSyncMode, HDRMode, AAMode, ShadowQuality, post-process flags, culling/instancing/multithreading settings | Configuration |
+| RenderTarget / FrameStats | Render target description; Frame statistics | Per-frame |
+| PipelineContext | Pipeline context; device, swapChain, frameGraph, logicalPipeline, renderItems, lights, transient resources, submit context | Single frame or render |
+| PipelineScheduler / SchedulerCallbacks / SchedulerConfig | Multi-threaded pipeline scheduler; phase callbacks; thread counts and configuration | Application lifetime |
+| BuiltinMeshes / BuiltinMeshId | Built-in meshes; FullscreenQuad, Sphere, Cone, Cube, Box, Cylinder, Capsule, Plane | Internal cache |
+| BuiltinMaterials / BuiltinMaterialId | Built-in materials; PostProcess, Light, Shadow, Debug, Utility types | Internal cache |
+| Frustum / FrustumPlane / LODParams / CullingStats | Culling structures; frustum planes, LOD parameters, culling statistics | Per-cull operation |
+| ExecutionStats | Execution statistics; drawCalls, instanceCount, triangleCount, vertexCount | Per-execution |
+| CollectParams / CollectStats | Collection parameters and statistics | Per-collection |
+| SingleThreadQueue | Single-thread task queue; Post tasks to worker thread | Application lifetime |
 
-收集：待渲染项由 **029-World WorldManager::CollectRenderables**（LevelHandle 或 SceneRef）统一提供；回调得到 RenderableItem（worldMatrix、modelResource、submeshIndex）；020 不依赖 004 节点 modelGuid 或 005 GetModelGuid，由 029 遍历带 ModelComponent 的 Entity 并填充 RenderableItem。经 013 解析/缓存 IModelResource；EnsureDeviceResources 触发 011/012/028 创建 DResource；与 019 PrepareRenderMaterial/PrepareRenderMesh 对接。灯光/相机/反射探针/贴花由 **CollectLightsToLightItemList**、**CollectCamerasToCameraItemList**、**CollectReflectionProbesToReflectionProbeItemList**、**CollectDecalsToDecalItemList**（029 Collect* + 019 ItemList）填充；PassContext 设 SetLightItemList 等供 Pass 使用。命令缓冲与 RHI 提交见 `pipeline-to-rci.md`。
+Collection: Renderables provided by **029-World WorldManager::CollectRenderables** (LevelHandle or SceneRef); callback returns RenderableItem (worldMatrix, modelResource, submeshIndex); 020 does not depend on 004 node modelGuid or 005 GetModelGuid, 029 iterates entities with ModelComponent and fills RenderableItem. Parsed/cached via 013 IModelResource; EnsureDeviceResources triggers 011/012/028 DResource creation; interfaces with 019 PrepareRenderResources. Lights/cameras/reflection probes/decals filled via **CollectLightsToLightItemList**, **CollectCamerasToCameraItemList**, **CollectReflectionProbesToItemList**, **CollectDecalsToItemList** (029 Collect* + 019 ItemList); PassContext SetLightItemList for Pass use. Command buffer and RHI submission see `pipeline-to-rci.md`.
 
-### 能力（提供方保证）
+### Capabilities (Provider Guarantees)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | Culling | CollectVisible、FrustumCull、OcclusionQuery（可选）、SelectLOD；与 Scene/Entity 对接 |
-| 2 | Batching | BuildBatches、MaterialSlot、MeshSlot、Transform、Instancing、MergeBatch；经 013 解析取 Mesh/Material |
-| 3 | PassExecution | ExecutePass、GBuffer(PassKind::Scene)、Lighting(PassKind::Light)、PostProcess；按 PassCollectConfig.passKind 分发（仅 Scene Pass 录制 logicalCB）；与 PipelineCore 图对接 |
-| 4 | Submit | BuildCommandBuffer、SubmitToRHI、Present、XRSubmit（可选）；与 RHI/SwapChain/XR 对接 |
+| No. | Capability | Description |
+|-----|------------|-------------|
+| 1 | Culling | CollectVisible, FrustumCull, OcclusionQuery (optional), SelectLOD, PerformCulling; interfaces with Scene/Entity; BuildFrustumFromMatrix/FromCamera, IsVisibleInFrustum, FrustumCull, FrustumCullLights, SelectLOD, CalculateDistance, CalculateLODDistances |
+| 2 | Batching | BuildBatches, MaterialSlot, MeshSlot, Transform, Instancing, MergeBatch; parsed via 013 to get Mesh/Material |
+| 3 | PassExecution | ExecutePass, GBuffer(PassKind::Scene), Lighting(PassKind::Light), PostProcess; dispatch by PassCollectConfig.passKind (only Scene Pass records logicalCB); interfaces with PipelineCore graph; ExecuteLogicalCommandBufferOnDeviceThread |
+| 4 | Submit | BuildCommandBuffer, SubmitToRHI, Present, XRSubmit (optional); interfaces with RHI/SwapChain/XR |
+| 5 | Scheduling | PipelineScheduler multi-threaded A/B/C/D phases; SingleThreadQueue for dedicated worker; RenderPhase enum |
+| 6 | Builtins | BuiltinMeshes (FullscreenQuad, Sphere, Cone, Cube, etc.); BuiltinMaterials (PostProcess, Light, Shadow, Debug) |
 
-## 版本 / ABI
+## Version / ABI
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-## 约束
+## Constraints
 
-- 须在所有上游模块初始化之后使用。与 RHI 的提交格式与时机见 `pipeline-to-rci.md`；与 Editor/XR 的视口与交换链对接须明确。渲染模式（Debug/Hybrid/Resource）可通过 RenderingConfig.validationLevel 配置；校验使用 **CheckWarning(config, msg)**、**CheckError(config, msg)**（te/pipeline/RenderingConfig.h）。
+- Must be used after all upstream modules are initialized. Submission format and timing with RHI see `pipeline-to-rci.md`; viewport and swap chain interface with Editor/XR must be explicit. Render mode (Debug/Hybrid/Resource) configurable via RenderingConfig.validationLevel; validation uses **CheckWarning(config, msg)**, **CheckError(config, msg)**, **CheckStrict(config, msg, condition)** (te/pipeline/RenderingConfig.h).
 
-## TODO 列表
+## TODO List
 
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+(Tasks from `docs/asset/` resource management/loading/storage design.)
 
-- [x] **资源解析**：待渲染项由 029 CollectRenderables 提供；经 013 解析/缓存 IModelResource*。
-- [x] **EnsureDeviceResources**：Device 任务内 PrepareRenderResources 触发 011/012 Ensure；019 PrepareRenderMaterial/PrepareRenderMesh 调用 SetDevice+EnsureDeviceResources；LOD 流式在收集后对 mesh 调用 013 RequestStreaming(GetResourceId(), 0)。
-- [x] **数据与流程**：TriggerRender 投递阶段 A 到 Render 线程（BuildLogicalPipeline、CollectRenderablesToRenderItemList、RequestStreaming），阶段 B 到 Device 线程（Prepare、IsDeviceReady 过滤、Convert、按 Pass ExecutePass、录制 Draw、Submit）；CollectRenderablesToRenderItemList 支持可选 cameraPositionWorld 用于 012 SelectLOD；每条 Draw 前 **matRes->UpdateDescriptorSetForFrame(device, frameSlot)**、008 **SetGraphicsPSO**、008 **BindDescriptorSet(matRes->GetDescriptorSet())**（替代 ub->Bind）；ExecuteLogicalCommandBufferOnDeviceThread 传入 frameSlot；020 录制 Draw 使用 012 GetVertexStride/GetIndexFormat；RenderingConfig 含 ValidationLevel，CheckWarning/CheckError 按配置报告。
+- [x] **Resource Parsing**: Renderables provided by 029 CollectRenderables; parsed/cached via 013 IModelResource*.
+- [x] **EnsureDeviceResources**: Device task PrepareRenderResources triggers 011/012 Ensure; 019 PrepareRenderResources calls SetDevice+EnsureDeviceResources; LOD streaming after collection calls 013 RequestStreaming(GetResourceId(), 0) on mesh.
+- [x] **Data and Flow**: TriggerRender dispatches Phase A to Render thread (BuildLogicalPipeline, CollectRenderablesToRenderItemList, RequestStreaming), Phase B to Device thread (Prepare, IsDeviceReady filter, Convert, per-Pass ExecutePass, record Draw, Submit); CollectRenderablesToRenderItemList supports optional cameraPositionWorld for 012 SelectLOD; before each Draw **matRes->UpdateDescriptorSetForFrame(device, frameSlot)**, 008 **SetGraphicsPSO**, 008 **BindDescriptorSet(matRes->GetDescriptorSet())** (replaces ub->Bind); ExecuteLogicalCommandBufferOnDeviceThread passes frameSlot; 020 records Draw using 012 GetVertexStride/GetIndexFormat; RenderingConfig contains ValidationLevel, CheckWarning/CheckError/CheckStrict report by config.
 
-## 变更记录
+## Change Log
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 020-Pipeline 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
-| 2026-02-10 | 待渲染项来源改为 029 WorldManager::CollectRenderables；移除对 004 GetNodeModelGuid 的引用；约束与 TODO 更新：RenderingConfig.validationLevel、CheckWarning/CheckError；TriggerRender 投递、IsDeviceReady 过滤、RequestStreaming、SelectLOD、合批、按 Pass ExecutePass 已实现 |
-| 2026-02-10 | 每 draw：UpdateDescriptorSetForFrame(frameSlot)、SetGraphicsPSO、BindDescriptorSet；ExecuteLogicalCommandBufferOnDeviceThread 传入 frameSlot；SubmitLogicalCommandBuffer 使用 currentSlot |
-| 2026-02-11 | BuiltinMeshes（FullscreenQuad、Sphere、Cone）、BuiltinMaterials（PostProcess/Light stub）；CollectLightsToLightItemList、CollectCamerasToCameraItemList、CollectReflectionProbesToReflectionProbeItemList、CollectDecalsToDecalItemList；RenderPipeline 按 PassKind 分发、LightItemList 生命周期；PassContext SetLightItemList |
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 020-Pipeline contract |
+| 2026-02-05 | Unified directory; capabilities list as table |
+| 2026-02-10 | Renderable source changed to 029 WorldManager::CollectRenderables; removed reference to 004 GetNodeModelGuid; constraints and TODO update: RenderingConfig.validationLevel, CheckWarning/CheckError; TriggerRender dispatch, IsDeviceReady filter, RequestStreaming, SelectLOD, batching, per-Pass ExecutePass implemented |
+| 2026-02-10 | Per-draw: UpdateDescriptorSetForFrame(frameSlot), SetGraphicsPSO, BindDescriptorSet; ExecuteLogicalCommandBufferOnDeviceThread passes frameSlot; SubmitLogicalCommandBuffer uses currentSlot |
+| 2026-02-11 | BuiltinMeshes (FullscreenQuad, Sphere, Cone), BuiltinMaterials (PostProcess/Light stub); CollectLightsToLightItemList, CollectCamerasToCameraItemList, CollectReflectionProbesToReflectionProbeItemList, CollectDecalsToDecalItemList; RenderPipeline dispatch by PassKind, LightItemList lifecycle; PassContext SetLightItemList |
+| 2026-02-22 | Synchronized with code; added PipelineContext, PipelineScheduler, SingleThreadQueue, ExecutionStats, CollectParams/Stats, RenderPhase; updated all type names and function signatures to match implementation |

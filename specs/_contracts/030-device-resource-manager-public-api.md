@@ -1,70 +1,70 @@
-# 契约：030-DeviceResourceManager 模块对外 API
+# Contract: 030-DeviceResourceManager Module Public API
 
-## 适用模块
+## Applicable Module
 
-- **实现方**：030-DeviceResourceManager（L2；统一GPU资源管理器，命令列表池、暂存缓冲管理、同步/异步GPU资源创建）
-- **对应规格**：`docs/module-specs/030-device-resource-manager.md`
-- **依赖**：001-Core、008-RHI、013-Resource
+- **Implementor**: 030-DeviceResourceManager (L2; unified GPU resource manager, command list pool, staging buffer management, sync/async GPU resource creation)
+- **Spec**: `docs/module-specs/030-device-resource-manager.md`
+- **Dependencies**: 001-Core, 008-RHI
 
-## 消费者
+## Consumers
 
-- **028-Texture**：创建GPU纹理资源（通过EnsureDeviceResources调用）
-- **012-Mesh**：创建GPU缓冲资源（后续阶段）
-- **011-Material**：绑定GPU资源（后续阶段）
-- **019-PipelineCore**：PrepareRenderResources统一调用（可选，通过各资源模块间接使用）
-
----
-
-## 模块定位与核心职责
-
-030-DeviceResourceManager 提供**统一GPU资源管理器**，负责：
-- **统一管理所有GPU资源类型**：Texture、Buffer等
-- **命令列表管理**：命令列表池（用于异步上传），按IDevice管理
-- **数据上传**：暂存缓冲管理，支持同步和异步上传
-- **资源屏障**：统一处理资源状态转换
-- **同步机制**：Fence管理，支持异步操作完成回调
-- **生命周期管理**：GPU资源与RResource绑定，延迟销毁
-
-030 **不处理Shader/PSO**：Shader编译由010-Shader负责（CPU操作），PSO创建由Material或Pipeline直接调用008-RHI。
-
-030 **采用数据导向接口**：不直接依赖028-Texture或012-Mesh的具体类型，而是接受原始数据参数（pixelData、bufferData等），避免循环依赖。
+- **028-Texture**: Creates GPU texture resources (via EnsureDeviceResources call)
+- **012-Mesh**: Creates GPU buffer resources (subsequent phase)
+- **011-Material**: Binds GPU resources (subsequent phase)
+- **019-PipelineCore**: PrepareRenderResources unified call (optional, via each resource module indirectly)
 
 ---
 
-## 能力列表
+## Module Positioning and Core Responsibilities
 
-### 1. DeviceResourceManager 静态类
+030-DeviceResourceManager provides a **unified GPU resource manager**, responsible for:
+- **Unified management of all GPU resource types**: Texture, Buffer, etc.
+- **Command list management**: Command list pool (for async upload), managed per IDevice
+- **Data upload**: Staging buffer management, supports sync and async upload
+- **Resource barriers**: Unified handling of resource state transitions
+- **Synchronization**: Fence management, supports async operation completion callbacks
+- **Lifecycle management**: GPU resources bound to RResource, delayed destruction
 
-DeviceResourceManager 提供静态方法统一管理GPU资源创建，无需实例化。
+030 **does not handle Shader/PSO**: Shader compilation is handled by 010-Shader (CPU operation), PSO creation is done by Material or Pipeline directly calling 008-RHI.
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| **DeviceResourceManager** | GPU资源管理器（静态方法类） | 全局静态，无需实例化 |
+030 **uses data-oriented interface**: Does not directly depend on 028-Texture or 012-Mesh concrete types, but accepts raw data parameters (pixelData, bufferData, etc.), avoiding circular dependencies.
 
-### 0. 操作状态类型
+---
 
-**操作状态枚举**：
+## Capabilities
+
+### 0. Operation Status Types
+
+**Operation Status Enum**:
 ```cpp
 enum class ResourceOperationStatus {
-  Pending,     // 请求已创建，等待开始
-  Uploading,   // 正在上传数据（分配暂存缓冲、录制命令）
-  Submitted,   // 命令已提交到GPU，等待Fence完成
-  Completed,   // 操作成功完成
-  Failed,      // 操作失败
-  Cancelled    // 操作已取消
+  Pending,     // Request created, waiting to start
+  Uploading,   // Currently uploading data (allocating staging buffer, recording commands)
+  Submitted,   // Commands submitted to GPU, waiting for fence
+  Completed,   // Operation completed successfully
+  Failed,      // Operation failed
+  Cancelled    // Operation was cancelled
 };
 ```
 
-**操作句柄类型**：
+**Operation Handle Type**:
 ```cpp
-using ResourceOperationHandle = void*;  // 不透明句柄
+using ResourceOperationHandle = void*;  // Opaque handle
 ```
-- 由`CreateDeviceTextureAsync`或`CreateDeviceBufferAsync`返回
-- 用于查询状态、进度和取消操作
+- Returned by `CreateDeviceTextureAsync` or `CreateDeviceBufferAsync`
+- Used for status query, progress query, and cancellation
 
-#### 1.1 纹理资源创建
+### 1. DeviceResourceManager Static Class
 
-**同步创建GPU纹理**：
+DeviceResourceManager provides static methods for unified GPU resource creation, no instantiation needed.
+
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| **DeviceResourceManager** | GPU resource manager (static method class) | Global static, no instantiation needed |
+
+#### 1.1 Texture Resource Creation
+
+**Sync create GPU texture**:
 ```cpp
 static rhi::ITexture* CreateDeviceTexture(
     void const* pixelData,
@@ -72,15 +72,15 @@ static rhi::ITexture* CreateDeviceTexture(
     rhi::TextureDesc const& textureDesc,
     rhi::IDevice* device);
 ```
-- **参数**：
-  - `pixelData`：像素数据指针（RGBA8格式）
-  - `pixelDataSize`：像素数据大小（字节）
-  - `textureDesc`：RHI纹理描述（宽度、高度、格式等）
-  - `device`：RHI设备
-- **返回**：GPU纹理句柄，失败返回`nullptr`
-- **说明**：同步创建GPU纹理并上传数据，设置资源屏障
+- **Parameters**:
+  - `pixelData`: Pixel data pointer (RGBA8 format)
+  - `pixelDataSize`: Pixel data size (bytes)
+  - `textureDesc`: RHI texture description (width, height, format, etc.)
+  - `device`: RHI device
+- **Returns**: GPU texture handle, `nullptr` on failure
+- **Description**: Sync create GPU texture and upload data, set resource barrier
 
-**异步创建GPU纹理**：
+**Async create GPU texture**:
 ```cpp
 static ResourceOperationHandle CreateDeviceTextureAsync(
     void const* pixelData,
@@ -90,17 +90,17 @@ static ResourceOperationHandle CreateDeviceTextureAsync(
     void (*callback)(rhi::ITexture* texture, bool success, void* user_data),
     void* user_data);
 ```
-- **参数**：
-  - `pixelData`：像素数据指针
-  - `pixelDataSize`：像素数据大小（字节）
-  - `textureDesc`：RHI纹理描述
-  - `device`：RHI设备
-  - `callback`：完成回调函数
-  - `user_data`：用户数据
-- **返回**：操作句柄（`ResourceOperationHandle`），用于状态查询和取消操作；失败返回`nullptr`
-- **说明**：使用命令列表池异步创建GPU纹理，回调在约定线程执行。返回的操作句柄可用于查询状态、进度和取消操作
+- **Parameters**:
+  - `pixelData`: Pixel data pointer
+  - `pixelDataSize`: Pixel data size (bytes)
+  - `textureDesc`: RHI texture description
+  - `device`: RHI device
+  - `callback`: Completion callback function
+  - `user_data`: User data
+- **Returns**: Operation handle (`ResourceOperationHandle`) for status query and cancellation; `nullptr` on failure
+- **Description**: Uses command list pool for async GPU texture creation, callback executes on agreed thread
 
-**更新GPU纹理数据**：
+**Update GPU texture data**:
 ```cpp
 static bool UpdateDeviceTexture(
     rhi::ITexture* texture,
@@ -109,29 +109,29 @@ static bool UpdateDeviceTexture(
     size_t size,
     rhi::TextureDesc const& textureDesc);
 ```
-- **参数**：
-  - `texture`：GPU纹理句柄
-  - `device`：RHI设备
-  - `data`：源数据
-  - `size`：数据大小（字节）
-  - `textureDesc`：纹理描述（宽度、高度、格式等），用于确定更新区域
-- **返回**：`true`表示成功，`false`表示失败
-- **说明**：更新GPU纹理数据，需要提供纹理描述以确定更新区域
+- **Parameters**:
+  - `texture`: GPU texture handle
+  - `device`: RHI device
+  - `data`: Source data
+  - `size`: Data size (bytes)
+  - `textureDesc`: Texture description (width, height, format, etc.) to determine update region
+- **Returns**: `true` on success, `false` on failure
+- **Description**: Updates GPU texture data, needs texture description to determine update region
 
-**销毁GPU纹理**：
+**Destroy GPU texture**:
 ```cpp
 static void DestroyDeviceTexture(
     rhi::ITexture* texture,
     rhi::IDevice* device);
 ```
-- **参数**：
-  - `texture`：GPU纹理句柄
-  - `device`：RHI设备
-- **说明**：销毁GPU纹理资源
+- **Parameters**:
+  - `texture`: GPU texture handle
+  - `device`: RHI device
+- **Description**: Destroys GPU texture resource
 
-#### 1.2 缓冲资源创建
+#### 1.2 Buffer Resource Creation
 
-**同步创建GPU缓冲**：
+**Sync create GPU buffer**:
 ```cpp
 static rhi::IBuffer* CreateDeviceBuffer(
     void const* data,
@@ -139,15 +139,15 @@ static rhi::IBuffer* CreateDeviceBuffer(
     rhi::BufferDesc const& bufferDesc,
     rhi::IDevice* device);
 ```
-- **参数**：
-  - `data`：缓冲数据指针（顶点数据或索引数据）
-  - `dataSize`：数据大小（字节）
-  - `bufferDesc`：RHI缓冲描述（大小、用途等）
-  - `device`：RHI设备
-- **返回**：GPU缓冲句柄，失败返回`nullptr`
-- **说明**：从原始数据创建GPU缓冲并上传数据，设置资源屏障。调用方（如012-Mesh）应在EnsureDeviceResources中获取数据后调用此接口。
+- **Parameters**:
+  - `data`: Buffer data pointer (vertex data or index data)
+  - `dataSize`: Data size (bytes)
+  - `bufferDesc`: RHI buffer description (size, usage, etc.)
+  - `device`: RHI device
+- **Returns**: GPU buffer handle, `nullptr` on failure
+- **Description**: Creates GPU buffer from raw data and uploads data, sets resource barrier. Callers (e.g. 012-Mesh) should call this from EnsureDeviceResources after obtaining data.
 
-**异步创建GPU缓冲**：
+**Async create GPU buffer**:
 ```cpp
 static ResourceOperationHandle CreateDeviceBufferAsync(
     void const* data,
@@ -157,183 +157,183 @@ static ResourceOperationHandle CreateDeviceBufferAsync(
     void (*callback)(rhi::IBuffer* buffer, bool success, void* user_data),
     void* user_data);
 ```
-- **参数**：
-  - `data`：缓冲数据指针
-  - `dataSize`：数据大小（字节）
-  - `bufferDesc`：RHI缓冲描述
-  - `device`：RHI设备
-  - `callback`：完成回调函数
-  - `user_data`：用户数据
-- **返回**：操作句柄（`ResourceOperationHandle`），用于状态查询和取消操作；失败返回`nullptr`
-- **说明**：使用命令列表池异步创建GPU缓冲，回调在约定线程执行。返回的操作句柄可用于查询状态、进度和取消操作
+- **Parameters**:
+  - `data`: Buffer data pointer
+  - `dataSize`: Data size (bytes)
+  - `bufferDesc`: RHI buffer description
+  - `device`: RHI device
+  - `callback`: Completion callback function
+  - `user_data`: User data
+- **Returns**: Operation handle (`ResourceOperationHandle`) for status query and cancellation; `nullptr` on failure
+- **Description**: Uses command list pool for async GPU buffer creation, callback executes on agreed thread
 
-**销毁GPU缓冲**：
+**Destroy GPU buffer**:
 ```cpp
 static void DestroyDeviceBuffer(
     rhi::IBuffer* buffer,
     rhi::IDevice* device);
 ```
-- **参数**：
-  - `buffer`：GPU缓冲句柄
-  - `device`：RHI设备
-- **说明**：销毁GPU缓冲资源
+- **Parameters**:
+  - `buffer`: GPU buffer handle
+  - `device`: RHI device
+- **Description**: Destroys GPU buffer resource
 
-#### 1.3 操作状态查询
+#### 1.3 Operation Status Query
 
-**查询操作状态**：
+**Query operation status**:
 ```cpp
 static ResourceOperationStatus GetOperationStatus(ResourceOperationHandle handle);
 ```
-- **参数**：
-  - `handle`：操作句柄（由`CreateDeviceTextureAsync`或`CreateDeviceBufferAsync`返回）
-- **返回**：当前操作状态（`Pending`、`Uploading`、`Submitted`、`Completed`、`Failed`、`Cancelled`）
-- **说明**：线程安全，可随时查询异步操作的状态
+- **Parameters**:
+  - `handle`: Operation handle (returned by `CreateDeviceTextureAsync` or `CreateDeviceBufferAsync`)
+- **Returns**: Current operation status (`Pending`, `Uploading`, `Submitted`, `Completed`, `Failed`, `Cancelled`)
+- **Description**: Thread-safe, can query async operation status at any time
 
-**查询操作进度**：
+**Query operation progress**:
 ```cpp
 static float GetOperationProgress(ResourceOperationHandle handle);
 ```
-- **参数**：
-  - `handle`：操作句柄
-- **返回**：进度值（0.0 ~ 1.0），0.0表示开始，1.0表示完成
-- **说明**：线程安全，返回当前操作的完成进度
+- **Parameters**:
+  - `handle`: Operation handle
+- **Returns**: Progress value (0.0 ~ 1.0), 0.0 means started, 1.0 means completed
+- **Description**: Thread-safe, returns current operation completion progress
 
-**取消操作**：
+**Cancel operation**:
 ```cpp
 static void CancelOperation(ResourceOperationHandle handle);
 ```
-- **参数**：
-  - `handle`：操作句柄
-- **说明**：取消未完成的操作。回调仍会触发，但`success`参数为`false`。线程安全
+- **Parameters**:
+  - `handle`: Operation handle
+- **Description**: Cancels incomplete operation. Callback will still trigger with `success` parameter as `false`. Thread-safe
 
-#### 1.4 清理操作
+#### 1.4 Cleanup Operations
 
-**清理设备资源**：
+**Cleanup device resources**:
 ```cpp
 static void CleanupDevice(rhi::IDevice* device);
 ```
-- **参数**：
-  - `device`：RHI设备
-- **说明**：清理指定设备的命令列表池和暂存缓冲，应在IDevice销毁前调用
+- **Parameters**:
+  - `device`: RHI device
+- **Description**: Cleans up command list pool and staging buffers for specified device, should be called before IDevice destruction
 
-### 2. CommandListPool 类（公开接口）
+### 2. CommandListPool Class (Public Interface)
 
-CommandListPool 提供命令列表池管理，用于高效的异步GPU资源创建。
+CommandListPool provides command list pool management for efficient async GPU resource creation.
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| **CommandListPool** | 命令列表池（按IDevice管理） | 与IDevice绑定 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| **CommandListPool** | Command list pool (managed per IDevice) | Bound to IDevice |
 
-**构造函数**：
+**Constructor**:
 ```cpp
 explicit CommandListPool(rhi::IDevice* device);
 ```
 
-**获取命令列表**：
+**Acquire command list**:
 ```cpp
 rhi::ICommandList* Acquire();
 ```
-- **返回**：命令列表指针，如果池为空则创建新的
-- **说明**：线程安全
+- **Returns**: Command list pointer, creates new one if pool is empty
+- **Description**: Thread-safe
 
-**释放命令列表**：
+**Release command list**:
 ```cpp
 void Release(rhi::ICommandList* cmd);
 ```
-- **参数**：
-  - `cmd`：命令列表指针
-- **说明**：将命令列表返回到池中以便重用
+- **Parameters**:
+  - `cmd`: Command list pointer
+- **Description**: Returns command list to pool for reuse
 
-**清空池**：
+**Clear pool**:
 ```cpp
 void Clear();
 ```
-- **说明**：清空所有命令列表
+- **Description**: Clears all command lists
 
-### 3. StagingBufferManager 类（公开接口）
+### 3. StagingBufferManager Class (Public Interface)
 
-StagingBufferManager 提供暂存缓冲管理，用于高效的GPU数据上传。
+StagingBufferManager provides staging buffer management for efficient GPU data upload.
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| **StagingBufferManager** | 暂存缓冲管理器（按IDevice管理） | 与IDevice绑定 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| **StagingBufferManager** | Staging buffer manager (managed per IDevice) | Bound to IDevice |
 
-**构造函数**：
+**Constructor**:
 ```cpp
 explicit StagingBufferManager(rhi::IDevice* device);
 ```
 
-**分配暂存缓冲**：
+**Allocate staging buffer**:
 ```cpp
 rhi::IBuffer* Allocate(size_t size);
 ```
-- **参数**：
-  - `size`：请求的大小（字节）
-- **返回**：暂存缓冲指针，分配失败返回`nullptr`
-- **说明**：分配至少请求大小的暂存缓冲，线程安全
+- **Parameters**:
+  - `size`: Requested size (bytes)
+- **Returns**: Staging buffer pointer, `nullptr` on allocation failure
+- **Description**: Allocates at least the requested size staging buffer, thread-safe
 
-**释放暂存缓冲**：
+**Release staging buffer**:
 ```cpp
 void Release(rhi::IBuffer* buffer);
 ```
-- **参数**：
-  - `buffer`：暂存缓冲指针
-- **说明**：将暂存缓冲返回到池中
+- **Parameters**:
+  - `buffer`: Staging buffer pointer
+- **Description**: Returns staging buffer to pool
 
-**清空所有缓冲**：
+**Clear all buffers**:
 ```cpp
 void Clear();
 ```
-- **说明**：清空所有暂存缓冲
+- **Description**: Clears all staging buffers
 
 ---
 
-## 类型与回调
+## Types and Callbacks
 
-### 回调类型
+### Callback Types
 
-| 名称 | 类型定义 | 说明 |
-|------|----------|------|
-| **TextureCreateCallback** | `void (*)(rhi::ITexture* texture, bool success, void* user_data)` | 纹理创建完成回调 |
-| **BufferCreateCallback** | `void (*)(rhi::IBuffer* buffer, bool success, void* user_data)` | 缓冲创建完成回调 |
-
----
-
-## 命名空间
-
-所有公开接口位于 `te::deviceresource` 命名空间。
+| Name | Type Definition | Description |
+|------|-----------------|-------------|
+| **TextureCreateCallback** | `void (*)(rhi::ITexture* texture, bool success, void* user_data)` | Texture creation completion callback |
+| **BufferCreateCallback** | `void (*)(rhi::IBuffer* buffer, bool success, void* user_data)` | Buffer creation completion callback |
 
 ---
 
-## 版本 / ABI
+## Namespace
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-
----
-
-## 约束
-
-- 须在 Core、RHI、Resource 初始化之后使用。
-- 调用方在IDevice销毁前必须调用`CleanupDevice`清理资源。
-- 命令列表池和暂存缓冲按IDevice管理，线程安全。
-- 异步操作的回调在约定线程执行（默认主线程，与013-Resource的LoadCompleteCallback一致）。
-- **数据导向接口**：所有资源创建接口（Texture、Buffer）都接受原始数据参数，不直接依赖028-Texture或012-Mesh的具体类型，避免循环依赖。
-  - 028-Texture在`EnsureDeviceResources`中调用`CreateDeviceTexture`，传入`GetPixelData()`等数据
-  - 012-Mesh在`EnsureDeviceResources`中调用`CreateDeviceBuffer`，传入`GetVertexData()`等数据
+All public interfaces are in `te::deviceresource` namespace.
 
 ---
 
-## 使用示例
+## Version / ABI
 
-### 同步创建纹理
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
+
+---
+
+## Constraints
+
+- Must be used after Core and RHI initialization.
+- Caller must call `CleanupDevice` before IDevice destruction to release resources.
+- Command list pool and staging buffers managed per IDevice, thread-safe.
+- Async operation callbacks execute on agreed thread (default main thread, consistent with 013-Resource LoadCompleteCallback).
+- **Data-oriented interface**: All resource creation interfaces (Texture, Buffer) accept raw data parameters, do not directly depend on 028-Texture or 012-Mesh concrete types, avoiding circular dependencies.
+  - 028-Texture calls `CreateDeviceTexture` in `EnsureDeviceResources`, passing `GetPixelData()` etc. data
+  - 012-Mesh calls `CreateDeviceBuffer` in `EnsureDeviceResources`, passing `GetVertexData()` etc. data
+
+---
+
+## Usage Examples
+
+### Sync Create Texture
 
 ```cpp
-// 从TextureResource获取数据
+// Get data from TextureResource
 void const* pixelData = textureResource->GetPixelData();
 size_t pixelDataSize = textureResource->GetPixelDataSize();
 rhi::TextureDesc textureDesc = textureResource->GetRHITextureDesc();
 
-// 创建GPU纹理
+// Create GPU texture
 rhi::ITexture* gpuTexture = te::deviceresource::DeviceResourceManager::CreateDeviceTexture(
     pixelData, pixelDataSize, textureDesc, device);
 
@@ -342,7 +342,7 @@ if (gpuTexture) {
 }
 ```
 
-### 异步创建纹理
+### Async Create Texture
 
 ```cpp
 void OnTextureCreated(rhi::ITexture* texture, bool success, void* user_data) {
@@ -357,17 +357,17 @@ te::deviceresource::DeviceResourceManager::CreateDeviceTextureAsync(
     OnTextureCreated, textureResource);
 ```
 
-### 同步创建缓冲
+### Sync Create Buffer
 
 ```cpp
-// 从MeshResource获取数据
+// Get data from MeshResource
 void const* vertexData = meshResource->GetVertexData();
 size_t vertexDataSize = meshResource->GetVertexDataSize();
 rhi::BufferDesc vertexBufferDesc{};
 vertexBufferDesc.size = vertexDataSize;
 vertexBufferDesc.usage = static_cast<uint32_t>(rhi::BufferUsage::Vertex);
 
-// 创建GPU顶点缓冲
+// Create GPU vertex buffer
 rhi::IBuffer* vertexBuffer = te::deviceresource::DeviceResourceManager::CreateDeviceBuffer(
     vertexData, vertexDataSize, vertexBufferDesc, device);
 
@@ -375,7 +375,7 @@ if (vertexBuffer) {
     meshResource->SetDeviceVertexBuffer(vertexBuffer);
 }
 
-// 类似地创建索引缓冲
+// Similarly create index buffer
 void const* indexData = meshResource->GetIndexData();
 size_t indexDataSize = meshResource->GetIndexDataSize();
 rhi::BufferDesc indexBufferDesc{};
@@ -390,9 +390,19 @@ if (indexBuffer) {
 }
 ```
 
-### 清理设备资源
+### Cleanup Device Resources
 
 ```cpp
-// 在IDevice销毁前调用
+// Call before IDevice destruction
 te::deviceresource::DeviceResourceManager::CleanupDevice(device);
 ```
+
+---
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| 2026-02-10 | Initial contract creation |
+| 2026-02-11 | Added CommandListPool and StagingBufferManager public interfaces; clarified data-oriented interface design |
+| 2026-02-22 | Updated to match actual implementation; removed 013-Resource from dependencies (030 uses data-oriented interface, no direct dependency on 013-Resource types) |

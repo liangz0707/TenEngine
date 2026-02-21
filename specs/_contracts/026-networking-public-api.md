@@ -1,43 +1,48 @@
-# 契约：026-Networking 模块对外 API
+# Contract: 026-Networking Module Public API
 
-## 适用模块
+## Status: NOT IMPLEMENTED
 
-- **实现方**：026-Networking（L4；复制、RPC、客户端/服务端；无下游）
-- **对应规格**：`docs/module-specs/026-networking.md`
-- **依赖**：001-Core、005-Entity
+> **Note**: This module is a placeholder. No implementation exists in the codebase. The contract below defines the intended API for future implementation.
 
-## 消费者
+## Applicable Module
 
-- 无（L4 消费端；向游戏逻辑提供 NetworkManager、Replication、RPC、Connection）
+- **Implementor**: 026-Networking (L4; replication, RPC, client/server; no downstream)
+- **Spec**: `docs/module-specs/026-networking.md`
+- **Dependencies**: 001-Core, 005-Entity
 
-## 能力列表
+## Consumers
 
-### 类型与句柄（跨边界）
+- None (L4 consumer; provides NetworkManager, Replication, RPC, Connection to game logic)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| NetworkManager | 连接管理、角色、权威、与主循环 Tick 对接 | 由应用管理 |
-| ReplicationHandle | 实体/组件复制、属性表、SerializeSnapshot、ApplySnapshot、Interpolate | 与实体或连接绑定 |
+## Capabilities
 
-### 能力（提供方保证）
+### Types and Handles (Cross-Boundary)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 连接 | NetworkManager、连接管理、角色、权威 |
-| 2 | 复制 | ReplicationHandle、SerializeSnapshot、ApplySnapshot、Interpolate；与 Entity 对接 |
-| 3 | RPC | 远程调用接口；与主循环 Tick 对接 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| NetworkManager | Connection management, role, authority, tick integration with main loop | Managed by application |
+| ReplicationHandle | Entity/component replication, property table, SerializeSnapshot, ApplySnapshot, Interpolate | Bound to entity or connection |
 
-## 版本 / ABI
+### Capabilities (Provider Guarantees)
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+| ID | Capability | Description |
+|----|------------|-------------|
+| 1 | Connection | NetworkManager, connection management, role, authority |
+| 2 | Replication | ReplicationHandle, SerializeSnapshot, ApplySnapshot, Interpolate; integrates with Entity |
+| 3 | RPC | Remote procedure call interface; integrates with main loop Tick |
 
-## 约束
+## Version / ABI
 
-- 须在 Core、Entity 初始化之后使用。若未来 Editor 需网络状态展示可在此扩展。
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-## 变更记录
+## Constraints
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 026-Networking 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+- Must be used after Core and Entity initialization. Future Editor network state display may extend here.
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| T0 | 026-Networking contract created |
+| 2026-02-05 | Unified directory; capabilities in table format |
+| 2026-02-22 | Marked as NOT IMPLEMENTED (placeholder only); verified no header files exist |

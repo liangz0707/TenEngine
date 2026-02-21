@@ -1,62 +1,75 @@
-# 契约：019-PipelineCore 模块对外 API
+# Contract: 019-PipelineCore Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：019-PipelineCore（L3；命令缓冲格式、Pass 图协议（RDG 风格）、与 RHI 提交约定）
-- **对应规格**：`docs/module-specs/019-pipeline-core.md`
-- **依赖**：008-RHI、009-RenderCore
+- **Implementer**: 019-PipelineCore (L3; command buffer format, Pass graph protocol (RDG style), RHI submission contract)
+- **Corresponding Spec**: `docs/module-specs/019-pipeline-core.md`
+- **Dependencies**: 008-RHI, 009-RenderCore
 
-## 消费者
+## Consumers
 
-- 020-Pipeline、021-Effects
+- 020-Pipeline, 021-Effects
 
-## 能力列表
+## Capabilities List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| PassGraphBuilder | Pass 图构建器；AddPass、DeclareRead、DeclareWrite、TopologicalSort、ExecuteOrder | 单次图构建周期 |
-| PassContext | Pass 执行上下文；GetCollectedObjects、GetRenderItemList(slot)、GetLightItemList；SetRenderItemList、SetLightItemList；与 RHI 命令列表映射 | 单次 Pass 执行 |
-| ResourceHandle | 管线内资源句柄；AllocateTransient、Alias、RingBuffer、ReleaseAfterPass；kResourceHandleIdBackBuffer 表示 BackBuffer | 与 Pass 图资源生命周期一致 |
-| PassKind / PassContentSource | Pass 类型（Scene/Light/PostProcess/Effect/Custom）与内容来源（FromModelComponent/FromLightComponent/FromPassDefined/Custom）；用于收集与执行分发 | 与 Pass 配置绑定 |
-| PassAttachmentDesc / PassCollectConfig | 单 Attachment 描述（handle、format、loadOp/storeOp、sourcePass）；Pass 收集配置含 passKind、contentSource、colorAttachments、depthStencilAttachment | 与 Pass 绑定 |
-| IRenderItemList / ILightItemList / ICameraItemList / IReflectionProbeItemList / IDecalItemList | 渲染项/灯光项/相机项/反射探针项/贴花项列表；Create/Destroy 工厂；020 收集后填入 PassContext | 单帧或单次收集 |
-| SubmitContext | 提交上下文；SubmitQueue、SyncPoint、与 RHI 队列对接 | 单次提交周期 |
-| CreateRenderItem / PrepareRenderMaterial / PrepareRenderMesh | 创建逻辑渲染资源、准备材质/网格；CollectCommandBuffer 产出逻辑命令缓冲 | 单帧或单次收集 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| PipelineConfig / kMaxFramesInFlight | Pipeline configuration; frameInFlightCount (2-4); max frames in flight suggestion | Static config |
+| FrameSlotId | Frame slot index; range [0, frameInFlightCount) | Per-frame |
+| FrameContext / ViewportDesc | Frame context; scene, camera, viewport, frameSlotId | Single frame |
+| ISceneWorld | Scene world minimal interface; 020/004 implements | Managed by scene |
+| IFrameGraph / IPassBuilder | Frame graph entry; AddPass, Compile, GetPassCount, ExecutePass, GetPassCollectConfig | Single graph build cycle |
+| PassKind / PassContentSource | Pass type (Scene/Light/PostProcess/Effect/Custom) and content source | Bound to Pass config |
+| PassOutputDesc / PassAttachmentDesc | Pass output description; render targets, depth, multi-RT, resolution, format | Bound to Pass |
+| PassCollectConfig | Pass collection config; passKind, contentSource, colorAttachments, depthStencilAttachment | Bound to Pass |
+| PassContext | Pass execution context; GetCollectedObjects, GetRenderItemList(slot), GetLightItemList, SetRenderItemList, SetLightItemList | Single Pass execution |
+| PassExecuteCallback | Pass execution callback; void (*)(PassContext&, ICommandList*) | Callback |
+| IRenderObjectList / IRenderItemList | Render object/item list; Size, At, Clear, Push | Single frame or collection |
+| RenderItem / RenderItemBounds | Single render item; element, sortKey, submeshIndex, transform, bounds, skinMatrixBuffer/Offset | Single frame |
+| LightItem / ILightItemList / LightType | Light item; type, position, direction, color, intensity, range, spotAngle, transform | Single frame |
+| CameraItem / ICameraItemList | Camera item; fovY, nearZ, farZ, isActive, transform | Single frame |
+| ReflectionProbeItem / IReflectionProbeItemList / ReflectionProbeItemType | Reflection probe item; type, extent, resolution, transform | Single frame |
+| DecalItem / IDecalItemList | Decal item; albedoTexture, size, blend, transform | Single frame |
+| ILogicalPipeline | Logical pipeline description; GetPassCount, GetPassConfig | From BuildLogicalPipeline |
+| ILogicalCommandBuffer / LogicalDraw | Logical command buffer; GetDrawCount, GetDraw; LogicalDraw with element, submesh, index/vertex counts, skinMatrix | Single frame |
+| TransientResourcePool / TransientResourceHandle | Transient resource pool; BeginFrame, DeclareTexture/Buffer, Compile, GetOrCreateTexture/Buffer, InsertBarriersForPass | Single frame |
+| SubmitContext / SyncPoint / MultiQueueScheduler | Submit context; queue access, command recording, submission, synchronization; QueueId (Graphics/Compute/Copy) | Single submit cycle |
 
-命令缓冲最终通过 RHI 提交；格式与提交约定见 `pipeline-to-rci.md`。
+### Capabilities (Provider Guarantees)
 
-### 能力（提供方保证）
+| No. | Capability | Description |
+|-----|------------|-------------|
+| 1 | PassGraph | IFrameGraph AddPass(name), AddPass(name, PassKind); IPassBuilder SetScene, SetCullMode, SetObjectTypeFilter, SetRenderType, SetOutput, SetExecuteCallback, SetPassKind, SetContentSource, AddColorAttachment, SetDepthStencilAttachment, DeclareRead, DeclareWrite; IScenePassBuilder, ILightPassBuilder, IPostProcessPassBuilder, IEffectPassBuilder derived builders; Compile, GetPassCount, GetPassCollectConfig, ExecutePass; RDG style |
+| 2 | ResourceLifetime | TransientResourcePool BeginFrame, DeclareTransientTexture/Buffer, MarkResourceRead/Write, Compile, GetOrCreateTexture/Buffer, InsertBarriersForPass, EndFrame; ResourceBarrierBuilder; ResourceLifetimeInfo |
+| 3 | CommandFormat | ILogicalCommandBuffer; ConvertToLogicalCommandBuffer/CollectCommandBuffer; LogicalDraw with element, submesh, instance counts; RenderItem, RenderItemBounds |
+| 4 | Submit | SubmitContext queue access, BeginCommandList, EndCommandList, SubmitQueue, SubmitAll, SubmitBatch; SyncPoint fence/semaphore; MultiQueueScheduler cross-queue sync; QueueId Graphics/Compute/Copy |
+| 5 | Collect | CollectRenderItemsParallel, MergeRenderItems, SortRenderItemsByDistance, CullRenderItems |
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | PassGraph | AddPass(name)、AddPass(name, PassKind)；IScenePassBuilder、ILightPassBuilder、IPostProcessPassBuilder、IEffectPassBuilder 派生；DeclareRead、DeclareWrite、AddColorAttachment、SetDepthStencilAttachment；TopologicalSort、ExecuteOrder；RDG 风格与 RenderCore Pass 协议一致 |
-| 2 | ResourceLifetime | AllocateTransient、Alias、RingBuffer、ReleaseAfterPass；与 RHI 屏障协同 |
-| 3 | CommandFormat | RecordPass、MapToRHI、InsertBarrier；命令缓冲抽象与 RHI 命令列表映射 |
-| 4 | Submit | SubmitQueue、SyncPoint、MultiQueue（可选）；与 RHI 队列、同步点约定 |
+## Version / ABI
 
-## 版本 / ABI
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+## Constraints
 
-## 约束
+- Must be used after RHI and RenderCore initialization. Pass resource declarations must be consistent with RenderCore PassProtocol. Resource barriers and lifetimes must not violate RHI requirements.
 
-- 须在 RHI、RenderCore 初始化之后使用。Pass 资源声明须与 RenderCore PassProtocol 一致。资源屏障与生命周期不得违反 RHI 要求。
+## TODO List
 
-## TODO 列表
+(Tasks from original ABI data-related TODOs.)
 
-（以下任务来自原 ABI 数据相关 TODO。）
+- [x] **Data**: RenderItem contains element, sortKey, submeshIndex; extended transform, bounds (RenderItemBounds); IRenderItemList.
+- [x] **Interfaces**: PrepareRenderResources triggers device resource creation on Thread D; ConvertToLogicalCommandBuffer sorts by (material, mesh, submeshIndex) and merges instanced draws; IFrameGraph::GetPassCount, ExecutePass, GetPassCollectConfig; PassContext::SetCollectedObjects, Get/SetRenderItemList, Get/SetLightItemList.
+- [x] **Submit**: SubmitContext, SyncPoint, MultiQueueScheduler for multi-queue synchronization.
+- [x] **Resources**: TransientResourcePool for RDG-style transient resource management.
 
-- [x] **数据**：RenderItem 含 mesh、material、sortKey；扩展 transform、bounds（RenderItemBounds）；IRenderItemList。
-- [x] **接口**：PrepareRenderMaterial/PrepareRenderMesh 在线程 D 触发 011/012 EnsureDeviceResources；ConvertToLogicalCommandBuffer 按 (material, mesh, submeshIndex) 排序并合并 instanced draw；IFrameGraph::GetPassCount、ExecutePass；PassContext::SetCollectedObjects 由 020 按 Pass 填充。
-- [ ] **接口**：CollectRenderItemsParallel 按 Pass 从 ISceneWorld 取数并填充 out（当前仅清空）；009 Bind/008 SetUniformBuffer 由 020 在每条 Draw 前按材质绑定。
+## Change Log
 
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 019-PipelineCore 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
-| 2026-02-10 | TODO 更新：PrepareRenderMaterial/Mesh、Convert 合批、ExecutePass、PassContext 已实现；CollectRenderItemsParallel 与 009 Bind 分工说明 |
-| 2026-02-11 | FrameGraph 扩展：PassKind、PassContentSource、PassAttachmentDesc、派生 PassBuilder；PassContext 多 slot RenderItemList、LightItemList；ILightItemList、ICameraItemList、IReflectionProbeItemList、IDecalItemList 及 Create/Destroy；ILogicalPipeline::GetPassConfig(index, PassCollectConfig*) |
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 019-PipelineCore contract |
+| 2026-02-05 | Unified directory; capabilities list as table; removed ABI reference |
+| 2026-02-10 | TODO update: PrepareRenderMaterial/Mesh, Convert batching, ExecutePass, PassContext implemented |
+| 2026-02-11 | FrameGraph extension: PassKind, PassContentSource, PassAttachmentDesc, derived PassBuilder; PassContext multi-slot RenderItemList, LightItemList; Item lists and Create/Destroy |
+| 2026-02-22 | Synchronized with code; added TransientResourcePool, SubmitContext, SyncPoint, MultiQueueScheduler, ResourceBarrierBuilder; updated all type names to match implementation |

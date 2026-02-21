@@ -146,3 +146,4 @@
 | 2026-02-06 | 实现节点管理器和空间索引：实现DynamicNodeManager（线性列表）和StaticNodeManager（空间索引）；实现Octree（3D八叉树）和Quadtree（2D四叉树）空间索引；SceneWorld集成节点管理器；SpatialQuery辅助函数标记为public供空间索引使用 |
 | 2026-02-06 | 文档更新：添加SceneWorld::GetSpatialIndexType接口到ABI；更新FindNearest默认参数值；完善实现说明和约束描述；更新TODO列表标记已完成任务 |
 | 2026-02-06 | 完成TODO实现：实现Transform到Matrix4转换、矩阵乘法、变换组合；实现节点类型转换（ConvertToStatic/ConvertToDynamic）；修复测试文件链接错误，统一测试运行器 |
+| 2026-02-22 | Verified alignment with code: OctreeNode/QuadTreeNode structs match; Octree/Quadtree have maxDepth=10, maxNodesPerLeaf=10 defaults; StaticNodeManager has RebuildIndex, QueryFrustum, QueryAABB methods; DynamicNodeManager uses vector+unordered_set; SceneWorld has GetSpatialIndexType; SceneManager has GetWorld, CreateSceneFromDesc, UnloadScene, NodeFactoryFn |

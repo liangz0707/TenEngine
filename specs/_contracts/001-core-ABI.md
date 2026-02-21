@@ -108,3 +108,12 @@
 ---
 
 010-Shader 依赖的接口 TODO 已迁移至本模块契约 [001-core-public-api.md](./001-core-public-api.md) 的 TODO 列表；本文件仅保留 ABI 表与实现说明。
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-01-30 | plan 001-core-fullversion-002 契约更新同步 |
+| 2026-02-06 | 增强更新：文件 I/O、异步操作、内存管理、路径操作 |
+| 2026-02-12 | Executor 架构：ITaskExecutor、ExecutorType；IThreadPool 重构 |
+| 2026-02-22 | Verified alignment with code: ITaskExecutor has both SubmitTask and SubmitTaskWithPriority; IThreadPool has SubmitTask, SetCallbackThread, ProcessMainThreadCallbacks, GetWorkerExecutor, GetIOExecutor, GetExecutor, RegisterExecutor, SpawnTask |

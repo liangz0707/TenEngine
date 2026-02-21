@@ -1,47 +1,54 @@
-﻿# 026-Networking 模块 ABI
+# 026-Networking Module ABI
 
-- **契约**：[026-networking-public-api.md](./026-networking-public-api.md)（能力与类型描述）
-- **本文件**：026-Networking 对外 ABI 显式表。
-- **参考**：Unity Netcode、UE 复制/RPC；连接管理、实体/组件复制、RPC、与主循环 Tick 对接。
-- **命名**：成员方法采用 **PascalCase**；说明列给出**完整函数签名**。
+- **Contract**: [026-networking-public-api.md](./026-networking-public-api.md) (capabilities and type descriptions)
+- **This file**: 026-Networking public ABI explicit table.
+- **Status**: NOT IMPLEMENTED
 
-## ABI 表
+> **Note**: This module is a placeholder. No implementation exists. The ABI below defines the intended symbols for future implementation.
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+## ABI Table
 
-### 连接管理（Connection）
+Column definitions: **Module | Namespace | Class | Export | Interface | Header | Symbol | Description**
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 连接 | te/networking/NetworkManager.h | INetworkManager::Connect | `bool Connect(char const* address, uint16_t port);` 客户端连接；失败返回 false |
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 断开 | te/networking/NetworkManager.h | INetworkManager::Disconnect | `void Disconnect();` |
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 角色与权威 | te/networking/NetworkManager.h | INetworkManager::GetRole, SetAuthority | `NetworkRole GetRole() const;` `void SetAuthority(EntityId entityId, bool authoritative);` 与主循环 Tick 对接 |
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | Tick | te/networking/NetworkManager.h | INetworkManager::Tick | `void Tick(float deltaTime);` 由应用每帧调用；由应用管理 |
-| 026-Networking | te::networking | — | 自由函数/单例 | 获取网络管理器 | te/networking/NetworkManager.h | GetNetworkManager | `INetworkManager* GetNetworkManager();` 由应用或 Subsystems 提供；调用方不拥有指针 |
+### Connection Management
 
-### 复制（Replication）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 026-Networking | te::networking | INetworkManager | abstract interface | Connect | te/networking/NetworkManager.h | INetworkManager::Connect | `bool Connect(char const* address, uint16_t port);` Client connect; returns false on failure |
+| 026-Networking | te::networking | INetworkManager | abstract interface | Disconnect | te/networking/NetworkManager.h | INetworkManager::Disconnect | `void Disconnect();` |
+| 026-Networking | te::networking | INetworkManager | abstract interface | Role and Authority | te/networking/NetworkManager.h | INetworkManager::GetRole, SetAuthority | `NetworkRole GetRole() const;` `void SetAuthority(EntityId entityId, bool authoritative);` Integrates with main loop Tick |
+| 026-Networking | te::networking | INetworkManager | abstract interface | Tick | te/networking/NetworkManager.h | INetworkManager::Tick | `void Tick(float deltaTime);` Called each frame by application; managed by application |
+| 026-Networking | te::networking | -- | free function/singleton | Get network manager | te/networking/NetworkManager.h | GetNetworkManager | `INetworkManager* GetNetworkManager();` Provided by application or Subsystems; caller does not own pointer |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 注册复制 | te/networking/Replication.h | INetworkManager::RegisterReplicated | `void RegisterReplicated(EntityId entityId, ReplicatedPropertyTable const* table);` 实体/组件复制、属性表；与 Entity 对接 |
-| 026-Networking | te::networking | — | 自由函数/接口 | 序列化快照 | te/networking/Replication.h | SerializeSnapshot | `void SerializeSnapshot(IEntity* entity, ReplicatedPropertyTable const* table, void* outBuffer, size_t* outSize);` 与 Object 序列化（可选）对接 |
-| 026-Networking | te::networking | — | 自由函数/接口 | 应用快照 | te/networking/Replication.h | ApplySnapshot | `void ApplySnapshot(IEntity* entity, void const* buffer, size_t size);` 与实体或连接绑定 |
-| 026-Networking | te::networking | — | 自由函数/接口 | 插值 | te/networking/Replication.h | Interpolate | `void Interpolate(IEntity* entity, void const* snapshotA, void const* snapshotB, float t);` 可选 |
-| 026-Networking | te::networking | — | struct | 复制属性表 | te/networking/Replication.h | ReplicatedPropertyTable | 属性 ID、偏移、类型；与 Entity 组件对接 |
+### Replication
+
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 026-Networking | te::networking | INetworkManager | abstract interface | Register replication | te/networking/Replication.h | INetworkManager::RegisterReplicated | `void RegisterReplicated(EntityId entityId, ReplicatedPropertyTable const* table);` Entity/component replication, property table; integrates with Entity |
+| 026-Networking | te::networking | -- | free function/interface | Serialize snapshot | te/networking/Replication.h | SerializeSnapshot | `void SerializeSnapshot(IEntity* entity, ReplicatedPropertyTable const* table, void* outBuffer, size_t* outSize);` Integrates with Object serialization (optional) |
+| 026-Networking | te::networking | -- | free function/interface | Apply snapshot | te/networking/Replication.h | ApplySnapshot | `void ApplySnapshot(IEntity* entity, void const* buffer, size_t size);` Bound to entity or connection |
+| 026-Networking | te::networking | -- | free function/interface | Interpolate | te/networking/Replication.h | Interpolate | `void Interpolate(IEntity* entity, void const* snapshotA, void const* snapshotB, float t);` Optional |
+| 026-Networking | te::networking | -- | struct | Replicated property table | te/networking/Replication.h | ReplicatedPropertyTable | Property ID, offset, type; integrates with Entity component |
 
 ### RPC
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 注册 RPC | te/networking/RPC.h | INetworkManager::RegisterRPC | `void RegisterRPC(char const* name, RPCCallback callback);` 与连接或会话绑定 |
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 调用 RPC | te/networking/RPC.h | INetworkManager::Invoke | `void Invoke(char const* name, void const* args, size_t size, RPCTarget target);` Client/Server/Multicast |
-| 026-Networking | te::networking | — | 枚举 | RPC 目标 | te/networking/RPC.h | RPCTarget | Client、Server、Multicast |
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 026-Networking | te::networking | INetworkManager | abstract interface | Register RPC | te/networking/RPC.h | INetworkManager::RegisterRPC | `void RegisterRPC(char const* name, RPCCallback callback);` Bound to connection or session |
+| 026-Networking | te::networking | INetworkManager | abstract interface | Invoke RPC | te/networking/RPC.h | INetworkManager::Invoke | `void Invoke(char const* name, void const* args, size_t size, RPCTarget target);` Client/Server/Multicast |
+| 026-Networking | te::networking | -- | enum | RPC target | te/networking/RPC.h | RPCTarget | Client, Server, Multicast |
 
-### 传输（可选）
+### Transport (Optional)
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 026-Networking | te::networking | INetworkManager | 抽象接口 | 设置传输 | te/networking/Transport.h | INetworkManager::SetTransport | `void SetTransport(ITransport* transport);` UDP/TCP/Relay（可选） |
-| 026-Networking | te::networking | ITransport | 抽象接口 | 发送/接收 | te/networking/Transport.h | ITransport::Send, Receive | `bool Send(void const* data, size_t size);` `size_t Receive(void* buffer, size_t maxSize);` 可选 |
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 026-Networking | te::networking | INetworkManager | abstract interface | Set transport | te/networking/Transport.h | INetworkManager::SetTransport | `void SetTransport(ITransport* transport);` UDP/TCP/Relay (optional) |
+| 026-Networking | te::networking | ITransport | abstract interface | Send/Receive | te/networking/Transport.h | ITransport::Send, Receive | `bool Send(void const* data, size_t size);` `size_t Receive(void* buffer, size_t maxSize);` Optional |
 
-*来源：契约能力 Replication、RPC、Connection、Transport；参考 Unity Netcode、UE 复制/RPC。*
+## Change Log
+
+| Date | Change |
+|------|--------|
+| T0 | 026-Networking ABI created |
+| 2026-02-05 | Unified directory format |
+| 2026-02-22 | Marked as NOT IMPLEMENTED; verified no header files exist in Engine/TenEngine-026-networking/ |

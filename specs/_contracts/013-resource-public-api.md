@@ -91,28 +91,59 @@ ResourceManager 简化为协调器和缓存管理器，负责协调加载流程�
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| **IResourceManager** | 统一加载入口与协调器；RequestLoadAsync、LoadSync、GetCached、Unload、GetLoadStatus、GetLoadProgress、CancelLoad、RequestStreaming、SetStreamingPriority、RegisterResourceFactory；调用 IResource::Load（同步）或 IResource::LoadAsync（异步）、Save、Import | 由 Subsystems 或单例提供，调用方不拥有指针 |
+| **IResourceManager** | 统一加载入口与协调器；RequestLoadAsync、RequestLoadAsyncEx、RequestLoadBatchAsync、LoadSync、GetCached、Unload、GetLoadStatus、GetLoadProgress、CancelLoad、RequestStreaming、SetStreamingPriority、RegisterResourceFactory；调用 IResource::Load（同步）或 IResource::LoadAsync（异步）、Save、Import | 由 Subsystems 或单例提供，调用方不拥有指针 |
 | **LoadRequestId** | 异步加载请求句柄；`using LoadRequestId = void*;` 由 RequestLoadAsync 返回 | 请求发出至完成或取消 |
 | **LoadStatus / LoadResult** | 加载状态与结果；定义在 ResourceTypes.h 中；LoadStatus: Pending/Loading/Completed/Failed/Cancelled；LoadResult: Ok/NotFound/Error/Cancelled；供 GetLoadStatus、回调使用 | 与请求或回调绑定 |
 | **LoadCompleteCallback** | 异步加载完成回调；`using LoadCompleteCallback = void (*)(IResource* resource, LoadResult result, void* user_data);` 在约定线程调用（由 IThreadPool::SetCallbackThread 指定，默认主线程） | 由调用方或框架管理 |
 | **ResourceFactory** | 资源工厂函数指针；`using ResourceFactory = IResource* (*)(ResourceType);` 用于创建 IResource 实例 | 注册后持续有效 |
 | **StreamingHandle** | 流式请求句柄；`using StreamingHandle = void*;` 用于流式加载 | 请求有效期内 |
+| **BatchLoadRequestId** | 批量加载请求句柄；`using BatchLoadRequestId = void*;` 由 RequestLoadBatchAsync 返回 | 请求有效期内 |
+| **LoadOptions** | 加载选项；priority, callbackThread, preloadDependencies, user_data | 与请求绑定 |
+| **RecursiveLoadState** | 递归加载状态；NotLoaded/Loading/PartiallyReady/Ready/Failed/Cancelled | 与资源绑定 |
 
 #### ResourceManager 核心方法
 
-- `RequestLoadAsync(path, type, callback, user_data) -> LoadRequestId`：异步加载资源；创建资源实例（优先使用 002-Object TypeRegistry::CreateInstance，回退到 ResourceFactory）并调用 IResource::LoadAsync；线程安全
+- `RequestLoadAsync(path, type, callback, user_data) -> LoadRequestId`：异步加载资源；创建资源实例并调用 IResource::LoadAsync；线程安全
+- `RequestLoadAsyncEx(path, type, callback, options) -> LoadRequestId`：带扩展选项的异步加载；支持优先级、回调线程策略、依赖预加载
+- `RequestLoadBatchAsync(requests, count, on_done, user_data, options) -> BatchLoadRequestId`：批量异步加载
+- `GetBatchLoadResult(id, out_result) -> bool`：获取批量加载结果
 - `LoadSync(path, type) -> IResource*`：同步加载资源；创建资源实例并调用 IResource::Load；阻塞直至完成；失败返回 nullptr；线程安全
 - `GetCached(id) -> IResource*`：查询缓存；仅查缓存，未命中返回 nullptr，不触发加载；线程安全
 - `Unload(resource)`：卸载资源；递减引用计数，当为零时从缓存移除；调用 IResource::Release；线程安全
 - `GetLoadStatus(id) -> LoadStatus`：查询加载状态；线程安全
 - `GetLoadProgress(id) -> float`：查询加载进度（0.0 到 1.0）；线程安全
 - `CancelLoad(id)`：取消加载；取消未完成的请求；回调仍会触发，result 为 Cancelled；线程安全
-- `RequestStreaming(id, priority) -> StreamingHandle`：请求流式加载；当前为占位实现
-- `SetStreamingPriority(handle, priority)`：设置流式优先级；当前为占位实现
-- `RegisterResourceFactory(type, factory)`：注册资源工厂；实现采用混合机制：优先使用 002-Object TypeRegistry，回退到 ResourceFactory
+- `CancelBatchLoad(id)`：取消批量加载
+- `RequestStreaming(id, priority) -> StreamingHandle`：请求流式加载
+- `SetStreamingPriority(handle, priority)`：设置流式优先级
+- `RegisterResourceFactory(type, factory)`：注册资源工厂
 - `Import(path, type, out_metadata) -> bool`：导入资源；创建资源实例并调用 IResource::Import
 - `Save(resource, path) -> bool`：保存资源；调用 IResource::Save
 - `ResolvePath(id) -> char const*`：解析 ResourceId 到路径；GUID→路径；未解析返回 nullptr；线程安全
+- `GetRecursiveLoadState(id) -> RecursiveLoadState`：获取递归加载状态
+- `IsResourceReady(id) -> bool`：检查资源及所有依赖是否就绪
+- `SubscribeResourceState(id, callback, user_data) -> void*`：订阅资源状态变化
+- `UnsubscribeResourceState(handle)`：取消订阅
+- `PreloadDependencies(id, on_done, user_data) -> LoadRequestId`：预加载依赖
+- `GetDependencyTree(id, out_dependencies, max_depth) -> bool`：获取依赖树
+- `SetAssetRoot(path)`：设置资源根目录
+- `LoadAllManifests()`：加载所有清单
+- `ResolveType(id) -> ResourceType`：解析资源类型
+- `LoadSyncByGuid(id) -> IResource*`：按 GUID 同步加载
+- `ImportIntoRepository(...)`：导入到仓库
+- `CreateRepository(name) -> bool`：创建仓库
+- `GetRepositoryList(out)`：获取仓库列表
+- `GetResourceInfos(out)`：枚举所有资源
+- `GetAssetFolders(out)`：获取资源文件夹
+- `MoveResourceToRepository(id, targetRepo)`：移动资源到仓库
+- `UpdateAssetPath(id, newPath)`：更新资源路径
+- `AddAssetFolder(repoName, assetPath)`：添加资源文件夹
+- `RemoveAssetFolder(repoName, assetPath)`：移除资源文件夹
+- `GetTotalMemoryUsage() -> std::size_t`：获取总内存使用
+- `GetResourceMemoryUsage(id) -> std::size_t`：获取资源内存使用
+- `SetMemoryBudget(budget_bytes)`：设置内存预算
+- `GetMemoryBudget() -> std::size_t`：获取内存预算
+- `ForceGarbageCollect() -> std::size_t`：强制垃圾回收
 
 ### 3. 资源缓存
 
@@ -129,146 +160,29 @@ ResourceManager 简化为协调器和缓存管理器，负责协调加载流程�
 | **RResource** | 运行时/内存形态 | 即实现 IResource 的对象；013 仅创建 RResource，不创建 DResource；DResource 槽位由 011/012/028/008 在 EnsureDeviceResources 时填充 |
 | **DResource** | GPU 形态 | 由 008/011/012/028 在 EnsureDeviceResources 时创建，对 013 不可见，由 RResource 内部持有 |
 
-### 5. 资源加载/保存/导入流程
-
-#### 5.1 Load 流程
-
-**同步加载（LoadSync）**：
-```
-ResourceManager::LoadSync
-    │
-    ├─> 检查缓存（GetCached）
-    │   └─> 命中：直接返回
-    │
-    ├─> 未命中：创建资源实例（混合机制：优先 TypeRegistry::CreateInstance，回退到 ResourceFactory）
-    │   └─> 调用 IResource::Load(path, manager)
-    │       │
-    │       ├─> 子类重写 Load()，调用基类辅助方法：
-    │       │   ├─> LoadAssetDesc<T>(path) - 读取并反序列化 AssetDesc（002-Object）
-    │       │   ├─> LoadDataFile(path, outData, outSize) - 读取数据文件（001-Core）
-    │       │   ├─> LoadDependencies<T>(desc, getDeps, manager) - 加载依赖资源（递归，同步模式）
-    │       │   └─> OnLoadComplete() - 资源特定初始化（子类可重写）
-    │       │
-    │       └─> 返回 IResource*
-    │
-    └─> 缓存 IResource*（按 ResourceId，引用计数初始化为 1）
-```
-
-**异步加载（RequestLoadAsync）**：
-```
-ResourceManager::RequestLoadAsync
-    │
-    ├─> 检查缓存（GetCached）
-    │   └─> 命中：立即调用回调并返回
-    │
-    ├─> 未命中：创建资源实例（混合机制：优先 TypeRegistry::CreateInstance，回退到 ResourceFactory）
-    │   └─> 调用 IResource::LoadAsync(path, manager, on_done, user_data)
-    │       │
-    │       ├─> 默认实现：使用 IThreadPool 在后台线程执行 Load
-    │       │   ├─> 设置 m_isLoadingAsync = true
-    │       │   ├─> 在后台线程调用 Load(path, manager)
-    │       │   │   └─> 子类重写的 Load() 中，LoadDependencies<T> 检测到异步上下文，使用异步模式
-    │       │   └─> 在约定线程调用回调（由 IThreadPool::SetCallbackThread 指定，默认主线程）
-    │       │
-    │       └─> 返回 LoadRequestId（用于状态跟踪）
-    │
-    └─> 缓存 IResource*（按 ResourceId，引用计数初始化为 1）
-```
-
-#### 5.2 Save 流程
-
-```
-ResourceManager::Save(IResource*, path)
-    │
-    └─> 调用 IResource::Save(path, manager)
-        │
-        ├─> 默认实现：调用 OnPrepareSave()（子类可重写）
-        │
-        └─> 子类重写 Save()，调用基类辅助方法：
-            ├─> OnPrepareSave() - 准备保存数据（子类可重写）
-            ├─> GenerateGUID() - 生成 GUID（002-Object）
-            ├─> SaveAssetDesc<T>(path, desc) - 序列化并保存 AssetDesc（002-Object）
-            └─> SaveDataFile(path, data, size) - 保存数据文件（001-Core）
-```
-
-#### 5.3 Import 流程
-
-```
-ResourceManager::Import(path, type)
-    │
-    └─> 创建资源实例（混合机制：优先 TypeRegistry::CreateInstance，回退到 ResourceFactory）
-        │
-        └─> 调用 IResource::Import(sourcePath, manager)
-            │
-            ├─> 默认实现：
-            │   ├─> DetectFormat(sourcePath) - 检测格式（001-Core PathGetExtension）
-            │   ├─> OnConvertSourceFile(sourcePath, outData, outSize) - 转换源文件（子类必须实现）
-            │   ├─> OnCreateAssetDesc() - 创建 AssetDesc（子类必须实现）
-            │   ├─> GenerateGUID() - 生成 GUID（002-Object）
-            │   ├─> SaveAssetDesc<T>(path, desc) - 保存 AssetDesc（002-Object）
-            │   └─> SaveDataFile(path, data, size) - 保存数据文件（001-Core）
-            │
-            └─> 返回成功/失败
-```
-
-### 6. 各资源类型的实现要求
-
-**所有资源类型必须**：
-1. **继承 IResource 基类**
-2. **实现纯虚函数**：
-   - `GetResourceType() -> ResourceType`
-   - `GetResourceId() -> ResourceId`
-   - `Release()`
-   - `OnConvertSourceFile(sourcePath, outData, outSize) -> bool`（protected）
-   - `OnCreateAssetDesc() -> void*`（protected）
-3. **重写 Load 方法**（同步加载）：
-   - 调用基类的 `LoadAssetDesc<T>` 读取并反序列化 AssetDesc（需要 AssetDescTypeName<T> 特化）
-   - 调用基类的 `LoadDataFile` 读取数据文件
-   - 调用基类的 `LoadDependencies<T>` 加载依赖资源（传入函数对象提取依赖列表）
-   - 调用基类的 `OnLoadComplete()` 或重写此钩子以执行资源特定初始化
-4. **可选重写 LoadAsync 方法**（异步加载）：
-   - 默认实现使用 IThreadPool 在后台线程执行 Load，在约定线程调用回调
-   - 如需自定义异步逻辑，可重写此方法
-5. **重写 Save 方法**：
-   - 调用基类的 `OnPrepareSave()` 或重写此钩子以准备保存数据
-   - 调用基类的 `GenerateGUID` 生成 GUID（如果需要）
-   - 调用基类的 `SaveAssetDesc<T>` 保存 AssetDesc 文件（需要 AssetDescTypeName<T> 特化）
-   - 调用基类的 `SaveDataFile` 保存数据文件
-6. **可选重写 Import 方法**：
-   - 默认实现调用 DetectFormat、OnConvertSourceFile、OnCreateAssetDesc、GenerateGUID、SaveAssetDesc、SaveDataFile
-   - 如需自定义导入逻辑，可重写此方法
-7. **特化 AssetDescTypeName<T>**：
-   - 为各自的 AssetDesc 类型特化 `AssetDescTypeName<T>` 类型特征，提供类型名称字符串
-
-**AssetDesc 归属**：
-- 各资源类型拥有自己的 AssetDesc（如 MeshAssetDesc→012-Mesh，TextureAssetDesc→028-Texture）
-- AssetDesc 通过 002-Object 注册类型，支持序列化/反序列化
-- IResource::Load/Save 内部调用 002-Object 的序列化接口
-
-### 7. 资源工厂机制
-
-**混合机制**：
-- **优先**：使用 002-Object 的 `TypeRegistry::CreateInstance(typeName)` 创建资源实例
-- **回退**：如果 TypeRegistry 中未注册，使用注册的 `ResourceFactory` 函数指针
-- 资源类型模块应在初始化时：
-  1. 通过 002-Object 注册资源类型（推荐）
-  2. 或调用 `RegisterResourceFactory` 注册工厂函数
-
-### 8. 其他跨边界类型（按需）
+### 5. 扩展系统
 
 | 名称 | 语义 | 生命周期 |
 |------|------|----------|
-| StreamingHandle | 流式请求句柄；与 LOD/地形按需加载对接；当前为占位实现 | 请求有效期内 |
-| Metadata | 资源元数据；格式、依赖记录、与导入管线对接 | 与资源或导入产物绑定 |
+| **ResourceGroup** | 资源组；批量加载/卸载；AddResource、RemoveResource、LoadAllAsync、UnloadAll | 由调用方管理 |
+| **IResourceGroupManager** | 资源组管理器；CreateGroup、GetGroup、DestroyGroup | 由 Subsystems 提供 |
+| **IResourceEventManager** | 资源事件管理器；SubscribeGlobal、SubscribeResource、BroadcastEvent | 由 Subsystems 提供 |
+| **IHotReloadManager** | 热重载管理器；SetConfig、ReloadResource、WatchAssetRoot | 由 Subsystems 提供 |
+| **IStreamingManager** | 流式加载管理器；SetConfig、RegisterStreamable、ForceLOD、Update | 由 Subsystems 提供 |
+| **IImportManager** | 导入管理器；RegisterPreset、ImportSync、ImportAsync、ImportBatchSync | 由 Subsystems 提供 |
+| **IResourceTagManager** | 资源标签管理器；CreateTag、AddTagToResource、GetResourcesWithTag | 由 Subsystems 提供 |
+| **IResourceDebugManager** | 资源调试管理器；GetProfiler、GetLeakDetector、DumpDebugInfo | 由 Subsystems 提供 |
+| **IDownloadManager** | 远程资源下载管理器；QueueDownload、CancelDownload | 由 Subsystems 提供 |
+| **IChunkManager** | DLC/Chunk 管理器；InstallChunk、UninstallChunk、GetAvailableDLCs | 由 Subsystems 提供 |
 
 ### 能力汇总（提供方保证）
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
 | 1 | **IResource 基类** | 提供 IResource 基类，包含 Load、LoadAsync、Save、Import 方法及辅助方法；ResourceType 枚举；各资源类型继承并实现 |
-| 2 | **统一加载** | RequestLoadAsync、LoadSync 为唯一入口；ResourceManager 协调，调用 IResource::Load/LoadAsync；Load 阶段不创建 DResource |
+| 2 | **统一加载** | RequestLoadAsync、RequestLoadAsyncEx、RequestLoadBatchAsync、LoadSync 为唯一入口；ResourceManager 协调，调用 IResource::Load/LoadAsync；Load 阶段不创建 DResource |
 | 3 | **资源缓存** | 按 ResourceId 缓存 IResource*；GetCached(ResourceId)；使用引用计数；与 Unload/GC 协调 |
-| 4 | **加载工具** | GetLoadStatus、GetLoadProgress、CancelLoad；RequestStreaming、SetStreamingPriority（占位实现） |
+| 4 | **加载工具** | GetLoadStatus、GetLoadProgress、CancelLoad、CancelBatchLoad；RequestStreaming、SetStreamingPriority |
 | 5 | **寻址** | ResourceId、GUID、可寻址路径、BundleMapping；GUID→路径解析（ResolvePath）；ResourceId 提供 std::hash 特化 |
 | 6 | **卸载** | Unload(IResource*)、IResource::Release()；与各模块句柄协调；引用计数管理 |
 | 7 | **EnsureDeviceResources** | EnsureDeviceResourcesAsync/EnsureDeviceResources 由下游触发并转发给具体 IResource 实现；013 不参与 DResource 创建 |
@@ -277,6 +191,9 @@ ResourceManager::Import(path, type)
 | 10 | **模板方法模式** | IResource 基类提供默认实现（模板方法模式），子类可选择性重写特定步骤；Load/Save/Import 有默认实现，子类可重写以调用模板辅助方法 |
 | 11 | **异步加载基础设施** | LoadAsync 默认实现使用 001-Core IThreadPool；回调在约定线程调用（由 SetCallbackThread 指定，默认主线程） |
 | 12 | **资源工厂混合机制** | 优先使用 002-Object TypeRegistry，回退到 ResourceFactory 函数指针 |
+| 13 | **仓库管理** | SetAssetRoot、LoadAllManifests、CreateRepository、GetRepositoryList、GetResourceInfos、GetAssetFolders、MoveResourceToRepository |
+| 14 | **内存管理** | GetTotalMemoryUsage、GetResourceMemoryUsage、SetMemoryBudget、GetMemoryBudget、ForceGarbageCollect |
+| 15 | **扩展系统** | ResourceGroup、IResourceEventManager、IHotReloadManager、IStreamingManager、IImportManager、IResourceTagManager、IResourceDebugManager、IDownloadManager、IChunkManager |
 
 *Desc 归属：ModelAssetDesc、IModelResource→029-World；TextureAssetDesc→028-Texture；ShaderAssetDesc→010，MaterialAssetDesc→011，LevelAssetDesc/SceneNodeDesc→029，MeshAssetDesc→012。各资源类型拥有自己的 AssetDesc，通过 002-Object 注册和序列化。*
 
@@ -287,6 +204,7 @@ ResourceManager::Import(path, type)
 | 日期 | 变更说明 |
 |------|----------|
 | 2026-02-10 | ResourceType 枚举增加 Level，供 029-World 关卡资源加载使用；IResource 增加 IsDeviceReady() 虚方法（默认 false），028/011 等重写，020 用于录制前过滤 |
+| 2026-02-22 | 同步代码：补充 IResourceManager 新增方法（RequestLoadAsyncEx、RequestLoadBatchAsync、GetBatchLoadResult、CancelBatchLoad、GetRecursiveLoadState、IsResourceReady、SubscribeResourceState、PreloadDependencies、GetDependencyTree）；补充仓库管理方法（SetAssetRoot、LoadAllManifests、CreateRepository、GetRepositoryList、GetResourceInfos、GetAssetFolders、MoveResourceToRepository、UpdateAssetPath、AddAssetFolder、RemoveAssetFolder）；补充内存管理方法（GetTotalMemoryUsage、GetResourceMemoryUsage、SetMemoryBudget、GetMemoryBudget、ForceGarbageCollect）；新增能力 13-15（仓库管理、内存管理、扩展系统） |
 
 ---
 

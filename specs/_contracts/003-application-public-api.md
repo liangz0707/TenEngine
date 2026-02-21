@@ -122,3 +122,4 @@
 | 2026-02-06 | **接口整合优化**：将窗口、事件、主循环功能整合到IApplication接口中，简化事件系统（直接暴露事件队列，移除复杂订阅），优化主循环（简化Tick阶段为优先级），与Core模块设计风格对齐；版本保持2.0.0 |
 | 2026-02-06 | **平台抽象层重新设计**：新增IWindowPlatform和IEventPumpPlatform平台抽象接口，清晰的平台抽象层设计；优化WindowDesc（添加IsValid验证方法），改进EventQueue（添加Clear方法），统一注释风格对齐Core模块；版本保持2.0.0 |
 | 2026-02-06 | **事件队列接口增强**：新增非const版本的GetEventQueue()方法，供Input模块消费事件（因为EventQueue::Pop需要修改队列状态）；版本保持2.0.0 |
+| 2026-02-22 | Verified alignment with code: IApplication includes SetWndProcHandler for ImGui integration; InitParams includes argc/argv/configPath; RunParams includes windowTitle/width/height/runMode/tickCallback; EventType includes TouchDown/TouchUp/TouchMove; WindowEventType includes Minimized/Maximized/Restored; EventQueue uses Core Mutex and Array; IWindowPlatform includes SetWndProcHandler with default implementation |

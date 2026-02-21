@@ -107,3 +107,10 @@
 - *平台抽象层：新增IWindowPlatform和IEventPumpPlatform接口，清晰的平台抽象层设计，改进跨平台兼容性*
 - *类型优化：WindowDesc添加IsValid()验证方法，DisplayInfo添加默认值，EventQueue添加Clear()方法*
 - *注释风格：统一注释风格对齐Core模块（使用per contract标注）*
+
+## 变更记录
+
+| 日期 | 变更说明 |
+|------|----------|
+| 2026-02-06 | 重新设计版本 2.0.0；接口整合、事件系统简化、主循环简化、平台抽象层 |
+| 2026-02-22 | Verified alignment with code: IApplication::SetWndProcHandler added; InitParams has argc/argv/configPath; RunParams has full fields; WindowDesc has displayIndex; WindowEventType has Minimized/Maximized/Restored; Event includes touch events; IWindowPlatform::SetWndProcHandler has default implementation |

@@ -119,3 +119,4 @@
 | T0 新增 | 005-Entity ABI |
 | 2026-02-06 | 架构重构：Entity直接实现ISceneNode接口；移除ModelComponent和TransformComponent；更新ABI以反映实际实现 |
 | 2026-02-10 | ComponentQuery 统一为变参 Query\<Components...\>；EntityManager 仅保留 QueryEntitiesWithComponents；IComponentRegistry 增加 RegisterComponentTypeByNameAndSize，RegisterComponentType\<T\> 在头文件内实现 |
+| 2026-02-22 | Verified alignment with code: EntityId includes Hash struct; Component includes virtual destructor and OnAttached/OnDetached; Entity has both template and TypeId overloads for HasComponent/GetComponent; EntityManager has QueryEntitiesWithComponent<T> (single) and QueryEntitiesWithComponents<Components...> (variadic); ComponentQuery::ForEach has single and multi-component overloads; System has Initialize/Shutdown virtuals; SystemExecutionOrder values: PreUpdate=0, Update=100, PostUpdate=200, Render=300, PostRender=400 |

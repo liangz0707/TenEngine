@@ -61,3 +61,4 @@
 | T0 新增 | 002-Object 契约；按模块规格与 resource-serialization 约定 ABI 与 TODO |
 | 2026-01-29 | 002-object-fullversion-002 全量 ABI 写回：TypeDescriptor、TypeRegistry、ISerializer、IVersionMigration、PropertyBag 等；数据相关 TODO 已实现 |
 | 2026-02-06 | 完全重新设计：新增 JSON 和 XML 序列化器；增强 TypeRegistry（IsTypeRegistered、EnumerateTypes）；增强 GUID（Generate、FromString、ToString）；新增文件序列化便捷函数（SerializeToFile、DeserializeFromFile）；PropertyBag 增强（类型检查、按索引访问）；头文件扩展名从 .hpp 改为 .h |
+| 2026-02-22 | Verified alignment with code: TypeId = std::uint32_t; kInvalidTypeId = 0; TypeDescriptor/PropertyDescriptor structures match; TypeRegistry static methods match; GUID methods match; ISerializer includes GetFormat(); IVersionMigration in Serializer.h; PropertyBag constructor and methods match; all serializer factory functions match |

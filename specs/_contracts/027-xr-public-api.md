@@ -1,45 +1,50 @@
-# 契约：027-XR 模块对外 API
+# Contract: 027-XR Module Public API
 
-## 适用模块
+## Status: NOT IMPLEMENTED
 
-- **实现方**：027-XR（L4；AR/VR 子系统、头显、手柄；无下游）
-- **对应规格**：`docs/module-specs/027-xr.md`
-- **依赖**：001-Core、007-Subsystems、006-Input、020-Pipeline
+> **Note**: This module is a placeholder. No implementation exists in the codebase. The contract below defines the intended API for future implementation.
 
-## 消费者
+## Applicable Module
 
-- 无（L4 消费端；向应用或运行时提供 XR 会话、帧、提交到 XR 交换链；或作为 Subsystems 子系统挂接）
+- **Implementor**: 027-XR (L4; AR/VR subsystem, HMD, controllers; no downstream)
+- **Spec**: `docs/module-specs/027-xr.md`
+- **Dependencies**: 001-Core, 007-Subsystems, 006-Input, 020-Pipeline
 
-## 能力列表
+## Consumers
 
-### 类型与句柄（跨边界）
+- None (L4 consumer; provides XR session, frame, submit to XR swap chain to application or runtime; or as Subsystems subsystem)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| XRSessionHandle | XR 会话句柄；与 Subsystems 子系统、平台 XR 运行时对接 | 创建后直至结束会话 |
-| XRFrameHandle | 帧句柄；视口、投影、与 Pipeline 提交、RHI XR 交换链对接 | 每帧 |
-| 提交接口 | 将 Pipeline 产出提交到 XR 交换链；与 pipeline-to-rci 及 RHI 约定一致 | 每帧 |
+## Capabilities
 
-### 能力（提供方保证）
+### Types and Handles (Cross-Boundary)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 会话 | XRSessionHandle、与 Subsystems、平台 XR 运行时对接 |
-| 2 | 帧 | XRFrameHandle、视口、投影、与 Pipeline 提交对接 |
-| 3 | 提交 | 将 Pipeline 产出提交到 XR 交换链；与 RHI 约定一致 |
-| 4 | 输入 | 与 006-Input 对接（XR 输入） |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| XRSessionHandle | XR session handle; integrates with Subsystems subsystem and platform XR runtime | Created until session ends |
+| XRFrameHandle | Frame handle; viewport, projection, integrates with Pipeline submit and RHI XR swap chain | Per frame |
+| Submit Interface | Submits Pipeline output to XR swap chain; consistent with pipeline-to-rci and RHI conventions | Per frame |
 
-## 版本 / ABI
+### Capabilities (Provider Guarantees)
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+| ID | Capability | Description |
+|----|------------|-------------|
+| 1 | Session | XRSessionHandle, integrates with Subsystems and platform XR runtime |
+| 2 | Frame | XRFrameHandle, viewport, projection, integrates with Pipeline submit |
+| 3 | Submit | Submits Pipeline output to XR swap chain; consistent with RHI conventions |
+| 4 | Input | Integrates with 006-Input (XR input) |
 
-## 约束
+## Version / ABI
 
-- 须在 Core、Subsystems、Input、Pipeline 初始化之后使用。可与 007-Subsystems 对接（XR 作为子系统挂接）。
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-## 变更记录
+## Constraints
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 027-XR 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+- Must be used after Core, Subsystems, Input, and Pipeline initialization. Can integrate with 007-Subsystems (XR as subsystem).
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| T0 | 027-XR contract created |
+| 2026-02-05 | Unified directory; capabilities in table format |
+| 2026-02-22 | Marked as NOT IMPLEMENTED (placeholder only); verified no header files exist |

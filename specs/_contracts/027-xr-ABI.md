@@ -1,42 +1,49 @@
-﻿# 027-XR 模块 ABI
+# 027-XR Module ABI
 
-- **契约**：[027-xr-public-api.md](./027-xr-public-api.md)（能力与类型描述）
-- **本文件**：027-XR 对外 ABI 显式表。
-- **参考**：Unity XR、UE OpenXR；XR 会话、帧、视口/投影、提交到 XR 交换链；与 Subsystems、Input、Pipeline 对接。
-- **命名**：成员方法采用 **PascalCase**；说明列给出**完整函数签名**。
+- **Contract**: [027-xr-public-api.md](./027-xr-public-api.md) (capabilities and type descriptions)
+- **This file**: 027-XR public ABI explicit table.
+- **Status**: NOT IMPLEMENTED
 
-## ABI 表
+> **Note**: This module is a placeholder. No implementation exists. The ABI below defines the intended symbols for future implementation.
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+## ABI Table
 
-### 会话（Session）
+Column definitions: **Module | Namespace | Class | Export | Interface | Header | Symbol | Description**
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 027-XR | te::xr | IXRSession | 抽象接口 | 创建/结束会话 | te/xr/XRSession.h | IXRSession::BeginSession, EndSession | `bool BeginSession(XRSessionDesc const& desc);` `void EndSession();` 与 Subsystems、平台 XR 运行时对接；创建后直至结束会话 |
-| 027-XR | te::xr | — | 自由函数/工厂 | 创建 XR 会话 | te/xr/XRSession.h | CreateXRSession | `IXRSession* CreateXRSession();` 失败返回 nullptr；或通过 SubsystemRegistry::GetSubsystem\<IXRSession\>() 获取 |
-| 027-XR | te::xr | — | struct | 会话描述 | te/xr/XRSession.h | XRSessionDesc | 运行时、选项；由调用方填充 |
+### Session
 
-### 帧（Frame）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 027-XR | te::xr | IXRSession | abstract interface | Create/End session | te/xr/XRSession.h | IXRSession::BeginSession, EndSession | `bool BeginSession(XRSessionDesc const& desc);` `void EndSession();` Integrates with Subsystems and platform XR runtime; created until session ends |
+| 027-XR | te::xr | -- | free function/factory | Create XR session | te/xr/XRSession.h | CreateXRSession | `IXRSession* CreateXRSession();` Returns nullptr on failure; or get via SubsystemRegistry::GetSubsystem<IXRSession>() |
+| 027-XR | te::xr | -- | struct | Session description | te/xr/XRSession.h | XRSessionDesc | Runtime, options; filled by caller |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 027-XR | te::xr | IXRSession | 抽象接口 | 帧开始 | te/xr/XRFrame.h | IXRSession::BeginFrame | `bool BeginFrame();` 返回 false 表示本帧不渲染；每帧 |
-| 027-XR | te::xr | IXRSession | 抽象接口 | 帧结束 | te/xr/XRFrame.h | IXRSession::EndFrame | `void EndFrame();` 每帧 |
-| 027-XR | te::xr | IXRSession | 抽象接口 | 获取视口/投影 | te/xr/XRFrame.h | IXRSession::GetViewCount, GetViewport, GetProjection | `uint32_t GetViewCount() const;` `void GetViewport(uint32_t viewIndex, Viewport* out) const;` `void GetProjection(uint32_t viewIndex, float nearZ, float farZ, float* outMatrix) const;` 与 Pipeline/RHI 对接 |
-| 027-XR | te::xr | — | struct | 视口 | te/xr/XRFrame.h | Viewport | x、y、width、height；每帧有效 |
+### Frame
 
-### 提交（Submit）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 027-XR | te::xr | IXRSession | abstract interface | Begin frame | te/xr/XRFrame.h | IXRSession::BeginFrame | `bool BeginFrame();` Returns false if no render this frame; per frame |
+| 027-XR | te::xr | IXRSession | abstract interface | End frame | te/xr/XRFrame.h | IXRSession::EndFrame | `void EndFrame();` Per frame |
+| 027-XR | te::xr | IXRSession | abstract interface | Get viewport/projection | te/xr/XRFrame.h | IXRSession::GetViewCount, GetViewport, GetProjection | `uint32_t GetViewCount() const;` `void GetViewport(uint32_t viewIndex, Viewport* out) const;` `void GetProjection(uint32_t viewIndex, float nearZ, float farZ, float* outMatrix) const;` Integrates with Pipeline/RHI |
+| 027-XR | te::xr | -- | struct | Viewport | te/xr/XRFrame.h | Viewport | x, y, width, height; valid per frame |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 027-XR | te::xr | IXRSession | 抽象接口 | 提交到 XR 交换链 | te/xr/XRFrame.h | IXRSession::Submit | `void Submit(ITexture* const* swapImages, uint32_t count);` 将 Pipeline 产出提交到 XR 交换链；与 pipeline-to-rci 及 RHI 约定一致；每帧 |
-| 027-XR | te::xr | IXRSession | 抽象接口 | 获取 XR 交换链 | te/xr/XRFrame.h | IXRSession::GetSwapChain | `ISwapChain* GetSwapChain(uint32_t viewIndex) const;` 与 RHI XR 交换链对接；供 Pipeline 渲染目标绑定 |
+### Submit
 
-### 输入（可选）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 027-XR | te::xr | IXRSession | abstract interface | Submit to XR swap chain | te/xr/XRFrame.h | IXRSession::Submit | `void Submit(ITexture* const* swapImages, uint32_t count);` Submits Pipeline output to XR swap chain; consistent with pipeline-to-rci and RHI conventions; per frame |
+| 027-XR | te::xr | IXRSession | abstract interface | Get XR swap chain | te/xr/XRFrame.h | IXRSession::GetSwapChain | `ISwapChain* GetSwapChain(uint32_t viewIndex) const;` Integrates with RHI XR swap chain; for Pipeline render target binding |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 027-XR | te::xr | IXRSession | 抽象接口 | XR 控制器/头显输入 | te/xr/XRInput.h | IXRSession::GetControllerPose, GetHeadPose | `void GetControllerPose(uint32_t hand, Transform* out) const;` `void GetHeadPose(Transform* out) const;` 与 006-Input 模块扩展对接（可选） |
+### Input (Optional)
 
-*来源：契约能力 Session、Frame、Submit、Input；参考 Unity XR、UE OpenXR。*
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 027-XR | te::xr | IXRSession | abstract interface | XR controller/HMD input | te/xr/XRInput.h | IXRSession::GetControllerPose, GetHeadPose | `void GetControllerPose(uint32_t hand, Transform* out) const;` `void GetHeadPose(Transform* out) const;` Integrates with 006-Input module extension (optional) |
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| T0 | 027-XR ABI created |
+| 2026-02-05 | Unified directory format |
+| 2026-02-22 | Marked as NOT IMPLEMENTED; verified no header files exist in Engine/TenEngine-027-xr/ |

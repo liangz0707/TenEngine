@@ -1,113 +1,141 @@
-# 契约：006-Input 模块对外 API
+# Contract: 006-Input Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：006-Input（L1；输入抽象、键鼠/手柄/触摸、原始输入、事件与映射）
-- **对应规格**：`docs/module-specs/006-input.md`
-- **依赖**：001-Core、003-Application
+- **Implementer**: 006-Input (L1; input abstraction, keyboard/mouse/gamepad/touch, raw input, events and mapping)
+- **Corresponding Spec**: `docs/module-specs/006-input.md`
+- **Dependencies**: 001-Core, 003-Application
 
-## 消费者
+## Consumers
 
-- 017-UICore、024-Editor、027-XR
+- 017-UICore, 024-Editor, 027-XR
 
-## 能力列表
+## Capability List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| **KeyCode** | 键盘键码枚举（与物理设备解耦） | 编译时定义 |
-| **MouseButton** | 鼠标按钮枚举（Left/Right/Middle等） | 编译时定义 |
-| **GamepadButton** | 手柄按钮枚举（A/B/X/Y/Shoulder等） | 编译时定义 |
-| **GamepadAxis** | 手柄轴枚举（LeftStickX/Y、RightStickX/Y、Trigger等） | 编译时定义 |
-| **TouchPhase** | 触摸阶段枚举（Begin/Move/End/Cancel） | 编译时定义 |
-| **TouchState** | 触摸点状态（ID、位置、阶段） | 每帧或按查询 |
-| **ActionId** | 动作ID（uint32_t），用于输入抽象 | 注册后直至取消 |
-| **AxisId** | 轴ID（uint32_t），用于输入抽象 | 注册后直至取消 |
-| **ActionState / AxisValue** | 动作/轴抽象后的状态与数值 | 每帧或按查询 |
-| **绑定表 / 配置** | 动作/轴与物理设备映射；可序列化或从配置加载 | 按实现约定 |
+| Name | Semantics | Lifetime |
+|------|-----------|----------|
+| **KeyCode** | Abstract key/axis code, device-agnostic (`using KeyCode = std::uint32_t;`) | Compile-time definition |
+| **DeviceKind** | Device kind enumeration (Keyboard, Mouse, Gamepad, Touch) | Compile-time definition |
+| **DeviceId** | Logical device ID (`using DeviceId = std::uint32_t;`); for gamepads: connection-order index 0, 1, 2, ... | Registration until unregister |
+| **ActionId** | Action identifier (value type with name string) | Registration until unregister |
+| **AxisId** | Axis identifier (value type with name string) | Registration until unregister |
+| **TouchPhase** | Touch phase enumeration (Begin, Move, End) | Per-frame or on query |
+| **TouchState** | Touch point state (ID, position, phase) | Per-frame or on query |
+| **MouseState** | Mouse state (position, delta, buttons) | Per-frame or on query |
+| **BindingEntry** | One binding: (DeviceKind, KeyCode) | Binding table lifetime |
+| **BindingTable** | Action/axis to (DeviceKind, KeyCode) mappings; multi-bind allowed | Application lifetime |
+| **WindowHandle** | Opaque window handle from 003-Application (`using WindowHandle = void*;`) | Application lifetime |
 
-### 能力（提供方保证）
+### Capabilities (Provider Guarantees)
 
-#### 1. 事件处理
+#### 1. Input Abstraction (Action/Axis)
 
-| 能力 | 说明 |
-|------|------|
-| **ProcessEvents** | 从Application的EventQueue消费事件并更新输入状态；应在主循环中每帧调用 |
+| Capability | Description |
+|------------|-------------|
+| **InputAbstraction** | Action/axis query abstraction; returns current-frame ActionState (bool) and AxisValue (float) from BindingTable and raw state |
+| **get_action_state** | Returns current-frame action state: true if any bound key/button is down |
+| **get_axis_value** | Returns current-frame axis value; multiple bindings: first bound value (implementation-defined) |
+| **tick** | Call once per frame from Application TickCallback to update state from internal event queue |
 
-#### 2. 键盘输入
+#### 2. Keyboard and Mouse Input
 
-| 能力 | 说明 |
-|------|------|
-| **GetKey** | 获取键状态（当前帧按下） |
-| **GetKeyDown** | 获取键按下状态（本帧刚按下，上一帧未按下） |
-| **GetKeyUp** | 获取键释放状态（本帧刚释放，上一帧按下） |
+| Capability | Description |
+|------------|-------------|
+| **KeyboardMouse** | Keyboard and mouse input; state is per-frame |
+| **get_key** | Get key state (current frame pressed) |
+| **get_mouse_position** | Get mouse position (MouseState with x, y) |
+| **get_mouse_delta** | Get mouse delta (MouseState with dx, dy) |
+| **set_capture** | Set mouse capture |
+| **focus** | Set focus window (WindowHandle) |
+| **tick** | Call once per frame to update key/mouse state from events |
 
-#### 3. 鼠标输入
+#### 3. Gamepad Input
 
-| 能力 | 说明 |
-|------|------|
-| **GetMouseButton** | 获取鼠标按钮状态（当前帧按下） |
-| **GetMouseButtonDown** | 获取鼠标按钮按下状态（本帧刚按下） |
-| **GetMouseButtonUp** | 获取鼠标按钮释放状态（本帧刚释放） |
-| **GetMousePosition** | 获取鼠标位置（X、Y坐标） |
-| **GetMouseDelta** | 获取鼠标增量（相对于上一帧的移动量） |
-| **SetMouseCapture** | 设置鼠标捕获（捕获鼠标输入即使鼠标在窗口外） |
-| **SetFocusWindow** | 设置焦点窗口（输入事件关联到此窗口） |
+| Capability | Description |
+|------------|-------------|
+| **Gamepad** | Gamepad input: multi-controller, buttons/axes, vibration |
+| **get_gamepad_count** | Get connected gamepad count |
+| **get_button** | Get gamepad button state (DeviceId, KeyCode) |
+| **get_axis** | Get gamepad axis value (DeviceId, KeyCode) |
+| **set_vibration** | Set gamepad vibration (DeviceId, left, right) |
+| **tick** | Call once per frame to update gamepad state |
 
-#### 4. 手柄输入
+#### 4. Touch Input
 
-| 能力 | 说明 |
-|------|------|
-| **GetGamepadCount** | 获取连接的手柄数量 |
-| **GetGamepadButton** | 获取手柄按钮状态 |
-| **GetGamepadAxis** | 获取手柄轴值（范围[-1.0, 1.0]或[0.0, 1.0]用于扳机） |
-| **SetGamepadVibration** | 设置手柄震动（可选功能） |
+| Capability | Description |
+|------------|-------------|
+| **TouchInput** | Touch input: multi-touch, get_touch_count / get_touch(id) |
+| **get_touch_count** | Get active touch point count |
+| **get_touch** | Get touch point state (TouchState) by touch_id |
+| **tick** | Call once per frame to update touch state |
 
-#### 5. 触摸输入
+#### 5. Binding Configuration
 
-| 能力 | 说明 |
-|------|------|
-| **GetTouchCount** | 获取活动触摸点数量 |
-| **GetTouch** | 获取触摸点状态（ID、位置、阶段）；与平台触摸事件对接 |
+| Capability | Description |
+|------------|-------------|
+| **BindingTable** | Binding table: action/axis to (DeviceKind, KeyCode) mappings; multi-bind allowed |
+| **add_binding** | Add action binding (ActionId, DeviceKind, KeyCode) |
+| **add_axis_binding** | Add axis binding (AxisId, DeviceKind, KeyCode) |
+| **remove_binding** | Remove action binding |
+| **remove_axis_binding** | Remove axis binding |
+| **remove_all_for_action** | Remove all bindings for an action |
+| **remove_all_for_axis** | Remove all bindings for an axis |
+| **get_bindings_for_action** | Get all bindings for an action |
+| **get_bindings_for_axis** | Get all bindings for an axis |
 
-#### 6. 输入抽象（Action/Axis）
+#### 6. Device Mapping
 
-| 能力 | 说明 |
-|------|------|
-| **GetActionState** | 获取动作状态（映射自绑定的输入设备） |
-| **GetAxisValue** | 获取轴值（映射自绑定的输入设备） |
-| **RegisterAction** | 注册动作ID和名称 |
-| **RegisterAxis** | 注册轴ID和名称 |
-| **BindActionToKey** | 将动作绑定到键盘键 |
-| **BindAxisToKey** | 将轴绑定到键盘键（带缩放因子） |
-| **BindAxisToGamepadAxis** | 将轴绑定到手柄轴（带缩放因子） |
-| **LoadBindingConfig** | 从配置文件加载绑定配置 |
+| Capability | Description |
+|------------|-------------|
+| **MapDevice** | Maps physical devices to logical DeviceId/DeviceKind |
+| **map_physical_device** | Map a physical device (platform_handle_or_index, DeviceKind, DeviceId) |
 
-## 版本 / ABI
+#### 7. Configuration Loading
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
-- 当前版本：**2.0.0**（重新设计后的版本）
+| Capability | Description |
+|------------|-------------|
+| **LoadConfig** | Load binding config from path or memory into a BindingTable |
+| **load_config** | Load from file path; returns true on success |
+| **load_config_from_memory** | Load from memory; returns true on success |
 
-## 约束
+## Version / ABI
 
-1. **初始化顺序**：须在 Core、Application 可用之后使用；通过 Application 的 EventQueue 消费事件
-2. **事件处理**：ProcessEvents() 应在主循环中每帧调用，从 Application 的 EventQueue 消费事件
-3. **线程安全**：状态查询方法应该是线程安全的（使用 mutex 保护）
-4. **多设备**：多设备与多平台行为由实现定义并文档化
-5. **焦点管理**：输入与焦点协同：Editor 或 UI 获得焦点时，游戏逻辑可不接收输入（由实现约定）
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
+- Current version: **3.0.0** (code-aligned update)
 
-## 命名空间与头文件
+## Constraints
 
-- **命名空间**：`te::input`
-- **主要头文件**：
-  - `te/input/Input.h`：IInput接口（整合键盘、鼠标、手柄、触摸、输入抽象）、CreateInput工厂函数
-  - `te/input/InputTypes.h`：输入类型定义（KeyCode、MouseButton、GamepadButton、GamepadAxis、TouchPhase、TouchState、ActionId、AxisId）
+1. **Initialization Order**: Must be used after Core and Application are available
+2. **Event Processing**: tick() should be called once per frame from Application TickCallback
+3. **Thread Safety**: State query methods should be thread-safe (protected by mutex)
+4. **Multi-Device**: Multi-device and multi-platform behavior is implementation-defined and documented
+5. **Focus Management**: Input and focus coordination: when Editor or UI gains focus, game logic may not receive input (implementation-defined)
 
-## 变更记录
+## Namespace and Header Files
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 006-Input 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
-| 2026-02-06 | **重新设计**：接口整合（移除IInputService单例，改为IInput接口和CreateInput工厂函数）、事件处理改进（新增ProcessEvents方法从EventQueue消费事件）、状态查询增强（新增GetKeyDown/GetKeyUp、GetMouseButtonDown/GetMouseButtonUp方法）、命名规范统一（PascalCase命名，对齐Application和Core模块风格）、注释风格统一（per contract标注）；版本升级至2.0.0 |
+- **Namespace**: `te_input`
+- **Header Files**:
+  - `te_input/Abstraction.hpp`: InputAbstraction class
+  - `te_input/ActionId.hpp`: ActionId struct
+  - `te_input/AxisId.hpp`: AxisId struct
+  - `te_input/BindingTable.hpp`: BindingTable class, BindingEntry struct
+  - `te_input/DeviceId.hpp`: DeviceId type
+  - `te_input/DeviceKind.hpp`: DeviceKind enum
+  - `te_input/Gamepad.hpp`: Gamepad class
+  - `te_input/KeyboardMouse.hpp`: KeyboardMouse class, WindowHandle type
+  - `te_input/KeyCode.hpp`: KeyCode type
+  - `te_input/LoadConfig.hpp`: LoadConfig class
+  - `te_input/MapDevice.hpp`: MapDevice class
+  - `te_input/MouseState.hpp`: MouseState struct
+  - `te_input/Touch.hpp`: TouchInput class, TouchPhase enum, TouchState struct
+
+## Change Log
+
+| Date | Change Description |
+|------|-------------------|
+| T0 Initial | 006-Input contract |
+| 2026-02-05 | Unified directory; capability list in table format |
+| 2026-02-06 | Redesign: consolidated interfaces, improved event handling, enhanced state query, unified naming conventions |
+| 2026-02-22 | Code-aligned update: namespace `te_input`, actual types and classes as implemented (InputAbstraction, BindingTable, Gamepad, KeyboardMouse, TouchInput, MapDevice, LoadConfig), removed IInput interface (not in code), added WindowHandle type |

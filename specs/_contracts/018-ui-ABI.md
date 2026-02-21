@@ -1,48 +1,60 @@
-﻿# 018-UI 模块 ABI
+# 018-UI Module ABI
 
-- **契约**：[018-ui-public-api.md](./018-ui-public-api.md)（能力与类型描述）
-- **本文件**：018-UI 对外 ABI 显式表。
-- **参考**：Unity UGUI、UE UMG；画布、控件树、事件、样式。
-- **命名**：成员方法采用 **PascalCase**；说明列给出**完整函数签名**。
+- **Contract**: [018-ui-public-api.md](./018-ui-public-api.md) (capabilities and type descriptions)
+- **This File**: 018-UI external ABI explicit table.
+- **Reference**: Unity UGUI, UE UMG; canvas, widget tree, events, styles.
+- **Naming**: Member methods use **PascalCase**; description column provides **complete function signatures**.
 
-## ABI 表
+## Implementation Status
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+**PARTIALLY IMPLEMENTED** - Only ICanvas interface exists. Widget types, events, and styles are not yet implemented.
 
-### 画布（Canvas）
+## ABI Table
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 018-UI | te::ui | ICanvas | 抽象接口 | 创建画布 | te/ui/Canvas.h | CreateCanvas | `ICanvas* CreateCanvas();` 失败返回 nullptr；与 UICore Layout/Draw/HitTest 对接 |
-| 018-UI | te::ui | ICanvas | 抽象接口 | 添加子节点 | te/ui/Canvas.h | ICanvas::AddChild | `void AddChild(IWidget* child);` 控件树根下添加 |
-| 018-UI | te::ui | ICanvas | 抽象接口 | 布局与绘制 | te/ui/Canvas.h | ICanvas::Layout, Draw | `void Layout();` `void Draw(IDrawCommandList* list);` 委托 UICore Measure/Arrange 与 DrawList |
-| 018-UI | te::ui | ICanvas | 抽象接口 | 命中检测 | te/ui/Canvas.h | ICanvas::HitTest | `HitTestResult HitTest(int x, int y) const;` 委托 UICore HitTest |
+Column definitions: **Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description**
 
-### 控件（Widgets）
+### Canvas (Implemented)
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 018-UI | te::ui | IWidget | 抽象接口 | 基础控件接口 | te/ui/Widget.h | IWidget::GetLayoutNode, AddChild, RemoveChild | 与 UICore ILayoutNode 对应；子节点管理 |
-| 018-UI | te::ui | — | 工厂/类型 | 按钮 | te/ui/Widgets.h | CreateButton | `IWidget* CreateButton(char const* text);` 返回 IWidget*；OnClick 等事件由 SetEventCallback 注册 |
-| 018-UI | te::ui | — | 工厂/类型 | 滑块 | te/ui/Widgets.h | CreateSlider | `IWidget* CreateSlider(float min, float max, float value);` |
-| 018-UI | te::ui | — | 工厂/类型 | 文本 | te/ui/Widgets.h | CreateText | `IWidget* CreateText(char const* text);` |
-| 018-UI | te::ui | — | 工厂/类型 | 图片 | te/ui/Widgets.h | CreateImage | `IWidget* CreateImage(ITextureResource* texture);` |
-| 018-UI | te::ui | — | 工厂/类型 | 列表 | te/ui/Widgets.h | CreateList | `IWidget* CreateList();` 可滚动列表 |
-| 018-UI | te::ui | — | 工厂/类型 | 容器 | te/ui/Widgets.h | CreateContainer | `IWidget* CreateContainer();` 布局容器 |
-| 018-UI | te::ui | IWidget | 抽象接口 | 设置样式 | te/ui/Widget.h | IWidget::SetStyle | `void SetStyle(StyleRef const& style);` 主题、颜色、字体、边距 |
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 018-UI | te::ui | ICanvas | Abstract Interface | Add child node | te/ui/Canvas.h | ICanvas::AddChild | `void AddChild(uicore::ILayoutNode* child);` Add to widget tree root |
+| 018-UI | te::ui | ICanvas | Abstract Interface | Layout | te/ui/Canvas.h | ICanvas::Layout | `void Layout();` Delegates to UICore Measure/Arrange |
+| 018-UI | te::ui | ICanvas | Abstract Interface | Draw | te/ui/Canvas.h | ICanvas::Draw | `void Draw();` Delegates to UICore DrawList |
+| 018-UI | te::ui | — | Free Function/Factory | Create canvas | te/ui/Canvas.h | CreateCanvas | `ICanvas* CreateCanvas();` Returns nullptr on failure; interfaces with UICore Layout/Draw/HitTest |
 
-### 事件（Events）
+### Widgets (NOT IMPLEMENTED)
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 018-UI | te::ui | IWidget | 抽象接口 | 注册事件回调 | te/ui/Events.h | IWidget::SetOnClick, SetOnDrag, SetOnInput | `void SetOnClick(EventCallback cb);` `void SetOnDrag(DragCallback cb);` `void SetOnInput(InputCallback cb);` 与 Input 解耦的抽象事件 |
-| 018-UI | te::ui | — | 枚举/类型 | 事件传播 | te/ui/Events.h | EventPhase::Bubble, Capture | Bubble/Capture 由实现约定 |
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 018-UI | te::ui | IWidget | Abstract Interface | Base widget interface | te/ui/Widget.h | IWidget::GetLayoutNode, AddChild, RemoveChild | **NOT IMPLEMENTED** - Corresponds to UICore ILayoutNode; child node management |
+| 018-UI | te::ui | — | Factory/Type | Button | te/ui/Widgets.h | CreateButton | **NOT IMPLEMENTED** - `IWidget* CreateButton(char const* text);` |
+| 018-UI | te::ui | — | Factory/Type | Slider | te/ui/Widgets.h | CreateSlider | **NOT IMPLEMENTED** - `IWidget* CreateSlider(float min, float max, float value);` |
+| 018-UI | te::ui | — | Factory/Type | Text | te/ui/Widgets.h | CreateText | **NOT IMPLEMENTED** - `IWidget* CreateText(char const* text);` |
+| 018-UI | te::ui | — | Factory/Type | Image | te/ui/Widgets.h | CreateImage | **NOT IMPLEMENTED** - `IWidget* CreateImage(ITextureResource* texture);` |
+| 018-UI | te::ui | — | Factory/Type | List | te/ui/Widgets.h | CreateList | **NOT IMPLEMENTED** - `IWidget* CreateList();` Scrollable list |
+| 018-UI | te::ui | — | Factory/Type | Container | te/ui/Widgets.h | CreateContainer | **NOT IMPLEMENTED** - `IWidget* CreateContainer();` Layout container |
+| 018-UI | te::ui | IWidget | Abstract Interface | Set style | te/ui/Widget.h | IWidget::SetStyle | **NOT IMPLEMENTED** - `void SetStyle(StyleRef const& style);` |
 
-### 样式（Style）
+### Events (NOT IMPLEMENTED)
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 018-UI | te::ui | — | struct | 样式引用 | te/ui/Style.h | StyleRef | 主题、颜色、字体、边距；与 Resource 资源引用对接 |
-| 018-UI | te::ui | — | 自由函数 | 设置主题 | te/ui/Style.h | SetTheme | `void SetTheme(ICanvas* canvas, StyleRef const& theme);` 与控件或画布绑定 |
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 018-UI | te::ui | IWidget | Abstract Interface | Register event callback | te/ui/Events.h | IWidget::SetOnClick, SetOnDrag, SetOnInput | **NOT IMPLEMENTED** - `void SetOnClick(EventCallback cb);` `void SetOnDrag(DragCallback cb);` `void SetOnInput(InputCallback cb);` |
+| 018-UI | te::ui | — | Enum/Type | Event propagation | te/ui/Events.h | EventPhase::Bubble, Capture | **NOT IMPLEMENTED** - Bubble/Capture by implementation convention |
 
-*来源：契约能力 Widgets、Canvas、Events、Style；参考 Unity UGUI、UE UMG。*
+### Style (NOT IMPLEMENTED)
+
+| Module Name | Namespace | Class Name | Export Form | Interface Description | Header File | Symbol | Description |
+|-------------|-----------|------------|-------------|----------------------|-------------|--------|-------------|
+| 018-UI | te::ui | — | struct | Style reference | te/ui/Style.h | StyleRef | **NOT IMPLEMENTED** - Theme, color, font, margin; interface with Resource |
+| 018-UI | te::ui | — | Free Function | Set theme | te/ui/Style.h | SetTheme | **NOT IMPLEMENTED** - `void SetTheme(ICanvas* canvas, StyleRef const& theme);` |
+
+*Source: Contract capabilities Widgets, Canvas, Events, Style; Reference Unity UGUI, UE UMG.*
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 018-UI ABI |
+| 2026-02-05 | Unified directory format |
+| 2026-02-22 | Marked implementation status; ICanvas implemented with AddChild(LayoutNode), Layout(), Draw(); widgets/events/styles not yet implemented |

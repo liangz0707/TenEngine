@@ -1,46 +1,51 @@
-# 契约：018-UI 模块对外 API
+# Contract: 018-UI Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：018-UI（L2；控件、画布、事件）
-- **对应规格**：`docs/module-specs/018-ui.md`
-- **依赖**：017-UICore
+- **Implementer**: 018-UI (L2; controls, canvas, events)
+- **Corresponding Spec**: `docs/module-specs/018-ui.md`
+- **Dependencies**: 017-UICore
 
-## 消费者
+## Consumers
 
 - 024-Editor
 
-## 能力列表
+## Implementation Status
 
-### 类型与句柄（跨边界）
+**PARTIALLY IMPLEMENTED** - Only ICanvas interface exists in `Engine/TenEngine-018-ui/include/te/ui/Canvas.h`. Widget types, events, and styles are not yet implemented.
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| CanvasHandle | 画布句柄；CreateCanvas、AddChild、与 UICore Layout/Draw/HitTest 对接 | 创建后直至显式释放 |
-| WidgetTree | 控件树；Button、Slider、Text、Image、List、Container、SetStyle | 与 Canvas 绑定 |
-| EventCallback | 事件回调；OnClick、OnDrag、OnInput、Bubble、Capture | 由调用方注册 |
-| StyleRef | 主题、颜色/字体/边距、与 Resource 资源引用 | 与控件或画布绑定 |
+## Capabilities List
 
-### 能力（提供方保证）
+### Types and Handles (Cross-Boundary)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 画布 | CreateCanvas、AddChild；与 UICore Layout/Draw/HitTest 对接 |
-| 2 | 控件 | WidgetTree；Button、Slider、Text、Image、List、Container、SetStyle |
-| 3 | 事件 | EventCallback、OnClick、OnDrag、OnInput、Bubble、Capture |
-| 4 | 样式 | StyleRef、主题、颜色/字体/边距 |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| ICanvas | Canvas handle; CreateCanvas, AddChild, Layout, Draw; interfaces with UICore Layout/Draw/HitTest | From creation until explicit release |
+| WidgetTree | Widget tree; Button, Slider, Text, Image, List, Container, SetStyle | **NOT IMPLEMENTED** - Bound to Canvas |
+| EventCallback | Event callbacks; OnClick, OnDrag, OnInput, Bubble, Capture | **NOT IMPLEMENTED** - Registered by caller |
+| StyleRef | Theme, color/font/margin, Resource reference | **NOT IMPLEMENTED** - Bound to widget or canvas |
 
-## 版本 / ABI
+### Capabilities (Provider Guarantees)
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+| No. | Capability | Description | Status |
+|-----|------------|-------------|--------|
+| 1 | Canvas | CreateCanvas, AddChild, Layout, Draw; interfaces with UICore Layout/Draw/HitTest | **Implemented** |
+| 2 | Widgets | WidgetTree; Button, Slider, Text, Image, List, Container, SetStyle | **NOT IMPLEMENTED** |
+| 3 | Events | EventCallback, OnClick, OnDrag, OnInput, Bubble, Capture | **NOT IMPLEMENTED** |
+| 4 | Styles | StyleRef, theme, color/font/margin | **NOT IMPLEMENTED** |
 
-## 约束
+## Version / ABI
 
-- 须在 UICore 初始化之后使用。UI 渲染层若由 Pipeline 绘制则 Pipeline 消费 UICore 输出。
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-## 变更记录
+## Constraints
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 018-UI 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+- Must be used after UICore initialization. If UI rendering layer is drawn by Pipeline, Pipeline consumes UICore output.
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 018-UI contract |
+| 2026-02-05 | Unified directory; capabilities list as table |
+| 2026-02-22 | Marked implementation status; only ICanvas implemented; widgets/events/styles not yet implemented |

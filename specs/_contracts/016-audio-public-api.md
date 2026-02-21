@@ -1,52 +1,57 @@
-# 契约：016-Audio 模块对外 API
+# Contract: 016-Audio Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：016-Audio（L2；音源、监听、混音、空间音效）
-- **对应规格**：`docs/module-specs/016-audio.md`
-- **依赖**：001-Core、013-Resource
+- **Implementer**: 016-Audio (L2; audio source, listener, mixing, spatial audio)
+- **Corresponding Spec**: `docs/module-specs/016-audio.md`
+- **Dependencies**: 001-Core, 013-Resource
 
-## 消费者
+## Consumers
 
-- 无（L2 消费端；游戏逻辑或应用直接使用本 API）
+- None (L2 consumer tier; game logic or applications use this API directly)
 
-## 能力列表
+## Implementation Status
 
-### 类型与句柄（跨边界）
+**PENDING IMPLEMENTATION** - No header files found in `Engine/TenEngine-016-audio/include/`.
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| SourceHandle | 音源句柄；CreateSource、Play、Pause、Stop、SetLoop、SetResource | 创建后直至显式释放 |
-| ListenerHandle | 听众；SetPosition、SetOrientation、BindToEntity | 由 Audio 管理 |
-| BusHandle | 混音总线；CreateBus、SetVolume、Mute、EffectSlot | 创建后直至显式释放 |
-| 空间音效参数 | SetPosition、Attenuation、Occlusion（可选） | 与 Source/Listener 绑定 |
+## Capabilities List
 
-### 能力（提供方保证）
+### Types and Handles (Cross-Boundary)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 音源 | CreateSource、Play、Pause、Stop、SetLoop、SetResource |
-| 2 | 监听 | ListenerHandle、SetPosition、SetOrientation、BindToEntity |
-| 3 | 混音 | CreateBus、SetVolume、Mute、EffectSlot |
-| 4 | 空间音效 | SetPosition、Attenuation、Occlusion（可选） |
+| Name | Semantics | Lifecycle |
+|------|-----------|-----------|
+| SourceHandle | Audio source handle; CreateSource, Play, Pause, Stop, SetLoop, SetResource | From creation until explicit release |
+| ListenerHandle | Audio listener; SetPosition, SetOrientation, BindToEntity | Managed by Audio module |
+| BusHandle | Mix bus handle; CreateBus, SetVolume, Mute, EffectSlot | From creation until explicit release |
+| Spatial Audio Params | SetPosition, Attenuation, Occlusion (optional) | Bound to Source/Listener |
 
-## 版本 / ABI
+### Capabilities (Provider Guarantees)
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+| No. | Capability | Description |
+|-----|------------|-------------|
+| 1 | Audio Source | CreateSource, Play, Pause, Stop, SetLoop, SetResource |
+| 2 | Audio Listener | ListenerHandle, SetPosition, SetOrientation, BindToEntity |
+| 3 | Audio Mixing | CreateBus, SetVolume, Mute, EffectSlot |
+| 4 | Spatial Audio | SetPosition, Attenuation, Occlusion (optional) |
 
-## 约束
+## Version / ABI
 
-- 须在 Core、Resource 初始化之后使用；音频资源经 013 Load 获取。
+- Follows Constitution: Public API versioning; breaking changes increment MAJOR.
 
-## TODO 列表
+## Constraints
 
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
+- Must be used after Core and Resource initialization; audio resources loaded via 013-Resource.
 
-- [ ] **资源对接**（若需）：定义 AudioAssetDesc、IAudioResource 与 013 对接；经 013 Load 获取音频资源；仅持 ResourceId/句柄；一目录一资源（描述 + 实际数据或内联 + 可选 .wav/.ogg）。
+## TODO List
 
-## 变更记录
+(Tasks from `docs/asset/` resource management/loading/storage design.)
 
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 016-Audio 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格 |
+- [ ] **Resource Integration** (if needed): Define AudioAssetDesc, IAudioResource to interface with 013; obtain audio resources via 013 Load; only hold ResourceId/handle; one directory per resource (description + actual data or inline + optional .wav/.ogg).
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 016-Audio contract |
+| 2026-02-05 | Unified directory; capabilities list as table |
+| 2026-02-22 | Marked as pending implementation; no code headers found |

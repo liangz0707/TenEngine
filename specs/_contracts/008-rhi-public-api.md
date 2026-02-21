@@ -1,71 +1,68 @@
-# 契约：008-RHI 模块对外 API
+# Contract: 008-RHI Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：008-RHI（L1；图形 API 抽象：设备、命令列表、资源、PSO、同步；多后端 Vulkan/D3D12/Metal；命名空间 `te::rhi`，后端宏 TE_RHI_*）
-- **对应规格**：`docs/module-specs/008-rhi.md`
-- **依赖**：001-Core
+- **Implementer**: 008-RHI (L1; Graphics API abstraction: device, command list, resources, PSO, sync; multi-backend Vulkan/D3D12/Metal/D3D11; namespace `te::rhi`, backend macros TE_RHI_*)
+- **Corresponding Spec**: `docs/module-specs/008-rhi.md`
+- **Dependencies**: 001-Core
 
-## 消费者
+## Consumers
 
-- 009-RenderCore、010-Shader、012-Mesh、019-PipelineCore、020-Pipeline、024-Editor、028-Texture
+- 009-RenderCore, 010-Shader, 012-Mesh, 019-PipelineCore, 020-Pipeline, 024-Editor, 028-Texture
 
-## 第三方依赖
+## Third-Party Dependencies
 
-- volk、vulkan-headers（Vulkan）；d3d11、d3d12（Windows）；metal（Apple）。按平台与编译选项选择；详见 `docs/third_party/` 对应文档。
+- volk, vulkan-headers (Vulkan); d3d11, d3d12 (Windows); metal (Apple). Selected by platform and compile options; see `docs/third_party/` for corresponding documentation.
 
-## 能力列表
+## Capability List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| IDevice | 图形设备抽象；创建队列、资源、PSO；CreateDevice、DestroyDevice | 创建后直至 DestroyDevice |
-| IQueue | 队列句柄；IDevice::GetQueue(QueueType, index)；QueueType: Graphics, Compute, Copy | 非拥有，与 IDevice 一致 |
-| ICommandList | 命令缓冲；Begin/End、Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier、SetViewport、SetScissor、BeginRenderPass/EndRenderPass、Submit | 单次录制周期内有效 |
-| IBuffer / ITexture | 缓冲、纹理；CreateBuffer、CreateTexture、CreateView、Destroy | 创建后直至显式 Destroy |
-| ISampler | 采样器；CreateSampler、DestroySampler | 创建后直至显式销毁 |
-| IPSO | 管线状态对象（图形/计算）；CreateGraphicsPSO、CreateComputePSO、SetShader、Cache、DestroyPSO | 创建后直至显式销毁，可缓存 |
-| IFence / ISemaphore | 同步对象；CreateFence、CreateSemaphore、Wait、Signal、Destroy | 按实现约定 |
-| IDescriptorSetLayout / IDescriptorSet | 描述符集布局与描述符集；CreateDescriptorSetLayout、AllocateDescriptorSet、UpdateDescriptorSet、BindDescriptorSet | 创建后直至显式销毁 |
-| ViewHandle | 资源视图句柄，用于绑定到 PSO | 与资源生命周期一致 |
-| Backend / DeviceFeatures / DeviceLimits | 后端枚举、特性与限制查询；GetFeatures、GetLimits | 只读 |
+| Name | Semantics | Lifetime |
+|------|-----------|----------|
+| IDevice | Graphics device abstraction; creates queues, resources, PSO; CreateDevice, DestroyDevice | Created until DestroyDevice |
+| IQueue | Queue handle; IDevice::GetQueue(QueueType, index); QueueType: Graphics, Compute, Copy | Non-owning, consistent with IDevice |
+| ICommandList | Command buffer; Begin/End, Draw, DrawIndexed, Dispatch, Copy, ResourceBarrier, SetViewport, SetScissor, BeginRenderPass/EndRenderPass, NextSubpass, Submit | Valid within single recording cycle |
+| IBuffer / ITexture | Buffer, texture; CreateBuffer, CreateTexture, CreateView, Destroy | Created until explicit Destroy |
+| ISampler | Sampler; CreateSampler, DestroySampler | Created until explicit destroy |
+| IPSO | Pipeline state object (graphics/compute); CreateGraphicsPSO, CreateComputePSO, SetShader, Cache, DestroyPSO | Created until explicit destroy, cacheable |
+| IFence / ISemaphore | Sync objects; CreateFence, CreateSemaphore, Wait, Signal, Reset, Destroy | Per implementation convention |
+| IDescriptorSetLayout / IDescriptorSet | Descriptor set layout and descriptor set; CreateDescriptorSetLayout, AllocateDescriptorSet, UpdateDescriptorSet, BindDescriptorSet | Created until explicit destroy |
+| IRenderPass | Render pass object; CreateRenderPass, DestroyRenderPass; supports multi-subpass | Created until explicit destroy |
+| ViewHandle | Resource view handle, used to bind to PSO | Consistent with resource lifetime |
+| Backend / DeviceFeatures / DeviceLimits / VSyncMode / ColorSpace / PresentMode | Backend enum, features and limits query; swapchain extended settings | Read-only |
 
-不暴露具体后端类型；012/028 在 EnsureDeviceResources 时调用本模块 CreateBuffer/CreateTexture。与 020 的提交约定见 `pipeline-to-rci.md`。
+Does not expose specific backend types; 012/028 calls this module's CreateBuffer/CreateTexture during EnsureDeviceResources. Submission convention with 020 see `pipeline-to-rci.md`.
 
-### 能力（提供方保证）
+### Capabilities (Provider Guarantees)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | 设备与队列 | CreateDevice(Backend)、DestroyDevice、GetQueue；SelectBackend、GetSelectedBackend；GetFeatures、GetLimits；多后端统一接口 |
-| 2 | 命令列表 | CreateCommandList、DestroyCommandList；Begin、End；Draw、DrawIndexed、Dispatch、Copy、ResourceBarrier；SetViewport、SetScissor；SetUniformBuffer、SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BindDescriptorSet；BeginRenderPass、EndRenderPass；BeginOcclusionQuery、EndOcclusionQuery；Submit(cmd, queue) 及 Fence/Semaphore 重载 |
-| 3 | 资源管理 | CreateBuffer、CreateTexture、CreateSampler、CreateView；Destroy；内存与生命周期明确；失败有明确报告 |
-| 4 | PSO | CreateGraphicsPSO(desc)、CreateGraphicsPSO(desc, layout)（与 descriptor layout 耦合）、CreateComputePSO、SetShader、Cache、DestroyPSO；与 RenderCore/Shader 对接 |
-| 5 | 同步 | CreateFence、CreateSemaphore、Wait、Signal、Destroy；资源屏障在 ICommandList::ResourceBarrier |
-| 6 | 错误与恢复 | 设备丢失或运行时错误可上报；支持回退或重建 |
-| 7 | 线程安全 | 多线程行为由实现定义并文档化 |
+| # | Capability | Description |
+|---|------------|-------------|
+| 1 | Device & Queue | CreateDevice(Backend), DestroyDevice, GetQueue; SelectBackend, GetSelectedBackend; GetFeatures, GetLimits; multi-backend unified interface; CreateRenderPass, DestroyRenderPass |
+| 2 | Command List | CreateCommandList, DestroyCommandList; Begin, End; Draw, DrawIndexed, Dispatch, Copy, ResourceBarrier; SetViewport, SetScissor; SetUniformBuffer, SetVertexBuffer, SetIndexBuffer, SetGraphicsPSO, BindDescriptorSet (single and multi-set); BeginRenderPass, NextSubpass, EndRenderPass; BeginOcclusionQuery, EndOcclusionQuery; Submit(cmd, queue) and Fence/Semaphore overload; CopyBuffer, CopyBufferToTexture, CopyTextureToBuffer, Copy; BuildAccelerationStructure, DispatchRays (D3D12 ray tracing) |
+| 3 | Resource Management | CreateBuffer, CreateTexture, CreateSampler, CreateView; Destroy; memory and lifetime explicit; failure clearly reported |
+| 4 | PSO | CreateGraphicsPSO(desc), CreateGraphicsPSO(desc, layout) (coupled with descriptor layout), CreateGraphicsPSO(desc, layout, pass, subpass, layoutSet1) (render pass and multi-set support), CreateComputePSO, SetShader, Cache, DestroyPSO; interfaces with RenderCore/Shader |
+| 5 | Sync | CreateFence, CreateSemaphore, Wait, Signal, Reset, Destroy; resource barrier in ICommandList::ResourceBarrier |
+| 6 | SwapChain | CreateSwapChain(SwapChainDesc); Present, GetCurrentBackBuffer, GetCurrentBackBufferIndex, Resize, GetWidth, GetHeight; extended: SetVSyncMode, GetVSyncMode, SetHDRMode, IsHDREnabled, GetColorSpace, SetHDRMetadata, SupportsHDR, SupportsTearing, GetRefreshRate; VSyncMode, ColorSpace, PresentMode enums; HDRMetadata struct |
+| 7 | Descriptor Set | CreateDescriptorSetLayout, AllocateDescriptorSet, UpdateDescriptorSet, DestroyDescriptorSetLayout, DestroyDescriptorSet; DescriptorType enum; DescriptorWrite struct with bufferOffset for UB ring buffer |
+| 8 | Error & Recovery | Device loss or runtime error can be reported; supports fallback or rebuild |
+| 9 | Thread Safety | Multi-threaded behavior is implementation-defined and documented |
 
-## 版本 / ABI
+## Version / ABI
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
 
-## 约束
+## Constraints
 
-- 须先完成 RHI 初始化后再创建资源与提交命令。资源销毁顺序须符合底层 API 要求。020 产出的命令缓冲经 Submit 交 RHI；格式与时机见 `pipeline-to-rci.md`。
+- Must complete RHI initialization before creating resources and submitting commands. Resource destruction order must conform to underlying API requirements. Command buffers produced by 020 are submitted via Submit to RHI; format and timing see `pipeline-to-rci.md`.
 
-## TODO 列表
+## Change Log
 
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
-
-- [ ] **DResource 创建**：提供 CreateBuffer、CreateTexture、CreateSampler、CreateGraphicsPSO 等接口，供 028/011/012 在 EnsureDeviceResources 时调用；不暴露具体后端类型；生命周期与 028/011/012 协调。
-- [ ] **数据与接口**（原 ABI 数据相关 TODO）：BufferDesc（size、usage=Vertex/Index/Uniform）、TextureDesc（width、height、format、mipLevels）；IDevice::CreateTexture(TextureDesc)、CreateBuffer(BufferDesc)、UpdateBuffer(buffer, offset, data, size)；ICommandList::SetUniformBuffer(slot, buffer, offset)；设备/资源内部分配调用 001 Alloc/Free。
-
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| （初始） | 从 002-rendering-rci-interface spec 提炼 |
-| T0 更新 | 对齐 T0 架构；消费者按依赖图 |
-| 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 反向引用 |
-| 2026-02-10 | 能力 2 命令列表：补充 SetVertexBuffer、SetIndexBuffer、SetGraphicsPSO、BeginOcclusionQuery、EndOcclusionQuery |
-| 2026-02-10 | 能力 2/4：BindDescriptorSet；CreateGraphicsPSO(desc, layout)；描述符集 API 已实现 |
+| Date | Change Description |
+|------|-------------------|
+| (Initial) | Extracted from 002-rendering-rci-interface spec |
+| T0 Update | Aligned with T0 architecture; consumers by dependency graph |
+| 2026-02-05 | Unified directory; capability list in table format; removed ABI back-reference |
+| 2026-02-10 | Capability 2 command list: added SetVertexBuffer, SetIndexBuffer, SetGraphicsPSO, BeginOcclusionQuery, EndOcclusionQuery |
+| 2026-02-10 | Capability 2/4: BindDescriptorSet; CreateGraphicsPSO(desc, layout); descriptor set API implemented |
+| 2026-02-22 | Code-aligned update: added IRenderPass, multi-subpass support (NextSubpass), BindDescriptorSet with setIndex overload, CreateGraphicsPSO with renderPass/subpass/layoutSet1 overloads, extended swapchain (VSyncMode, ColorSpace, PresentMode, HDRMetadata, HDR support), ray tracing (BuildAccelerationStructure, DispatchRays) |

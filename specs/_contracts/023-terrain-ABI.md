@@ -1,47 +1,62 @@
-﻿# 023-Terrain 模块 ABI
+# 023-Terrain Module ABI
 
-- **契约**：[023-terrain-public-api.md](./023-terrain-public-api.md)（能力与类型描述）
-- **本文件**：023-Terrain 对外 ABI 显式表。
-- **参考**：Unity Terrain、UE Landscape；高度图、分层、LOD、块、流式、绘制/刷。
-- **命名**：成员方法采用 **PascalCase**；说明列给出**完整函数签名**。
+## Status: **TO BE IMPLEMENTED**
 
-## ABI 表
+- **Contract**: [023-terrain-public-api.md](./023-terrain-public-api.md) (Capabilities and types description)
+- **This Document**: 023-Terrain external ABI explicit table.
+- **Reference**: Unity Terrain, UE Landscape; heightmaps, layers, LOD, patches, streaming, painting/brushes.
+- **Naming**: Member methods use **PascalCase**; Description column provides **complete function signatures**.
 
-列定义：**模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明**
+## Implementation Status
 
-### 地形数据（TerrainData）
+The module directory `Engine/TenEngine-023-terrain/include/` currently contains no header files.
+All interfaces listed below are planned but not yet implemented.
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 高度图 | te/terrain/Terrain.h | ITerrain::GetHeightMap | `ITextureResource* GetHeightMap() const;` 或 `float const* GetHeightMapData(uint32_t* width, uint32_t* height) const;` 与 Resource 流式对接 |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 分层 | te/terrain/Terrain.h | ITerrain::GetLayerCount, GetLayer | `uint32_t GetLayerCount() const;` `ITerrainLayer* GetLayer(uint32_t index) const;` 纹理/混合 |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 细节图 | te/terrain/Terrain.h | ITerrain::GetDetailMap | `ITextureResource* GetDetailMap(uint32_t layerIndex) const;` 可选 |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 流式请求 | te/terrain/Terrain.h | ITerrain::RequestStreaming | `void RequestStreaming(ResourceId blockId, int priority);` 与 013-Resource 流式对接 |
-| 023-Terrain | te::terrain | — | 自由函数/工厂 | 创建地形 | te/terrain/Terrain.h | CreateTerrain | `ITerrain* CreateTerrain(TerrainDesc const& desc);` 失败返回 nullptr |
+## ABI Table (Planned)
 
-### 地形块与 LOD
+Column Definition: **Module | Namespace | Class | Export | Interface | Header | Symbol | Description**
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 023-Terrain | te::terrain | ITerrainPatch | 抽象接口 | 块 LOD 级别 | te/terrain/TerrainPatch.h | ITerrainPatch::GetLODLevel, SetLODLevel | `uint32_t GetLODLevel() const;` `void SetLODLevel(uint32_t lod);` 与 Mesh 格式对接 |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 获取块 | te/terrain/Terrain.h | ITerrain::GetPatch | `ITerrainPatch* GetPatch(uint32_t x, uint32_t z) const;` 块选择、流式请求 |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 选择 LOD | te/terrain/Terrain.h | ITerrain::SelectLOD | `void SelectLOD(Vector3 const& viewPosition);` 按视点选择块 LOD |
-| 023-Terrain | te::terrain | ITerrain | 抽象接口 | 流式块 | te/terrain/Terrain.h | ITerrain::StreamBlock | `void StreamBlock(uint32_t x, uint32_t z, int priority);` 与 Resource 对接 |
-| 023-Terrain | te::terrain | — | 类型 | LOD 级别 | te/terrain/TerrainTypes.h | LODLevel | 与块或地形绑定 |
+### Terrain Data (Planned)
 
-### 网格生成（MeshGen）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Heightmap | te/terrain/Terrain.h | ITerrain::GetHeightMap | `ITextureResource* GetHeightMap() const;` or `float const* GetHeightMapData(uint32_t* width, uint32_t* height) const;` Resource streaming integration |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Layers | te/terrain/Terrain.h | ITerrain::GetLayerCount, GetLayer | `uint32_t GetLayerCount() const;` `ITerrainLayer* GetLayer(uint32_t index) const;` Texture/blend |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Detail Map | te/terrain/Terrain.h | ITerrain::GetDetailMap | `ITextureResource* GetDetailMap(uint32_t layerIndex) const;` Optional |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Streaming Request | te/terrain/Terrain.h | ITerrain::RequestStreaming | `void RequestStreaming(ResourceId blockId, int priority);` 013-Resource streaming integration |
+| 023-Terrain | te::terrain | — | Free Function/Factory | Create Terrain | te/terrain/Terrain.h | CreateTerrain | `ITerrain* CreateTerrain(TerrainDesc const& desc);` Returns nullptr on failure |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 023-Terrain | te::terrain | — | 自由函数/接口 | 生成块网格 | te/terrain/MeshGen.h | GeneratePatch | `IMesh* GeneratePatch(ITerrainPatch* patch, VertexFormat format);` 与 012-Mesh、009-RenderCore 顶点格式对接 |
-| 023-Terrain | te::terrain | — | 枚举/struct | 顶点格式 | te/terrain/MeshGen.h | VertexFormat | 与 Mesh/RenderCore 一致 |
+### Terrain Patches and LOD (Planned)
 
-### 绘制/刷（可选）
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 023-Terrain | te::terrain | ITerrainPatch | Abstract Interface | Patch LOD Level | te/terrain/TerrainPatch.h | ITerrainPatch::GetLODLevel, SetLODLevel | `uint32_t GetLODLevel() const;` `void SetLODLevel(uint32_t lod);` Mesh format integration |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Get Patch | te/terrain/Terrain.h | ITerrain::GetPatch | `ITerrainPatch* GetPatch(uint32_t x, uint32_t z) const;` Patch selection, streaming request |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Select LOD | te/terrain/Terrain.h | ITerrain::SelectLOD | `void SelectLOD(Vector3 const& viewPosition);` Select patch LOD by viewpoint |
+| 023-Terrain | te::terrain | ITerrain | Abstract Interface | Stream Block | te/terrain/Terrain.h | ITerrain::StreamBlock | `void StreamBlock(uint32_t x, uint32_t z, int priority);` Resource integration |
+| 023-Terrain | te::terrain | — | Type | LOD Level | te/terrain/TerrainTypes.h | LODLevel | Bound to patch or terrain |
 
-| 模块名 | 命名空间 | 类名 | 导出形式 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|------|----------|----------|--------|------|------|
-| 023-Terrain | te::terrain | IPaintBrush | 抽象接口（可选） | 高度刷 | te/terrain/PaintBrush.h | IPaintBrush::PaintHeight | `void PaintHeight(ITerrain* terrain, Vector3 const& pos, float radius, float delta);` 与 Editor 对接 |
-| 023-Terrain | te::terrain | IPaintBrush | 抽象接口（可选） | 纹理刷 | te/terrain/PaintBrush.h | IPaintBrush::PaintTexture | `void PaintTexture(ITerrain* terrain, uint32_t layerIndex, Vector3 const& pos, float radius, float strength);` |
-| 023-Terrain | te::terrain | — | struct | 刷参数 | te/terrain/PaintBrush.h | PaintBrushParams | 半径、强度、形状；单次编辑会话 |
+### Mesh Generation (Planned)
 
-*来源：契约能力 TerrainData、LOD、MeshGen、Painting；参考 Unity Terrain、UE Landscape。*
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 023-Terrain | te::terrain | — | Free Function/Interface | Generate Patch Mesh | te/terrain/MeshGen.h | GeneratePatch | `IMesh* GeneratePatch(ITerrainPatch* patch, VertexFormat format);` 012-Mesh, 009-RenderCore vertex format integration |
+| 023-Terrain | te::terrain | — | Enum/Struct | Vertex Format | te/terrain/MeshGen.h | VertexFormat | Consistent with Mesh/RenderCore |
+
+### Painting/Brushes (Optional, Planned)
+
+| Module | Namespace | Class | Export | Interface | Header | Symbol | Description |
+|--------|-----------|-------|--------|-----------|--------|--------|-------------|
+| 023-Terrain | te::terrain | IPaintBrush | Abstract Interface (Optional) | Height Brush | te/terrain/PaintBrush.h | IPaintBrush::PaintHeight | `void PaintHeight(ITerrain* terrain, Vector3 const& pos, float radius, float delta);` Editor integration |
+| 023-Terrain | te::terrain | IPaintBrush | Abstract Interface (Optional) | Texture Brush | te/terrain/PaintBrush.h | IPaintBrush::PaintTexture | `void PaintTexture(ITerrain* terrain, uint32_t layerIndex, Vector3 const& pos, float radius, float strength);` |
+| 023-Terrain | te::terrain | — | Struct | Brush Params | te/terrain/PaintBrush.h | PaintBrushParams | Radius, strength, shape; single editing session |
+
+## Change Log
+
+| Date | Change Description |
+|------|---------------------|
+| T0 Initial | 023-Terrain ABI |
+| 2026-02-05 | Unified directory format |
+| 2026-02-22 | Updated to reflect actual implementation status (to be implemented) |
+
+*Source: Contract capabilities TerrainData, LOD, MeshGen, Painting; Reference: Unity Terrain, UE Landscape.*

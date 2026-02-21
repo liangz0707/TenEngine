@@ -1,69 +1,76 @@
-# 028-Texture 模块 ABI
+# 028-Texture Module ABI
 
-- **契约**：[028-texture-public-api.md](./028-texture-public-api.md)（能力与类型描述）
-- **本文件**：028-Texture 对外 ABI 显式表。
+- **Contract**: [028-texture-public-api.md](./028-texture-public-api.md) (capabilities and type descriptions)
+- **This file**: 028-Texture public ABI explicit table.
+- **Note**: This module is CPU-only; GPU resources are created via 030-DeviceResourceManager.
 
-## ABI 表
+## ABI Table
 
-列定义：**模块名 | 命名空间 | 符号/类型 | 说明 | 头文件**
+Column definitions: **Module | Namespace | Symbol/Type | Description | Header**
 
-### 核心句柄与工厂
+### Core Handle and Factory
 
-| 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
-|--------|----------|------|------|--------|
-| 028-Texture | te::texture | TextureHandle | 不透明贴图句柄；CreateTexture 返回，ReleaseTexture 释放 | te/texture/Texture.h |
-| 028-Texture | te::texture | TextureDesc | 纹理描述（009-RenderCore）；格式/尺寸查询 | te/texture/Texture.h |
-| 028-Texture | te::texture | GetFormat, GetWidth, GetHeight, GetMipCount | 格式/尺寸查询 | te/texture/Texture.h |
-| 028-Texture | te::texture | GetPixelData, GetPixelDataSize | 像素数据只读访问 | te/texture/Texture.h |
-| 028-Texture | te::texture | CreateTexture(TextureAssetDesc const*) | 从资产描述创建句柄（仅内存） | te/texture/TextureFactory.h |
-| 028-Texture | te::texture | ReleaseTexture(TextureHandle) | 释放句柄及关联内存 | te/texture/TextureFactory.h |
+| Module | Namespace | Symbol | Description | Header |
+|--------|-----------|--------|-------------|--------|
+| 028-Texture | te::texture | TextureHandle | Opaque texture handle; `using TextureHandle = detail::TextureData*;` | te/texture/Texture.h |
+| 028-Texture | te::texture | TextureDesc | Texture description (009-RenderCore); `using TextureDesc = rendercore::TextureDesc;` | te/texture/Texture.h |
+| 028-Texture | te::texture | GetFormat | `rendercore::TextureFormat GetFormat(TextureHandle h);` | te/texture/Texture.h |
+| 028-Texture | te::texture | GetWidth | `uint32_t GetWidth(TextureHandle h);` | te/texture/Texture.h |
+| 028-Texture | te::texture | GetHeight | `uint32_t GetHeight(TextureHandle h);` | te/texture/Texture.h |
+| 028-Texture | te::texture | GetMipCount | `uint32_t GetMipCount(TextureHandle h);` | te/texture/Texture.h |
+| 028-Texture | te::texture | GetPixelData | `void const* GetPixelData(TextureHandle h);` Returns nullptr if invalid | te/texture/Texture.h |
+| 028-Texture | te::texture | GetPixelDataSize | `size_t GetPixelDataSize(TextureHandle h);` | te/texture/Texture.h |
+| 028-Texture | te::texture | CreateTexture(TextureAssetDesc const*) | `TextureHandle CreateTexture(TextureAssetDesc const* desc);` Returns nullptr on failure | te/texture/TextureFactory.h |
+| 028-Texture | te::texture | ReleaseTexture(TextureHandle) | `void ReleaseTexture(TextureHandle h);` Frees CPU pixel data | te/texture/TextureFactory.h |
 
-### 设备资源（GPU 纹理）与 TextureModule
+### TextureModule (CPU-Only)
 
-| 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
-|--------|----------|------|------|--------|
-| 028-Texture | te::texture | IRenderTexture | 继承 rhi::ITexture；GetRHITexture()、GetResourceId() | te/texture/IRenderTexture.h |
-| 028-Texture | te::texture | RenderTextureImpl | IRenderTexture 实现类 | te/texture/IRenderTexture.h |
-| 028-Texture | te::texture | TextureModule::GetInstance() | 全局单例 | te/texture/TextureModule.h |
-| 028-Texture | te::texture | TextureModule::GetOrCreate(ResourceId, IResourceManager*, IDevice*) | 按 id 获取或创建；内部 FlushPendingResources | te/texture/TextureModule.h |
-| 028-Texture | te::texture | TextureModule::RegisterPendingTexture(TextureHandle, ResourceId) | 注册待创建贴图 | te/texture/TextureModule.h |
-| 028-Texture | te::texture | TextureModule::FlushPendingResources(IDevice*) | 批量创建 GPU 资源并填入缓存 | te/texture/TextureModule.h |
-| 028-Texture | te::texture | TextureModule::GetCached(ResourceId) | 按 id 查找缓存 | te/texture/TextureModule.h |
-| 028-Texture | te::texture | TextureModule::ReleaseTexture(ResourceId) | 从缓存移除并销毁 GPU 纹理 | te/texture/TextureModule.h |
-| 028-Texture | te::texture | EnsureDeviceResources(TextureHandle, IDevice*) | 保留签名；实际创建由 TextureModule 完成 | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | EnsureDeviceResourcesAsync(...) | 异步占位 | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | GetTextureHandle(TextureHandle) | 保留签名；返回 nullptr，RHI 句柄经 TextureResource::GetDeviceTexture 或 TextureModule::GetCached(id)->GetRHITexture() | te/texture/TextureDevice.h |
-| 028-Texture | te::texture | DestroyDeviceTexture(TextureHandle, IDevice*) | 保留签名；实际释放经 TextureModule::ReleaseTexture(id) | te/texture/TextureDevice.h |
+| Module | Namespace | Symbol | Description | Header |
+|--------|-----------|--------|-------------|--------|
+| 028-Texture | te::texture | TextureModule | CPU-only module; no GPU texture cache or device | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::GetInstance() | `static TextureModule& GetInstance();` Global singleton | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::SetResourceManager | `void SetResourceManager(resource::IResourceManager* manager);` | te/texture/TextureModule.h |
+| 028-Texture | te::texture | TextureModule::GetResourceManager | `resource::IResourceManager* GetResourceManager() const;` | te/texture/TextureModule.h |
 
-### 资产描述与序列化
+### Asset Description and Serialization
 
-| 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
-|--------|----------|------|------|--------|
-| 028-Texture | te::texture | TextureAssetDesc | .texture 资产描述；028 拥有并向 002 注册；013 反序列化后交 028 | te/texture/TextureAssetDesc.h |
-| 028-Texture | te::texture | SerializeTextureToBuffer | 将像素数据写入缓冲区（.texdata） | te/texture/TextureSerialize.h |
-| 028-Texture | te::texture | GetTexturePixelDataSize | 序列化所需字节数 | te/texture/TextureSerialize.h |
+| Module | Namespace | Symbol | Description | Header |
+|--------|-----------|--------|-------------|--------|
+| 028-Texture | te::texture | TextureAssetDesc | .texture asset description; owned by 028 and registered with 002; fields: formatVersion, debugDescription, format, width, height, depth, mipLevels, pixelData, pixelDataSize, isHDR, IsValid() | te/texture/TextureAssetDesc.h |
+| 028-Texture | te::texture | SerializeTextureToBuffer | `bool SerializeTextureToBuffer(TextureHandle h, void* buffer, size_t* size);` Writes pixel data to buffer; returns true on success | te/texture/TextureSerialize.h |
+| 028-Texture | te::texture | GetTexturePixelDataSize | `size_t GetTexturePixelDataSize(TextureHandle h);` Bytes required for serialization | te/texture/TextureSerialize.h |
 
-### 资源实现与模块初始化
+### Resource Implementation and Module Init
 
-| 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
-|--------|----------|------|------|--------|
-| 028-Texture | te::texture | TextureResource | 实现 ITextureResource；Load/Save/Import 后 RegisterPendingTexture；EnsureDeviceResources 经 TextureModule::GetOrCreate；SetResourceManager | te/texture/TextureResource.h |
-| 028-Texture | te::texture | InitializeTextureModule(IResourceManager*) | 注册 002 类型与 013 资源工厂 | te/texture/TextureModuleInit.h |
+| Module | Namespace | Symbol | Description | Header |
+|--------|-----------|--------|-------------|--------|
+| 028-Texture | te::texture | TextureResource | Implements ITextureResource; Load/Save/Import; CPU-only; GetTextureHandle, GetPixelData, GetPixelDataSize, GetWidth, GetHeight, GetMipCount, GetFormat, SetResourceManager, SetTextureHandle | te/texture/TextureResource.h |
+| 028-Texture | te::texture | InitializeTextureModule | `void InitializeTextureModule(resource::IResourceManager* manager);` Registers 002 types and 013 resource factory | te/texture/TextureModuleInit.h |
 
-### 图像导入（import 子命名空间）
+### Image Import (import sub-namespace)
 
-| 模块名 | 命名空间 | 符号 | 说明 | 头文件 |
-|--------|----------|------|------|--------|
-| 028-Texture | te::texture::import | ImageFormat | 枚举：Unknown, PNG, JPEG, WebP, … | te/texture/import/ImageImporter.h |
-| 028-Texture | te::texture::import | ImageImportResult | 导入结果；pixelData 由 importer 分配，调用方 te::core::Free | te/texture/import/ImageImporter.h |
-| 028-Texture | te::texture::import | IImageImporter | 接口：CanImport(path), Import(path, result) | te/texture/import/ImageImporter.h |
-| 028-Texture | te::texture::import | ImageImporterRegistry | 单例；RegisterImporter, DetectFormat, ImportImage | te/texture/import/ImageImporterRegistry.h |
-| 028-Texture | te::texture::import | StbImageImporter | 默认注册；多格式兜底（PNG/JPG/BMP/TGA 等） | te/texture/import/StbImageImporter.h |
-| 028-Texture | te::texture::import | LibPngImporter | 可选；TENENGINE_USE_LIBPNG 时注册 | te/texture/import/LibPngImporter.h |
-| 028-Texture | te::texture::import | LibJpegTurboImporter | 可选；TENENGINE_USE_JPEG_TURBO 时注册 | te/texture/import/LibJpegTurboImporter.h |
-| 028-Texture | te::texture::import | LibWebPImporter | 可选；TENENGINE_USE_LIBWEBP 时注册 | te/texture/import/LibWebPImporter.h |
+| Module | Namespace | Symbol | Description | Header |
+|--------|-----------|--------|-------------|--------|
+| 028-Texture | te::texture::import | ImageFormat | Enum: Unknown, PNG, JPEG, WebP, TIFF, EXR, AVIF, HEIF, BMP, TGA, PSD, GIF, HDR | te/texture/import/ImageImporter.h |
+| 028-Texture | te::texture::import | ImageImportResult | Import result; fields: pixelData, pixelDataSize, width, height, depth, channels, format, isHDR; pixelData allocated by importer, caller frees via te::core::Free | te/texture/import/ImageImporter.h |
+| 028-Texture | te::texture::import | IImageImporter | Interface: `virtual bool CanImport(char const* filePath) const = 0;` `virtual bool Import(char const* filePath, ImageImportResult& result) = 0;` | te/texture/import/ImageImporter.h |
+| 028-Texture | te::texture::import | ImageImporterRegistry | Singleton; RegisterImporter(importer, priority), DetectFormat(path), ImportImage(path, result), ImportImageFile(path, outData, outSize, outWidth, outHeight, outChannels) | te/texture/import/ImageImporterRegistry.h |
+| 028-Texture | te::texture::import | StbImageImporter | Default registered; multi-format fallback (PNG/JPG/BMP/TGA/HDR etc.); static ImportImageFile convenience method | te/texture/import/StbImageImporter.h |
+| 028-Texture | te::texture::import | LibPngImporter | Optional; registered when TENENGINE_USE_LIBPNG defined | te/texture/import/LibPngImporter.h |
+| 028-Texture | te::texture::import | LibJpegTurboImporter | Optional; registered when TENENGINE_USE_JPEG_TURBO defined | te/texture/import/LibJpegTurboImporter.h |
+| 028-Texture | te::texture::import | LibWebPImporter | Optional; registered when TENENGINE_USE_LIBWEBP defined | te/texture/import/LibWebPImporter.h |
 
-## 实现说明
+## Implementation Notes
 
-- 数据与接口 TODO 已迁移至 [028-texture-public-api.md](./028-texture-public-api.md)；本文件仅保留 ABI 表。
-- 可选导入器由 CMake 选项控制：`TENENGINE_USE_LIBPNG`、`TENENGINE_USE_JPEG_TURBO`、`TENENGINE_USE_LIBWEBP`；libpng/libjpeg-turbo 通过 find_package，libwebp 通过 FetchContent（目标名 `webp`）。
+- Data and interface TODOs have been migrated to [028-texture-public-api.md](./028-texture-public-api.md); this file only contains the ABI table.
+- Optional importers controlled by CMake options: `TENENGINE_USE_LIBPNG`, `TENENGINE_USE_JPEG_TURBO`, `TENENGINE_USE_LIBWEBP`.
+- libpng/libjpeg-turbo via find_package; libwebp via FetchContent (target name `webp`).
+
+## Change Log
+
+| Date | Change |
+|------|--------|
+| T0 | 028-Texture ABI created |
+| 2026-02-10 | Added image import ABI; IRenderTexture, TextureModule GPU methods |
+| 2026-02-11 | Removed IRenderTexture; TextureModule becomes CPU-only with GPU cache |
+| 2026-02-22 | Updated to match actual implementation: TextureModule is CPU-only (no GPU methods); removed IRenderTexture/RenderTextureImpl; SerializeTextureToBuffer signature corrected (buffer, size params); ImageFormat enum expanded |

@@ -62,3 +62,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格；去除代码示例与 ABI 引用 |
 | 2026-02-06 | 完全重新设计：新增 JSON 和 XML 序列化器（CreateJSONSerializer、CreateXMLSerializer）；增强 TypeRegistry（IsTypeRegistered、EnumerateTypes、CreateInstance 支持类型名）；增强 GUID（Generate、FromString、ToString、比较操作、IsNull）；新增文件序列化便捷函数（SerializeToFile、DeserializeFromFile，使用 Core 文件 I/O）；PropertyBag 增强（类型检查、按索引访问、GetPropertyCount）；SerializationFormat 枚举（Binary、JSON、XML）；头文件扩展名统一为 .h |
 | 2026-02-10 | 新增 GetFormatFromPath(path)（按扩展名 .json/.xml 推断格式）；新增 DeserializeFromFile(path, obj, typeName) 重载（无 format，自动选格式）；Level/World 等资源支持双格式（.level 二进制、.level.json JSON） |
+| 2026-02-22 | Verified alignment with code: TypeId is std::uint32_t with kInvalidTypeId=0; TypeDescriptor includes id, name, size, properties, propertyCount, baseTypeId, createInstance; PropertyDescriptor includes name, valueTypeId, offset, size, defaultValue; ISerializer includes GetFormat(); IVersionMigration defined in Serializer.h; VersionMigration.h provides utilities |

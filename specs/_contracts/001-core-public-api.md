@@ -97,3 +97,4 @@
 | 2026-02-05 | 统一目录；能力列表用表格描述类型与句柄、能力；不引用 ABI 文件 |
 | 2026-02-06 | 增强功能：文件 I/O（FileReadBinary/FileWriteBinary/FileGetSize/FileExists）、异步操作（任务优先级/取消/状态查询/回调线程控制）、内存管理（AllocAligned/Realloc/GetMemoryStats）、路径操作（PathJoin/PathGetDirectory/PathGetFileName/PathGetExtension/PathResolveRelative）；支持资源模块重构后的需求 |
 | 2026-02-12 | Executor 架构：ITaskExecutor、ExecutorType；IThreadPool 重构为 GetWorkerExecutor/GetIOExecutor/ProcessMainThreadCallbacks/SpawnTask；移除 IThreadPool 上的 SubmitTaskWithPriority/CancelTask/GetTaskStatus |
+| 2026-02-22 | Verified alignment with code: all types and functions in headers match contract; ITaskExecutor has SubmitTask and SubmitTaskWithPriority; CallbackThreadType enum confirmed; GetThreadPool returns IThreadPool* |

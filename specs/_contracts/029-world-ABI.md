@@ -1,50 +1,52 @@
-# 029-World 模块 ABI
+# 029-World Module ABI
 
-- **契约**：[029-world-public-api.md](./029-world-public-api.md)（能力与类型描述）
-- **本文件**：029-World 对外 ABI 显式表。
+- **Contract**: [029-world-public-api.md](./029-world-public-api.md) (capabilities and type descriptions)
+- **This file**: 029-World public ABI explicit table.
 
-## ABI 表
+## ABI Table
 
-| 模块名 | 命名空间 | 类名/类型 | 接口说明 | 头文件 | 符号 | 说明 |
-|--------|----------|-----------|----------|--------|------|------|
-| 029-World | te::world | LevelHandle | 结构体 | te/world/WorldTypes.h | LevelHandle | 关卡句柄；value/IsValid/operator== |
-| 029-World | te::world | RenderableItem | 结构体 | te/world/WorldTypes.h | RenderableItem | worldMatrix、modelResource、submeshIndex；供 020-Pipeline 收集 |
-| 029-World | te::world | WorldManager | 类 | te/world/WorldManager.h | WorldManager | 单例；Level 生命周期、SceneRef、遍历、CollectRenderables |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CreateLevelFromDesc | LevelHandle CreateLevelFromDesc(indexType, bounds, LevelAssetDesc)；重载 CreateLevelFromDesc(indexType, bounds, ResourceId) |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | UnloadLevel | void UnloadLevel(LevelHandle) |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | GetSceneRef | SceneRef GetSceneRef(LevelHandle) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | GetCurrentLevelScene | SceneRef GetCurrentLevelScene() const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | GetRootNodes | void GetRootNodes(LevelHandle, vector<ISceneNode*>&) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | Traverse | void Traverse(LevelHandle, function<void(ISceneNode*)>) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectRenderables | void CollectRenderables(LevelHandle, callback) const；仅对带 ModelComponent 的 Entity 回调 |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectRenderables | void CollectRenderables(LevelHandle, IResourceManager*, callback) const；重载 CollectRenderables(SceneRef, callback)、CollectRenderables(SceneRef, IResourceManager*, callback) |
-| 029-World | te::world | LevelAssetDesc | 结构体 | te/world/LevelAssetDesc.h | LevelAssetDesc | .level 描述；roots（SceneNodeDesc 树）；029 拥有并向 002 注册；支持二进制 .level 与 JSON .level.json，格式由路径扩展名决定 |
-| 029-World | te::world | SceneNodeDesc | 结构体 | te/world/LevelAssetDesc.h | SceneNodeDesc | name、localTransform、modelGuid、children；029 拥有并向 002 注册 |
-| 029-World | te::world | ILevelResource | 接口 | te/world/LevelResource.h | ILevelResource | GetLevelAssetDesc；013 LoadSync(Level) 返回 IResource* 可转型为此类型 |
-| 029-World | te::world | IModelResource | 抽象接口 | te/world/ModelResource.h | IModelResource | GetMesh、GetMaterialCount、GetMaterial、GetSubmeshMaterialIndex；013 LoadSync(..., Model) 返回 IResource* 可转型为此类型 |
-| 029-World | te::world | ModelAssetDesc | 结构体 | te/world/ModelAssetDesc.h | ModelAssetDesc | meshGuids、materialGuids、submeshMaterialIndices；029 拥有并向 002 注册 |
-| 029-World | te::world | ModelComponent | 结构体 | te/world/ModelComponent.h | ModelComponent | 继承 Component；modelResourceId；由 RegisterWorldModule 注册到 005/002 |
-| 029-World | te::world | — | 自由函数 | te/world/WorldModuleInit.h | RegisterWorldModule | void RegisterWorldModule(); 注册 ModelComponent 等 029 组件类型 |
-| 029-World | te::world | LightComponent | 结构体 | te/world/LightComponent.h | LightComponent | 继承 Component；LightType、color、intensity、range、direction、spotAngle |
-| 029-World | te::world | CameraComponent | 结构体 | te/world/CameraComponent.h | CameraComponent | 继承 Component；fovY、nearZ、farZ、isActive |
-| 029-World | te::world | ReflectionProbeComponent | 结构体 | te/world/ReflectionProbeComponent.h | ReflectionProbeComponent | 继承 Component；ReflectionProbeType、extent、resolution |
-| 029-World | te::world | DecalComponent | 结构体 | te/world/DecalComponent.h | DecalComponent | 继承 Component；albedoTextureId、size、blend |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectLights | void CollectLights(SceneRef, function<void(ISceneNode*, LightComponent const&)>) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectCameras | void CollectCameras(SceneRef, function<void(ISceneNode*, CameraComponent const&)>) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectReflectionProbes | void CollectReflectionProbes(SceneRef, function<void(ISceneNode*, ReflectionProbeComponent const&)>) const |
-| 029-World | te::world | WorldManager | 方法 | te/world/WorldManager.h | CollectDecals | void CollectDecals(SceneRef, function<void(ISceneNode*, DecalComponent const&)>) const |
+| Module | Namespace | Class/Type | Interface | Header | Symbol | Description |
+|--------|-----------|------------|-----------|--------|--------|-------------|
+| 029-World | te::world | LevelHandle | struct | te/world/WorldTypes.h | LevelHandle | Level handle; value, IsValid(), operator==, operator!= |
+| 029-World | te::world | RenderableItem | struct | te/world/WorldTypes.h | RenderableItem | worldMatrix[16], element (IRenderElement*), submeshIndex, modelResourceId, boundsMin[3], boundsMax[3], userData; for 020-Pipeline collection |
+| 029-World | te::world | WorldManager | class | te/world/WorldManager.h | WorldManager | Singleton; Level lifecycle, SceneRef, traversal, CollectRenderables, ExportLevelToDesc, SaveLevel |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | CreateLevelFromDesc | `LevelHandle CreateLevelFromDesc(SpatialIndexType indexType, AABB const& bounds, LevelAssetDesc const& desc);` Overload: `LevelHandle CreateLevelFromDesc(SpatialIndexType indexType, AABB const& bounds, ResourceId levelResourceId);` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | UnloadLevel | `void UnloadLevel(LevelHandle handle);` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | GetSceneRef | `SceneRef GetSceneRef(LevelHandle handle) const;` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | GetCurrentLevelScene | `SceneRef GetCurrentLevelScene() const;` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | GetRootNodes | `void GetRootNodes(LevelHandle handle, std::vector<ISceneNode*>& out) const;` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | Traverse | `void Traverse(LevelHandle handle, std::function<void(ISceneNode*)> const& callback) const;` |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | CollectRenderables | `void CollectRenderables(LevelHandle handle, std::function<void(ISceneNode*, RenderableItem const&)> const& callback) const;` Overloads: CollectRenderables(SceneRef, callback), CollectRenderables(SceneRef, IResourceManager*, callback) |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | ExportLevelToDesc | `bool ExportLevelToDesc(LevelHandle handle, LevelAssetDesc& out) const;` Exports scene to LevelAssetDesc for Save |
+| 029-World | te::world | WorldManager | method | te/world/WorldManager.h | SaveLevel | `bool SaveLevel(LevelHandle handle, char const* path) const;` Exports, creates LevelResource, calls IResourceManager::Save |
+| 029-World | te::world | LevelAssetDesc | struct | te/world/LevelAssetDesc.h | LevelAssetDesc | .level description; roots (SceneNodeDesc tree); owned by 029 and registered with 002; supports binary .level and JSON .level.json, format determined by path extension |
+| 029-World | te::world | SceneNodeDesc | struct | te/world/LevelAssetDesc.h | SceneNodeDesc | name, localTransform, modelGuid, children; owned by 029 and registered with 002 |
+| 029-World | te::world | ILevelResource | interface | te/world/LevelResource.h | ILevelResource | GetLevelAssetDesc; 013 LoadSync(Level) returns IResource* castable to this type |
+| 029-World | te::world | LevelResourceFactory | struct | te/world/LevelResource.h | LevelResourceFactory | `static IResource* Create(ResourceType type);` Factory for 013 RegisterResourceFactory |
+| 029-World | te::world | CreateLevelResourceFromDesc | free function | te/world/LevelResource.h | CreateLevelResourceFromDesc | `IResource* CreateLevelResourceFromDesc(LevelAssetDesc const& desc);` For Save (Editor export flow) |
+| 029-World | te::world | IModelResource | abstract interface | te/world/ModelResource.h | IModelResource | GetMesh, GetMaterialCount, GetMaterial, GetSubmeshMaterialIndex; 013 LoadSync(..., Model) returns IResource* castable to this type |
+| 029-World | te::world | ModelAssetDesc | struct | te/world/ModelAssetDesc.h | ModelAssetDesc | meshGuids, materialGuids, submeshMaterialIndices; owned by 029 and registered with 002 |
+| 029-World | te::world | ModelComponent | struct | te/world/ModelComponent.h | ModelComponent | Inherits Component; modelResourceId; registered to 005/002 via RegisterWorldModule |
+| 029-World | te::world | -- | free function | te/world/WorldModuleInit.h | RegisterWorldModule | `void RegisterWorldModule();` Registers ModelComponent etc. 029 component types |
+| 029-World | te::world | LightType | enum | te/world/LightComponent.h | LightType | Point = 0, Directional, Spot |
+| 029-World | te::world | LightComponent | struct | te/world/LightComponent.h | LightComponent | Inherits Component; type, color[3], intensity, range, direction[3], spotAngle |
+| 029-World | te::world | CameraComponent | struct | te/world/CameraComponent.h | CameraComponent | Inherits Component; fovY, nearZ, farZ, isActive |
+| 029-World | te::world | ReflectionProbeType | enum | te/world/ReflectionProbeComponent.h | ReflectionProbeType | Box = 0, Sphere |
+| 029-World | te::world | ReflectionProbeComponent | struct | te/world/ReflectionProbeComponent.h | ReflectionProbeComponent | Inherits Component; type, extent[3], resolution |
+| 029-World | te::world | DecalComponent | struct | te/world/DecalComponent.h | DecalComponent | Inherits Component; albedoTextureId, size[3], blend |
 
-## 与 004-Scene、013-Resource、005-Entity 的调用关系
+## Relationship with 004-Scene, 013-Resource, 005-Entity
 
-- World 调用 004 **CreateSceneFromDesc**、**UnloadScene**、**GetRootNodes**/Traverse；调用 013 Load、ResourceId/句柄解析；调用 005 **EntityManager::CreateEntity**、**DestroyEntity**、**ModelComponent** 等。
-- 具体符号与签名以 004-scene-public-api、013-resource-public-api、005-entity 及本模块实现为准。
+- World calls 004 **CreateSceneFromDesc**, **UnloadScene**, **GetRootNodes**/Traverse; calls 013 Load, ResourceId/handle resolution; calls 005 **EntityManager::CreateEntity**, **DestroyEntity**, **ModelComponent** etc.
+- Specific symbols and signatures per 004-scene-public-api, 013-resource-public-api, 005-entity and this module's implementation.
 
-## 变更记录
+## Change Log
 
-| 日期 | 变更说明 |
-|------|----------|
-| 2026-02-10 | 完整 ABI 表：LevelHandle、RenderableItem、WorldManager 及 CreateLevelFromDesc/UnloadLevel/GetSceneRef/GetCurrentLevelScene/GetRootNodes/Traverse/CollectRenderables；IModelResource、ModelAssetDesc 标为待实现 |
-| 2026-02-10 | 实现 IModelResource、ModelAssetDesc、ModelComponent；CollectRenderables 仅对带 ModelComponent 的 Entity 回调；增加 CollectRenderables(handle, IResourceManager*, callback) 重载以解析 modelResource；RegisterWorldModule、WorldModuleInit |
-| 2026-02-10 | 新增 LevelAssetDesc、SceneNodeDesc、ILevelResource；CreateLevelFromDesc(LevelAssetDesc) 与 CreateLevelFromDesc(ResourceId)；CollectRenderables(SceneRef,…) 重载；向 002 注册 LevelAssetDesc/SceneNodeDesc/ModelAssetDesc；013 Level 工厂注册；UnloadLevel 顺序：先 Entity 再 UnloadScene |
-| 2026-02-10 | Level 双格式：.level 二进制与 .level.json JSON，格式由 002 GetFormatFromPath 按路径扩展名选择 |
-| 2026-02-11 | 新增 LightComponent、CameraComponent、ReflectionProbeComponent、DecalComponent；WorldManager 新增 CollectLights、CollectCameras、CollectReflectionProbes、CollectDecals |
+| Date | Change |
+|------|--------|
+| 2026-02-10 | Complete ABI table: LevelHandle, RenderableItem, WorldManager and CreateLevelFromDesc/UnloadLevel/GetSceneRef/GetCurrentLevelScene/GetRootNodes/Traverse/CollectRenderables; IModelResource, ModelAssetDesc marked as to implement |
+| 2026-02-10 | Implemented IModelResource, ModelAssetDesc, ModelComponent; CollectRenderables only callbacks for Entities with ModelComponent; added CollectRenderables(handle, IResourceManager*, callback) overload for model resolution; RegisterWorldModule, WorldModuleInit |
+| 2026-02-10 | Added LevelAssetDesc, SceneNodeDesc, ILevelResource; CreateLevelFromDesc(LevelAssetDesc) and CreateLevelFromDesc(ResourceId); CollectRenderables(SceneRef, ...) overload; register LevelAssetDesc/SceneNodeDesc/ModelAssetDesc with 002; 013 Level factory registration; UnloadLevel order: Entity first then UnloadScene |
+| 2026-02-10 | Level dual format: supports binary .level and JSON .level.json; format auto-selected by 002 GetFormatFromPath(path) based on extension |
+| 2026-02-11 | Added LightComponent, CameraComponent, ReflectionProbeComponent, DecalComponent; WorldManager added CollectLights, CollectCameras, CollectReflectionProbes, CollectDecals |
+| 2026-02-22 | Updated to match actual implementation: RenderableItem fields (element, modelResourceId, boundsMin/Max, userData); WorldManager methods (ExportLevelToDesc, SaveLevel); removed CollectLights/Cameras/ReflectionProbes/Decals (not implemented); added LevelResourceFactory, CreateLevelResourceFromDesc |

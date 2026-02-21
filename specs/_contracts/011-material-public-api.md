@@ -18,21 +18,23 @@
 |------|------|----------|
 | MaterialHandle | 材质句柄；CreateMaterial(MaterialAssetDesc, shaderRef, textureRefs)、GetParameters、GetShaderRef、GetTextureRefs；入参由 013 传入 | 创建后直至显式释放 |
 | MaterialInstanceHandle | 材质实例句柄；CreateInstance、SetOverride、Release、Pool | 创建后直至显式释放 |
-| ParameterSlot | 参数槽位；SetScalar、SetTexture、SetBuffer、与 RenderCore Uniform/纹理槽对接 | 与材质或实例绑定 |
+| ParameterSlot | 参数槽位；set, binding；与 RenderCore Uniform/纹理槽对接 | 与材质或实例绑定 |
 | VariantKey | 与 Shader 变体对应；BindToPSO、GetVariantKey、SubmitToPipeline | 由调用方管理 |
 
 ### 能力（提供方保证）
 
 | 序号 | 能力 | 说明 |
 |------|------|------|
-| 1 | MaterialDef | CreateMaterial(MaterialAssetDesc, shaderRef, textureRefs)、GetParameters、GetDefaultValues、GetShaderRef、GetTextureRefs；入参由 013 传入 |
-| 2 | Parameters | SetScalar、SetTexture、SetBuffer、GetSlotMapping；与 RenderCore Uniform/纹理槽对接 |
-| 3 | Instancing | CreateInstance、SetOverride、Release、Pool |
-| 4 | Binding | BindToPSO、GetVariantKey、SubmitToPipeline；与 Shader 变体、RHI PSO、Pipeline 对接 |
-| 5 | **Material 资源（013 统一加载）** | MaterialResource 实现 resource::IMaterialResource；**仅通过 Shader GUID** 引用 ShaderCollection；.material 为明文 JSON（UTF-8），顶层 shader/textures/parameters；无 GPU 资源；**GetShaderGuid()**、**SetShaderGuid()**、**GetPipelineStateDesc()**、**SetPipelineStateDesc()**；**SetParameter(name, type, data, count)**、**GetParameter()**、**SetTextureGuid(name, guid)**；**GetParams()**、**GetTextureSlots()** 供 MaterialRenderer 读取；**EnsureDeviceResources** 空实现；**IsDeviceReady** 表示 Load 成功或程序化创建有效 |
-| 6 | **MaterialRenderer 与 MaterialShadingState** | **MaterialRenderer** 持有某 MaterialResource 的所有 GPU 资源（UB、DescriptorSet、PSO、MaterialShadingState）；**MaterialShadingState** 由 shader GUID + PipelineStateDesc 创建，从 ShaderCollection 取 reflection/bytecode；贴图经 **028-TextureModule::GetOrCreate(texGuid, resourceManager, device)** 解析，descriptor write 使用 **IRenderTexture::GetRHITexture()**；**CreateMaterialRenderer(resource)**、**DestroyMaterialRenderer()**、**GetOrCreateMaterialRenderer(resource, device, manager)** 缓存并返回 MaterialRenderer*；020/019 将 IMaterialHandle 视为 MaterialResource*，经 GetOrCreateMaterialRenderer 解析为 MaterialRenderer* 后调用 **SetDevice**、**SetResourceManager**、**EnsureDeviceResources**、**Update()**、**UpdateDescriptorSetForFrame**、**GetGraphicsPSO**、**GetDescriptorSet**、**SetRuntimeTexture**、**SetRuntimeTextureByName** |
-| 7 | **参数与管线状态** | **MaterialParam**（te/material/MaterialParam.hpp）：type、count、data，与 UniformMemberType 及一维数组对齐；**PipelineStateDesc**：blendEnable 等；**CreateMaterialResourceFromShader(shaderGuid, pipelineState)** 程序化创建 MaterialResource |
-| 8 | **模块初始化** | InitializeMaterialModule(manager) 向 013 注册 Material 工厂；InitializeResourceModulesForEngine(manager, shaderManifestPath) 依次调用 InitializeShaderModule、LoadAllShaders、InitializeMaterialModule，供引擎在 ResourceManager 就绪后调用一次 |
+| 1 | MaterialDef | IMaterialSystem::Load、GetParameters、GetDefaultValues、GetShaderRef、GetTextureRefs、GetUniformLayout；入参由 013 传入 |
+| 2 | Parameters | IMaterialSystem::SetScalar、SetTexture、SetBuffer、GetSlotMapping；与 RenderCore Uniform/纹理槽对接 |
+| 3 | Instancing | IMaterialSystem::CreateInstance、ReleaseInstance |
+| 4 | Binding | IMaterialSystem::GetVariantKey、SubmitToPipeline；与 Shader 变体、RHI PSO、Pipeline 对接 |
+| 5 | **Material 资源（013 统一加载）** | MaterialResource 实现 resource::IMaterialResource；**仅通过 Shader GUID** 引用 ShaderCollection；.material 为明文 JSON（UTF-8），顶层 shader/textures/parameters；无 GPU 资源；**GetShaderGuid()**、**SetShaderGuid()**、**GetPipelineStateDesc()**、**SetPipelineStateDesc()**；**SetParameter(name, type, data, count)**、**GetParameter()**、**SetTextureGuid(name, guid)**；**GetParams()**、**GetTextureSlots()** 供 RenderMaterial 读取；**EnsureDeviceResources** 空实现；**IsDeviceReady** 表示 Load 成功或程序化创建有效 |
+| 6 | **RenderMaterial** | **RenderMaterial** 实现 IRenderMaterial 接口，持有 GPU 资源（UB、DescriptorSet、PSO）；SetDataParameter/SetDataTexture 设置 CPU 数据；CreateDeviceResource 创建 GPU 资源；UpdateDeviceResource 每帧上传数据；GetGraphicsPSO/GetDescriptorSet 供渲染使用；CreateRenderMaterial/DestroyRenderMaterial 工厂函数 |
+| 7 | **参数与管线状态** | **MaterialParam**（te/material/MaterialParam.hpp）：type、count、data，与 UniformMemberType 及一维数组对齐；**BlendFactor/BlendOp/CompareOp/CullMode/FrontFace** 枚举；**BlendAttachmentDesc/DepthStencilStateDesc/RasterizationStateDesc/PipelineStateDesc** 结构体；**CreateMaterialResourceFromShader(shaderGuid, pipelineState)** 程序化创建 MaterialResource |
+| 8 | **.material JSON 格式** | MaterialJSONData 结构体；ParseMaterialJSON/ParseMaterialJSONFromMemory 解析；SerializeMaterialJSON/SerializeMaterialJSONToString 序列化；guid、shader、textures（name→GUID）、parameters（name→values） |
+| 9 | **模块初始化** | InitializeMaterialModule(manager) 向 013 注册 Material 工厂；InitializeResourceModulesForEngine(manager, shaderManifestPath) 依次调用 InitializeShaderModule、LoadAllShaders、InitializeMaterialModule，供引擎在 ResourceManager 就绪后调用一次 |
+| 10 | **IMaterialSystem** | IMaterialSystem 接口：Load、GetParameters、GetDefaultValues、GetShaderRef、GetTextureRefs、GetUniformLayout、SetScalar、SetTexture、SetBuffer、GetSlotMapping、CreateInstance、ReleaseInstance、GetVariantKey、SubmitToPipeline；CreateMaterialSystem/DestroyMaterialSystem 工厂函数 |
 
 ## 版本 / ABI
 
@@ -61,3 +63,4 @@
 | 2026-02-11 | 能力 6 运行时参数更新（按名称）SetParameter(name, type, data)；能力 7 运行时纹理覆盖 SetRuntimeTexture/SetRuntimeTextureByName；能力 8 模块初始化编号顺延 |
 | 2026-02-11 | 能力 5：贴图解析改为经 028-TextureModule::GetOrCreate，descriptor 使用 IRenderTexture::GetRHITexture() |
 | 2026-02-11 | 重构：MaterialResource 仅 shader GUID + params + texture GUIDs + PipelineStateDesc，无 GPU 资源；新增 MaterialRenderer（持所有 GPU 资源）、MaterialShadingState（ShaderCollection + pipeline state）；MaterialParam、PipelineStateDesc；CreateMaterialResourceFromShader、GetOrCreateMaterialRenderer；能力 5–7 重写为上述分工 |
+| 2026-02-22 | 同步代码：新增能力 8（.material JSON 格式）、能力 10（IMaterialSystem）；RenderMaterial 替代 MaterialRenderer（实现 IRenderMaterial）；更新类型与句柄（ParameterSlot 添加 set/binding 字段）；补充 BlendFactor/BlendOp/CompareOp/CullMode/FrontFace 枚举；补充 BlendAttachmentDesc/DepthStencilStateDesc/RasterizationStateDesc 结构体 |

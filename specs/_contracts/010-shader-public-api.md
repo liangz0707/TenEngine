@@ -1,74 +1,76 @@
-# 契约：010-Shader 模块对外 API
+# Contract: 010-Shader Module Public API
 
-## 适用模块
+## Applicable Modules
 
-- **实现方**：010-Shader（L2；Shader 编译、变体、预编译、可选 Shader Graph；作为资产由 013 加载，010 不发起加载）
-- **对应规格**：`docs/module-specs/010-shader.md`
-- **依赖**：001-Core、008-RHI、009-RenderCore、013-Resource、002-Object
+- **Implementer**: 010-Shader (L2; Shader compilation, variants, precompilation, optional Shader Graph; loaded as asset by 013, 010 does not initiate loading)
+- **Corresponding Spec**: `docs/module-specs/010-shader.md`
+- **Dependencies**: 001-Core, 008-RHI, 009-RenderCore, 013-Resource, 002-Object
 
-## 消费者
+## Consumers
 
-- 011-Material、020-Pipeline、021-Effects（013 在 Load(Shader) 时调用 010 CreateShader/Compile）
+- 011-Material, 020-Pipeline, 021-Effects (013 calls 010 CreateShader/Compile during Load(Shader))
 
-## 第三方依赖
+## Third-Party Dependencies
 
-- glslang（GLSL/HLSL→SPIR-V）、spirv-cross（SPIR-V→MSL/HLSL）、vulkan-headers、dxc（HLSL→DXIL）、spirv-tools。按后端与平台选择；详见 `docs/third_party/`。
+- glslang (GLSL/HLSL->SPIR-V), spirv-cross (SPIR-V->MSL/HLSL), vulkan-headers, dxc (HLSL->DXIL), spirv-tools. Selected by backend and platform; see `docs/third_party/`.
 
-## 能力列表
+## Capability List
 
-### 类型与句柄（跨边界）
+### Types and Handles (Cross-Boundary)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| ShaderHandle | 着色器或 Shader 模块句柄；CreateShader/Compile（入参由 013 传入 ShaderAssetDesc 或源码，仅内存）产出；用于 PSO 创建与绑定 | 创建后直至显式释放 |
-| ShaderSourceFormat | 源码格式枚举；HLSL、GLSL | 编译时 |
-| VariantKey / MacroSet | 变体键（宏组合）；变体枚举与预编译；运行时可动态切换 | 由调用方管理 |
-| Bytecode | 编译产物（SPIR-V/DXIL/MSL）；提交给 RHI 创建 PSO/ShaderModule | 由调用方或缓存管理 |
-| Reflection（可选） | Uniform 布局、槽位、与 RenderCore 对接 | 与 Shader 或缓存绑定 |
+| Name | Semantics | Lifetime |
+|------|-----------|----------|
+| IShaderHandle | Shader or Shader module handle; CreateShader/Compile produces (input from 013 via ShaderAssetDesc or source, memory only); used for PSO creation and binding | Created until explicitly released |
+| ShaderSourceFormat | Source format enumeration; HLSL, GLSL | Compile-time |
+| BackendType | Target backend enumeration; SPIRV, DXIL, DXBC (D3D11), MSL, HLSL_SOURCE (SPIR-V -> HLSL via SPIRV-Cross) | Compile-time |
+| ShaderStage | Shader stage enumeration; Vertex, Fragment, Compute, Geometry, TessControl, TessEvaluation, Unknown | Compile-time |
+| MacroSet | Macro name-value set; max 32 pairs, names/values[64] | Managed by caller |
+| VariantKey | Variant key (macro combination); hash-based comparison | Managed by caller |
+| CompileOptions | Compile options; targetBackend, optimizationLevel, generateDebugInfo, stage, entryPoint[64] ("main" default) | Per-compile |
+| IVariantEnumerator | Variant enumeration callback interface; OnVariant(VariantKey) | Callback |
+| SourceChangedCallback | Source change callback type; `void (*)(char const* path, void* userData)` | Callback |
+| IShaderCompiler | Shader compiler interface; LoadSource, Compile, GetBytecode, GetBytecodeForStage, GetLastError, GetTargetBackend, DefineKeyword, EnumerateVariants, Precompile, SetCache, GetReflection, GetShaderReflection, GetVertexInputReflection | Application lifetime |
+| IShaderCache | Shader cache interface; LoadCache, SaveCache, Invalidate | Application lifetime |
+| IShaderHotReload | Hot reload interface; ReloadShader, OnSourceChanged, NotifyShaderUpdated | Application lifetime |
+| Bytecode | Compile output (SPIR-V/DXIL/MSL/DXBC); submitted to RHI for PSO/ShaderModule creation | Managed by caller or cache |
+| Reflection (optional) | Uniform layout, slots, interfaces with RenderCore | Bound to Shader or cache |
 
-### 能力（提供方保证）
+### Capabilities (Provider Guarantees)
 
-| 序号 | 能力 | 说明 |
-|------|------|------|
-| 1 | Source & Compilation | HLSL、GLSL；LoadSource/LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetBytecodeForStage(handle, stage, out_size)；GetTargetBackend、GetLastError；后端 SPIRV/DXIL/MSL/HLSL_SOURCE/DXBC（D3D11）；CompileOptions 含 targetBackend、optimizationLevel、generateDebugInfo、stage、entryPoint |
-| 2 | Macros & Variants | DefineKeyword、SetMacros、GetVariantKey、SelectVariant、EnumerateVariants、Precompile；游戏中可动态切换宏 |
-| 3 | Cache | SetCache、LoadCache、SaveCache、Invalidate；预编译缓存、与 Resource 集成（可选） |
-| 4 | Hot Reload（可选） | CreateShaderHotReload、ReloadShader、OnSourceChanged、NotifyShaderUpdated；源码或宏变更后重新编译并通知下游 |
-| 5 | Graph（可选） | NodeGraph、ExportSource/IR；与 Material 联动 |
-| 6 | Reflection | GetReflection(handle, outDesc)→UniformLayoutDesc；GetShaderReflection(handle, outDesc)→ShaderReflectionDesc（Uniform+Texture+Sampler）；需 TE_SHADER_USE_CORE 且链接 te_rendercore |
-| 7 | Vertex Input 反射 | GetVertexInputReflection(handle, outDesc)；outDesc 为 te::rendercore::VertexFormatDesc*；从 SPIR-V vertex stage 的 stage_inputs 解析 location/format/offset/stride；PSO 创建时与 Mesh vertexLayout 比对 |
+| # | Capability | Description |
+|---|------------|-------------|
+| 1 | Source & Compilation | HLSL, GLSL; LoadSource/LoadSourceFromMemory, Compile(handle, options), GetBytecode, GetBytecodeForStage(handle, stage, out_size); GetTargetBackend, GetLastError; backend SPIRV/DXIL/MSL/HLSL_SOURCE/DXBC (D3D11); CompileOptions includes targetBackend, optimizationLevel, generateDebugInfo, stage, entryPoint |
+| 2 | Macros & Variants | DefineKeyword, SetMacros (via IShaderHandle), GetVariantKey, SelectVariant, EnumerateVariants, Precompile; dynamic macro switching at runtime |
+| 3 | Cache | SetCache (optional), LoadCache, SaveCache, Invalidate; precompiled cache, integration with Resource (optional) |
+| 4 | Hot Reload (optional) | CreateShaderHotReload, ReloadShader, OnSourceChanged, NotifyShaderUpdated; recompile after source or macro change and notify downstream |
+| 5 | Graph (optional) | NodeGraph, ExportSource/IR; interfaces with Material |
+| 6 | Reflection | GetReflection(handle, outDesc)->UniformLayoutDesc; GetShaderReflection(handle, outDesc)->ShaderReflectionDesc (Uniform+Texture+Sampler); requires TE_SHADER_USE_CORE and link te_rendercore |
+| 7 | Vertex Input Reflection | GetVertexInputReflection(handle, outDesc); outDesc is te::rendercore::VertexFormatDesc*; parses location/format/offset from SPIR-V vertex stage stage_inputs; used for PSO creation and Mesh vertex layout comparison |
 
-## 版本 / ABI
+## Version / ABI
 
-- 遵循 Constitution：公开 API 版本化；破坏性变更递增 MAJOR。
+- Follows Constitution: Public API versioned; breaking changes increment MAJOR.
 
-## 约束
+## Constraints
 
-- 须在 Core、RHI、RenderCore、Resource 初始化之后使用。013 Load(shaderGuid) 后将 ShaderAssetDesc 或源码交 010 CreateShader/Compile；010 不读文件、不调用 013 Load。
+- Must be used after Core, RHI, RenderCore, Resource initialization. 013 Load(shaderGuid) passes ShaderAssetDesc or source to 010 CreateShader/Compile; 010 does not read files, does not call 013 Load.
 
-### Shader 资源（013 统一加载）
+### Shader Resource (013 Unified Loading)
 
-| 名称 | 语义 | 生命周期 |
-|------|------|----------|
-| **ShaderAssetDesc** | Shader 资产描述；guid (ResourceId)、sourceFileName[256]、sourceFormat、compileOptions；与 002 注册；一目录一 Shader（.shader + 同目录源码文件） | 010 拥有，002 序列化 |
-| **ShaderResource** | 实现 resource::IShaderResource；Load（LoadAssetDesc + 同目录读源码 + LoadSourceFromMemory + Compile）、Save（SaveAssetDesc + 写同目录源码）、Import（读源码、编译、生成 GUID、写 .shader 与源码）；GetShaderHandle() 返回 IShaderHandle* | 013 缓存持有 |
-| **InitializeShaderModule(manager)** | 注册 Shader 资源工厂与 ShaderAssetDesc/CompileOptions（002）；ResourceManager 就绪后调用 | 引擎初始化时调用一次 |
-| **LoadAllShaders(manager, manifestPath)** | 按清单文件逐行 LoadSync(.shader)；任一行失败即中止返回 false | 引擎初始化时调用（可选） |
+| Name | Semantics | Lifetime |
+|------|-----------|----------|
+| **ShaderAssetDesc** | Shader asset description; guid (ResourceId), sourceFileName[256], sourceFormat, compileOptions; registered with 002; one directory one Shader (.shader + source files in same directory) | 010 owns, 002 serializes |
+| **ShaderResource** | Implements resource::IShaderResource; Load (LoadAssetDesc + read source from same directory + LoadSourceFromMemory + Compile), Save (SaveAssetDesc + write source), Import (read source, compile, generate GUID, write .shader and source); GetShaderHandle() returns IShaderHandle* | 013 cache holds |
+| **InitializeShaderModule(manager)** | Register Shader resource factory and ShaderAssetDesc/CompileOptions (002); call after ResourceManager ready | Called once at engine init |
+| **LoadAllShaders(manager, manifestPath)** | LoadSync(.shader) per line from manifest file; aborts on any line failure returning false | Called at engine init (optional) |
 
-## TODO 列表
+## Change Log
 
-（以下任务来自 `docs/asset/` 资源管理/加载/存储设计。）
-
-- [x] **描述归属**：ShaderAssetDesc 归属 010；.shader 描述格式与 002 注册；一目录一资源（.shader + 同目录 .hlsl/.glsl）。
-- [x] **Shader 资源**：010 实现 ShaderResource（IShaderResource）；013 初始化时调用 InitializeShaderModule、LoadAllShaders；Material 经 GUID 从 013 缓存取 Shader。
-- [x] **接口与数据**（已实现）：LoadSource(path, format)、LoadSourceFromMemory、Compile(handle, options)、GetBytecode、GetReflection(handle, outDesc→UniformLayoutDesc)、GetShaderReflection(handle, outDesc→ShaderReflectionDesc)、GetVertexInputReflection(handle, outDesc→VertexFormatDesc)；与 009 UniformLayoutDesc/ShaderReflectionDesc/VertexFormatDesc 对接；LoadCache/SaveCache 使用 001 FileRead/FileWrite（TE_SHADER_USE_CORE 时）。
-
-## 变更记录
-
-| 日期 | 变更说明 |
-|------|----------|
-| T0 新增 | 010-Shader 契约 |
-| 2026-02-05 | 统一目录；能力列表用表格；去除 ABI 引用 |
-| 2026-02-10 | 能力 1–4、6–7 与实现对齐；TODO 接口与数据标为已实现 |
-| 2026-02-10 | 增加 Shader 资源：ShaderAssetDesc、ShaderResource、InitializeShaderModule、LoadAllShaders；依赖 002-Object；TODO 描述归属与 Shader 资源标为已实现 |
-| 2026-02-10 | 能力 1：GetBytecodeForStage(handle, stage, out_size)；BackendType::DXBC 供 D3D11 |
+| Date | Change Description |
+|------|-------------------|
+| T0 Initial | 010-Shader contract |
+| 2026-02-05 | Unified directory; capability list in table format; removed ABI reference |
+| 2026-02-10 | Capabilities 1-4, 6-7 aligned with implementation; TODO interface and data marked as implemented |
+| 2026-02-10 | Added Shader resource: ShaderAssetDesc, ShaderResource, InitializeShaderModule, LoadAllShaders; dependency 002-Object; TODO description and Shader resource marked as implemented |
+| 2026-02-10 | Capability 1: GetBytecodeForStage(handle, stage, out_size); BackendType::DXBC for D3D11 |
+| 2026-02-22 | Code-aligned update: clarified IShaderHandle methods (SetMacros, GetVariantKey, SelectVariant), IShaderCompiler methods (ReleaseHandle, LoadSourceFromMemory), IShaderCache methods, IShaderHotReload methods, factory functions; all symbols match te/shader/*.hpp implementation |
