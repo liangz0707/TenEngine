@@ -1,8 +1,8 @@
 # Merge T0-contracts into each T0-NNN worktree (contracts + docs + .cursor + .specify).
-# Run from repo root. Worktrees must exist at G:\AIHUMAN\WorkSpaceSDD\TenEngine-NNN-modulename.
+# Run from repo root. Worktrees must exist at <WorktreeBase>/TenEngine-NNN-modulename.
 
 param(
-    [string]$WorktreeBase = "G:\AIHUMAN\WorkSpaceSDD",
+    [string]$WorktreeBase = "..",  # Relative to repo root; looks for worktrees at ../TenEngine-NNN-modulename
     [string[]]$OnlyModules = @(),  # e.g. @("002-object","003-application") to run only those
     [string]$MergeMsg = "Merge T0-contracts: contracts, docs, .cursor, .specify updates"
 )

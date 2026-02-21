@@ -93,7 +93,7 @@ TenEngine/                        # 仓库根 = 构建根
 | 问题 | 说明 |
 |------|------|
 | **单仓 vs 多 worktree** | **单仓**：构建根目录为**仓库根**（如 `TenEngine/`），代码在 `Engine/TenEngine-NNN-modulename/` 下，见 **§2.5**。**多 worktree**：构建根目录为当前模块 worktree 根（如 `TenEngine-008-rhi/`），见 §2。 |
-| **worktree / 仓库路径** | 当前工作的 worktree 或仓库绝对路径（如 `G:\AIHUMAN\WorkSpaceSDD\TenEngine` 或 `TenEngine-008-rhi`）。 |
+| **worktree / 仓库路径** | 当前工作的 worktree 或仓库路径（如 `TenEngine/` 或 `TenEngine-008-rhi/`）。 |
 | **CMakeLists.txt 位置** | 单仓：根目录 `CMakeLists.txt` 仅 `add_subdirectory(Engine/...)`；各模块在 `Engine/TenEngine-NNN-xxx/CMakeLists.txt`。多 worktree：worktree 根目录下的 `CMakeLists.txt`。 |
 | **out-of-source build** | 构建输出目录（如 `build/`、`out/`）位于何处？推荐：单仓为 **`{仓库根}/build`**，多 worktree 为 `{worktree}/build`。 |
 

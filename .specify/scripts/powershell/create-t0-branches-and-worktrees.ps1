@@ -1,11 +1,11 @@
 # Create T0-NNN-modulename branches (constraints + module doc + global dependency only)
-# and add worktrees under G:\AIHUMAN\WorkSpaceSDD\TenEngine-NNN-modulename
+# and add worktrees under <WorktreeBase>/TenEngine-NNN-modulename
 # Run from repo root (TenEngine). Requires: specs/_contracts/, docs/engine-modules-and-architecture.md, docs/module-specs/*.md exist.
 
 param(
     [switch]$BranchesOnly,
     [switch]$WorktreesOnly,
-    [string]$WorktreeBase = "G:\AIHUMAN\WorkSpaceSDD"
+    [string]$WorktreeBase = ".."  # Relative to repo root; creates worktrees at ../TenEngine-NNN-modulename
 )
 
 $ErrorActionPreference = "Stop"
