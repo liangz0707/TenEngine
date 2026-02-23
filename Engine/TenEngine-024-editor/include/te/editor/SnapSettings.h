@@ -11,51 +11,13 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Snap configuration for different transform modes.
- */
-struct SnapConfig {
-  // Grid snap (position)
-  bool gridSnapEnabled = false;
-  float gridSize = 1.0f;
-  te::math::Vec3 gridOrigin = te::math::Vec3(0.0f);
-  
-  // Rotation snap
-  bool rotationSnapEnabled = false;
-  float rotationSnapAngle = 15.0f;  // Degrees
-  
-  // Scale snap
-  bool scaleSnapEnabled = false;
-  float scaleSnapIncrement = 0.1f;
-  
-  // Surface snap (snap to collider surfaces)
-  bool surfaceSnapEnabled = false;
-  float surfaceSnapOffset = 0.0f;  // Offset from surface
-  bool snapToBackface = false;
-  
-  // Vertex snap
-  bool vertexSnapEnabled = false;
-  float vertexSnapDistance = 0.1f;  // Max distance to snap
-  
-  // Edge snap
-  bool edgeSnapEnabled = false;
-  float edgeSnapDistance = 0.1f;
-  
-  // Pivot snap (snap pivot to grid)
-  bool pivotSnapEnabled = false;
-};
+// Math type aliases for convenience
+namespace math {
+using Vec3 = te::core::Vector3;
+using Quat = te::core::Quaternion;
+}
 
-/**
- * @brief Snap result after applying snapping.
- */
-struct SnapResult {
-  te::math::Vec3 snappedPosition;
-  te::math::Quat snappedRotation;
-  te::math::Vec3 snappedScale;
-  bool positionSnapped = false;
-  bool rotationSnapped = false;
-  bool scaleSnapped = false;
-};
+// Note: SnapConfig and SnapResult are defined in EditorTypes.h
 
 /**
  * @brief Snap settings manager interface.
@@ -91,12 +53,12 @@ public:
   /**
    * @brief Set grid origin.
    */
-  virtual void SetGridOrigin(te::math::Vec3 const& origin) = 0;
+  virtual void SetGridOrigin(math::Vec3 const& origin) = 0;
   
   /**
    * @brief Get grid origin.
    */
-  virtual te::math::Vec3 GetGridOrigin() const = 0;
+  virtual math::Vec3 GetGridOrigin() const = 0;
   
   // === Rotation Snap ===
   
@@ -191,29 +153,29 @@ public:
   /**
    * @brief Snap a position to grid.
    */
-  virtual te::math::Vec3 SnapPosition(te::math::Vec3 const& position) const = 0;
+  virtual math::Vec3 SnapPosition(math::Vec3 const& position) const = 0;
   
   /**
    * @brief Snap a rotation to nearest snap angle.
    */
-  virtual te::math::Quat SnapRotation(te::math::Quat const& rotation) const = 0;
+  virtual math::Quat SnapRotation(math::Quat const& rotation) const = 0;
   
   /**
    * @brief Snap euler angles to nearest snap angle.
    */
-  virtual te::math::Vec3 SnapEulerAngles(te::math::Vec3 const& euler) const = 0;
+  virtual math::Vec3 SnapEulerAngles(math::Vec3 const& euler) const = 0;
   
   /**
    * @brief Snap a scale to nearest increment.
    */
-  virtual te::math::Vec3 SnapScale(te::math::Vec3 const& scale) const = 0;
+  virtual math::Vec3 SnapScale(math::Vec3 const& scale) const = 0;
   
   /**
    * @brief Apply all snapping to a transform.
    */
-  virtual SnapResult ApplySnap(te::math::Vec3 const& position,
-                               te::math::Quat const& rotation,
-                               te::math::Vec3 const& scale) const = 0;
+  virtual SnapResult ApplySnap(math::Vec3 const& position,
+                               math::Quat const& rotation,
+                               math::Vec3 const& scale) const = 0;
   
   // === Configuration ===
   

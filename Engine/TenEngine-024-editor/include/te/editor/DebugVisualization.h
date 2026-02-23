@@ -12,6 +12,11 @@
 namespace te {
 namespace editor {
 
+// Math type aliases for convenience
+namespace math {
+using Vec3 = te::core::Vector3;
+}
+
 /**
  * @brief Debug visualization flags.
  */

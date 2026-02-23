@@ -249,7 +249,12 @@ void WorldManager::CollectRenderables(te::scene::SceneRef sceneRef,
         }
 
         // Store model resource ID for later resolution
-        item.modelResourceId = modelComp->modelResourceId.value;
+        // Convert GUID to uint64_t (use first 8 bytes as hash)
+        std::uint64_t guidHash = 0;
+        for (int i = 0; i < 8; ++i) {
+            guidHash |= (static_cast<std::uint64_t>(modelComp->modelResourceId.data[i]) << (i * 8));
+        }
+        item.modelResourceId = guidHash;
         item.userData = entity;
 
         // Callback with this renderable
@@ -298,7 +303,12 @@ void WorldManager::CollectRenderables(te::scene::SceneRef sceneRef,
         }
 
         // Store model resource ID for resolution
-        item.modelResourceId = modelComp->modelResourceId.value;
+        // Convert GUID to uint64_t (use first 8 bytes as hash)
+        std::uint64_t guidHash = 0;
+        for (int i = 0; i < 8; ++i) {
+            guidHash |= (static_cast<std::uint64_t>(modelComp->modelResourceId.data[i]) << (i * 8));
+        }
+        item.modelResourceId = guidHash;
         item.userData = entity;
 
         // Callback with this renderable

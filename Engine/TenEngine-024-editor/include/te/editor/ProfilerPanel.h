@@ -12,48 +12,27 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Profiler scope timing data.
- */
-struct ProfilerScope {
-  const char* name = nullptr;
-  float startTimeMs = 0.0f;
-  float endTimeMs = 0.0f;
-  float durationMs = 0.0f;
-  int depth = 0;
-  uint32_t color = 0xFFFFFFFF;
-};
-
-/**
- * @brief Frame timing history entry.
- */
-struct FrameTimingEntry {
-  float frameTimeMs = 0.0f;
-  float cpuTimeMs = 0.0f;
-  float gpuTimeMs = 0.0f;
-  int drawCalls = 0;
-  int triangles = 0;
-};
+// Note: ProfilerScope and FrameTimingEntry are defined in EditorTypes.h
 
 /**
  * @brief Performance profiler panel interface.
- * 
+ *
  * Displays real-time performance metrics including CPU/GPU frame times,
  * draw call statistics, and a timeline view of profiler scopes.
  */
 class IProfilerPanel {
 public:
   virtual ~IProfilerPanel() = default;
-  
+
   // === Drawing ===
-  
+
   /**
    * @brief Draw the profiler panel.
    */
   virtual void OnDraw() = 0;
-  
+
   // === Frame Stats ===
-  
+
   /**
    * @brief Update with current frame statistics.
    */

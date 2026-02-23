@@ -13,40 +13,24 @@ namespace editor {
 
 class IEntity;
 
-/**
- * @brief Gizmo axis hover state.
- */
-struct GizmoHoverState {
-  bool hoveringX = false;
-  bool hoveringY = false;
-  bool hoveringZ = false;
-  bool hoveringXY = false;
-  bool hoveringXZ = false;
-  bool hoveringYZ = false;
-  bool hoveringXYZ = false;  // Center (all axes)
-};
+// Math type aliases for convenience (mapping te::math to te::core)
+namespace math {
+using Vec3 = te::core::Vector3;
+using Mat4 = te::core::Matrix4;
+}
 
-/**
- * @brief Gizmo operation result.
- */
-struct GizmoOperation {
-  bool active = false;
-  GizmoMode mode = GizmoMode::Translate;
-  te::math::Vec3 delta;
-  te::math::Vec3 newValue;
-  GizmoHoverState hover;
-};
+// Note: GizmoHoverState and GizmoOperation are defined in EditorTypes.h
 
 /**
  * @brief Gizmo transformation tool interface.
- * 
+ *
  * Provides visual manipulation tools for translating, rotating, and scaling
  * selected entities in the viewport.
  */
 class IGizmo {
 public:
   virtual ~IGizmo() = default;
-  
+
   // === Mode Control ===
   
   /**
@@ -151,7 +135,7 @@ public:
    * @param view View matrix
    * @param projection Projection matrix
    */
-  virtual void SetCameraMatrices(te::math::Mat4 const& view, te::math::Mat4 const& projection) = 0;
+  virtual void SetCameraMatrices(math::Mat4 const& view, math::Mat4 const& projection) = 0;
   
   /**
    * @brief Set the viewport dimensions.

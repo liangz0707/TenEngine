@@ -11,61 +11,21 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Auto-save settings.
- */
-struct AutoSaveSettings {
-  bool enabled = true;
-  int intervalSeconds = 300;  ///< 5 minutes default
-  int maxBackups = 10;
-};
-
-/**
- * @brief Viewport preferences.
- */
-struct ViewportPreferences {
-  float fov = 60.0f;
-  float nearClip = 0.1f;
-  float farClip = 1000.0f;
-  float cameraSpeed = 10.0f;
-  float rotationSpeed = 0.3f;
-  bool showGrid = true;
-  float gridSize = 1.0f;
-  bool showStats = false;
-};
-
-/**
- * @brief UI preferences.
- */
-struct UIPreferences {
-  EditorTheme theme = EditorTheme::Dark;
-  float fontSize = 14.0f;
-  float uiScale = 1.0f;
-  bool showTooltips = true;
-  int undoHistorySize = 100;
-};
-
-/**
- * @brief External tools configuration.
- */
-struct ExternalTool {
-  std::string name;
-  std::string path;
-  std::string arguments;
-};
+// Note: AutoSaveSettings, ViewportPreferences, UIPreferences, ExternalTool
+// are defined in EditorTypes.h
 
 /**
  * @brief Editor preferences interface.
- * 
+ *
  * Manages all editor settings including theme, key bindings,
  * auto-save, viewport settings, and external tools.
  */
 class IEditorPreferences {
 public:
   virtual ~IEditorPreferences() = default;
-  
+
   // === UI Settings ===
-  
+
   /**
    * @brief Set the editor theme.
    */

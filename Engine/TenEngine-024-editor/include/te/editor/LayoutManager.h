@@ -12,37 +12,19 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Panel visibility state.
- */
-struct PanelVisibility {
-  const char* panelId = nullptr;
-  bool visible = true;
-  bool docked = true;
-  EditorRect dockRect;
-};
-
-/**
- * @brief Complete layout definition.
- */
-struct LayoutDef {
-  const char* name = nullptr;
-  ViewportLayout viewportLayout = ViewportLayout::Single;
-  std::vector<PanelVisibility> panels;
-  bool isBuiltin = false;
-};
+// Note: PanelVisibility and LayoutDef are defined in EditorTypes.h
 
 /**
  * @brief Layout manager interface.
- * 
+ *
  * Manages editor panel docking, layout presets, and layout persistence.
  */
 class ILayoutManager {
 public:
   virtual ~ILayoutManager() = default;
-  
+
   // === Current Layout ===
-  
+
   /**
    * @brief Apply a layout by name.
    */

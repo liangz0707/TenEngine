@@ -12,17 +12,7 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Console log entry with stored data.
- */
-struct ConsoleEntry {
-  std::string message;
-  LogLevel level = LogLevel::Info;
-  uint64_t timestamp = 0;
-  std::string category;
-  int frameCount = 0;
-  int count = 1;  ///< Collapse count
-};
+// Note: ConsoleEntry is defined in EditorTypes.h
 
 /**
  * @brief Console command callback type.
@@ -31,22 +21,22 @@ using ConsoleCommandCallback = std::function<void(const char* command)>;
 
 /**
  * @brief Console log panel interface.
- * 
+ *
  * Displays log messages with filtering, search, and command input.
  */
 class IConsolePanel {
 public:
   virtual ~IConsolePanel() = default;
-  
+
   // === Drawing ===
-  
+
   /**
    * @brief Draw the console panel.
    */
   virtual void OnDraw() = 0;
-  
+
   // === Log Operations ===
-  
+
   /**
    * @brief Add a log entry.
    */

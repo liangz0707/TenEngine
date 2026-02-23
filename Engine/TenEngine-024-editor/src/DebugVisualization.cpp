@@ -3,6 +3,7 @@
  * @brief Debug visualization implementation (024-Editor).
  */
 #include <te/editor/DebugVisualization.h>
+#include <te/core/log.h>
 #include <imgui.h>
 #include <vector>
 #include <chrono>
@@ -78,11 +79,13 @@ public:
   }
   
   // === Rendering ===
-  
+
   void OnDraw() override {
-    // This would integrate with the rendering pipeline
-    // to draw debug primitives. For now, it's a placeholder.
-    
+    // TODO: Integrate with Pipeline module for actual debug rendering
+    // This method should submit debug primitives to the render pipeline
+    // using a debug draw interface. The pipeline will then render them
+    // as overlay geometry in the viewport.
+
     auto now = std::chrono::steady_clock::now();
     
     // Draw primitives that haven't expired
@@ -107,16 +110,29 @@ public:
   }
   
   void DrawEntityCollision(uint64_t entityId) override {
-    // TODO: Integrate with physics system to draw collision shapes
+    // TODO: Integrate with physics system (014-Physics) to query and draw collision shapes
+    // This requires:
+    // 1. Access to the physics world/collision system
+    // 2. Query collision components for the entity
+    // 3. Extract collision shape data (boxes, spheres, capsules, meshes)
+    // 4. Draw each shape using the debug renderer
     (void)entityId;
   }
-  
+
   void DrawNavigationMesh() override {
     // TODO: Integrate with navigation system to draw nav mesh
+    // This requires:
+    // 1. Access to the navigation mesh data
+    // 2. Drawing walkable areas, obstacles, and links
+    // 3. Optional path visualization
   }
-  
+
   void DrawEntityBounds(uint64_t entityId, math::Vec3 const& color) override {
-    // TODO: Get entity bounds and draw
+    // TODO: Get entity bounds from scene system and draw bounding box
+    // This requires:
+    // 1. Query the entity's mesh/components for bounds
+    // 2. Calculate world-space bounding box
+    // 3. Draw using debug box primitive
     (void)entityId;
     (void)color;
   }
@@ -288,7 +304,9 @@ public:
 
 private:
   void DrawPrimitive(DebugPrimitive const& p) {
-    // Placeholder - would integrate with rendering pipeline
+    // TODO: Integrate with Pipeline module for actual rendering
+    // This would use the debug renderer to draw lines, boxes, spheres, etc.
+    // For now, primitives are stored but not rendered
     (void)p;
   }
 

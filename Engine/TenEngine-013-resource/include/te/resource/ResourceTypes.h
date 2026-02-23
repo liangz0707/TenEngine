@@ -6,6 +6,7 @@
 #define TE_RESOURCE_RESOURCE_TYPES_H
 
 #include <cstdint>
+#include <cstddef>
 
 namespace te {
 namespace resource {

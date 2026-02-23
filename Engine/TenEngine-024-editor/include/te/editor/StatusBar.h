@@ -11,28 +11,20 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Background task info for status bar display.
- */
-struct BackgroundTask {
-  const char* name = nullptr;
-  float progress = 0.0f;  ///< 0.0 to 1.0, -1 for indeterminate
-  bool active = false;
-  int id = 0;
-};
+// Note: BackgroundTask is defined in EditorTypes.h
 
 /**
  * @brief Status bar interface.
- * 
+ *
  * Displays editor status information including current level name,
  * selection count, FPS, memory usage, and background task progress.
  */
 class IStatusBar {
 public:
   virtual ~IStatusBar() = default;
-  
+
   // === Drawing ===
-  
+
   /**
    * @brief Draw the status bar.
    */

@@ -955,7 +955,7 @@ public:
         if (it != type_to_name_.end()) {
             return it->second;
         }
-        
+
         // Default mapping (can be overridden by resource modules)
         switch (type) {
             case ResourceType::Texture:
@@ -978,7 +978,132 @@ public:
                 return std::string();
         }
     }
-    
+
+    // === Extended interface implementations (stubs) ===
+
+    LoadRequestId RequestLoadAsyncEx(char const* path, ResourceType type,
+                                     LoadCompleteCallback on_done,
+                                     LoadOptions const& options) override {
+        // For now, delegate to basic RequestLoadAsync
+        // TODO: Honor LoadOptions (priority, callback thread, etc.)
+        (void)options;
+        return RequestLoadAsync(path, type, on_done, options.user_data);
+    }
+
+    BatchLoadRequestId RequestLoadBatchAsync(
+        LoadRequestInfo const* requests, std::size_t count,
+        BatchLoadCompleteCallback on_done, void* user_data,
+        LoadOptions const& options) override {
+        // Stub implementation - load each resource individually
+        if (!requests || count == 0) {
+            if (on_done) {
+                BatchLoadResult result;
+                on_done(nullptr, &result, user_data);
+            }
+            return nullptr;
+        }
+
+        // TODO: Implement proper batch loading with progress tracking
+        // For now, just invoke callback with placeholder result
+        if (on_done) {
+            BatchLoadResult result;
+            result.totalCount = static_cast<std::size_t>(count);
+            result.successCount = 0;
+            result.failedCount = static_cast<std::size_t>(count);
+            result.cancelledCount = 0;
+            result.overallResult = LoadResult::Error;
+            on_done(nullptr, &result, user_data);
+        }
+        return nullptr;
+    }
+
+    bool GetBatchLoadResult(BatchLoadRequestId id, BatchLoadResult& out_result) const override {
+        (void)id;
+        (void)out_result;
+        return false;
+    }
+
+    void CancelBatchLoad(BatchLoadRequestId id) override {
+        (void)id;
+    }
+
+    RecursiveLoadState GetRecursiveLoadState(ResourceId id) const override {
+        (void)id;
+        return RecursiveLoadState::NotLoaded;
+    }
+
+    LoadRequestId PreloadDependencies(ResourceId id, LoadCompleteCallback on_done, void* user_data) override {
+        (void)id;
+        if (on_done) {
+            on_done(nullptr, LoadResult::Ok, user_data);
+        }
+        return nullptr;
+    }
+
+    bool GetDependencyTree(ResourceId id, std::vector<ResourceId>& out_deps,
+                           std::size_t max_depth) const override {
+        (void)id;
+        (void)max_depth;
+        out_deps.clear();
+        return true;
+    }
+
+    std::size_t GetTotalMemoryUsage() const override {
+        return 0;
+    }
+
+    std::size_t GetResourceMemoryUsage(ResourceId id) const override {
+        (void)id;
+        return 0;
+    }
+
+    void SetMemoryBudget(std::size_t budget) override {
+        (void)budget;
+    }
+
+    std::size_t GetMemoryBudget() const override {
+        return 0;
+    }
+
+    std::size_t ForceGarbageCollect() override {
+        return 0;
+    }
+
+    RecursiveLoadState GetRecursiveLoadStateByRequestId(LoadRequestId id) const override {
+        (void)id;
+        return RecursiveLoadState::NotLoaded;
+    }
+
+    bool IsResourceReady(ResourceId id) const override {
+        (void)id;
+        return false;
+    }
+
+    bool IsResourceReadyByRequestId(LoadRequestId id) const override {
+        (void)id;
+        return false;
+    }
+
+    void* SubscribeResourceState(ResourceId id,
+                                  ResourceStateCallback callback,
+                                  void* user_data) override {
+        (void)id;
+        (void)callback;
+        (void)user_data;
+        return nullptr;
+    }
+
+    void* SubscribeGlobalResourceState(ResourceStateCallback callback,
+                                        void* user_data) override {
+        (void)callback;
+        (void)user_data;
+        return nullptr;
+    }
+
+    void UnsubscribeResourceState(void* subscription_handle) override {
+        (void)subscription_handle;
+    }
+
 private:
     // Resource cache
     mutable std::mutex cache_mutex_;

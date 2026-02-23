@@ -7,43 +7,32 @@
 
 #include <te/editor/EditorTypes.h>
 #include <te/entity/EntityId.h>
+#include <te/core/math.h>
 #include <functional>
 #include <vector>
 
 namespace te {
 namespace editor {
 
-/**
- * @brief Selection change event data.
- */
-struct SelectionChangeEvent {
-  std::vector<te::entity::EntityId> previousSelection;
-  std::vector<te::entity::EntityId> currentSelection;
-  bool isAdditive;  ///< True if selection was additive (Ctrl+click)
-};
+// Math type aliases for convenience
+namespace math {
+using Vec3 = te::core::Vector3;
+}
 
-/**
- * @brief Selection filter for filtering selectable objects.
- */
-struct SelectionFilter {
-  bool selectEntities = true;
-  bool selectResources = false;
-  bool selectComponents = false;
-  int componentTypeFilter = -1;  ///< -1 for all component types
-};
+// Note: SelectionChangeEvent and SelectionFilter are defined in EditorTypes.h
 
 /**
  * @brief Selection manager interface.
- * 
+ *
  * Manages the current selection state for the editor, including
  * multi-selection, selection events, and selection-based operations.
  */
 class ISelectionManager {
 public:
   virtual ~ISelectionManager() = default;
-  
+
   // === Selection Operations ===
-  
+
   /**
    * @brief Select a single entity (clears previous selection).
    */
@@ -174,12 +163,12 @@ public:
   /**
    * @brief Get the bounding box encompassing all selected entities.
    */
-  virtual bool GetSelectionBounds(te::math::Vec3& min, te::math::Vec3& max) const = 0;
+  virtual bool GetSelectionBounds(math::Vec3& min, math::Vec3& max) const = 0;
   
   /**
    * @brief Get the center point of selection bounds.
    */
-  virtual bool GetSelectionCenter(te::math::Vec3& center) const = 0;
+  virtual bool GetSelectionCenter(math::Vec3& center) const = 0;
   
   // === Clipboard Operations ===
   

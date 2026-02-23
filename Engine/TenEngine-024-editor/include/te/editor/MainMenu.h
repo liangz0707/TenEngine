@@ -13,49 +13,27 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Menu item definition.
- */
-struct MenuItem {
-  const char* label = nullptr;
-  const char* shortcut = nullptr;  ///< e.g., "Ctrl+S"
-  bool enabled = true;
-  bool checked = false;
-  bool separator = false;  ///< Render as separator if true
-  int id = 0;  ///< User-defined ID for callback
-  
-  // For submenus
-  bool hasSubmenu = false;
-  std::vector<MenuItem> submenuItems;
-};
-
-/**
- * @brief Menu bar definition.
- */
-struct MenuDef {
-  const char* name = nullptr;
-  std::vector<MenuItem> items;
-};
+// Note: MenuItem and MenuDef are defined in EditorTypes.h
 
 /**
  * @brief Main menu interface.
- * 
+ *
  * Provides the main menu bar for the editor with customizable
  * menus, items, and keyboard shortcuts.
  */
 class IMainMenu {
 public:
   virtual ~IMainMenu() = default;
-  
+
   // === Drawing ===
-  
+
   /**
    * @brief Draw the main menu bar.
    */
   virtual void OnDraw() = 0;
-  
+
   // === Menu Setup ===
-  
+
   /**
    * @brief Add a menu to the menu bar.
    * @param menu Menu definition

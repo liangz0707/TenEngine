@@ -15,6 +15,11 @@
 namespace te {
 namespace editor {
 
+// Math type aliases for convenience
+namespace math {
+using Vec3 = te::core::Vector3;
+}
+
 /**
  * @brief Property value with mixed-state support.
  */

@@ -11,31 +11,20 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Toolbar button definition.
- */
-struct ToolbarButton {
-  const char* id = nullptr;
-  const char* tooltip = nullptr;
-  const char* icon = nullptr;  ///< Icon name or text for button
-  bool enabled = true;
-  bool toggle = false;      ///< Toggle button state
-  bool toggled = false;     ///< Current toggle state
-  int groupId = 0;          ///< For radio-style button groups
-};
+// Note: ToolbarButton is defined in EditorTypes.h
 
 /**
  * @brief Editor toolbar interface.
- * 
+ *
  * Provides the main toolbar for quick access to common editor functions
  * like transform tools, play controls, and view options.
  */
 class IToolbar {
 public:
   virtual ~IToolbar() = default;
-  
+
   // === Drawing ===
-  
+
   /**
    * @brief Draw the toolbar.
    */

@@ -38,6 +38,7 @@
 #include <te/resource/ResourceTypes.h>
 #include <te/resource/Resource.h>
 #include <te/entity/EntityId.h>
+#include <te/entity/Entity.h>
 #include <string>
 #include <vector>
 #include <exception>
@@ -45,6 +46,32 @@
 
 namespace te {
 namespace editor {
+
+// ============================================================================
+// Play Mode Snapshot Structures
+// ============================================================================
+
+/**
+ * @brief Snapshot of an entity's transform for play mode state restoration.
+ */
+struct EntityTransformSnapshot {
+  te::entity::EntityId entityId;
+  te::scene::Transform localTransform;
+};
+
+/**
+ * @brief Complete snapshot for play mode state management.
+ *
+ * Saves all entity transforms and camera state when entering play mode,
+ * allowing full restoration when exiting play mode.
+ */
+struct PlayModeSnapshot {
+  std::vector<EntityTransformSnapshot> entityTransforms;
+  te::core::Vector3 cameraPosition;
+  te::core::Vector3 cameraRotationEuler;  // Yaw, Pitch, Roll in radians
+  float cameraOrbitDistance;
+  bool hasCameraState;
+};
 
 class EditorImpl;
 static void EditorTickCallback(float deltaTime);
@@ -149,6 +176,11 @@ public:
     m_lastFrameTime = now;
     m_frameTimeMs = frameTime * 1000.0f;
     m_fps = (frameTime > 0.0f) ? (1.0f / frameTime) : 0.0f;
+
+    // Run game update when in play mode
+    if (m_playModeState == PlayModeState::Playing && m_phase == Phase::MainEditor) {
+      OnGameUpdate(frameTime);
+    }
 
 #if TE_PLATFORM_WINDOWS
     if (!ImGuiBackend_IsInitialized()) {
@@ -659,20 +691,74 @@ public:
 
   // Play mode control
   void EnterPlayMode() override {
+    if (m_playModeState == PlayModeState::Playing) return;
+
+    // Save current state before entering play mode
+    SavePlayModeSnapshot();
+
     m_playModeState = PlayModeState::Playing;
     if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
-    // TODO: Integrate with game loop
+    te::core::Log(te::core::LogLevel::Info, "Editor: Entered play mode");
+
+    // TODO: Enable game systems (physics, AI, scripts)
+    // This would typically involve:
+    // 1. Starting physics simulation
+    // 2. Enabling script execution
+    // 3. Activating AI systems
   }
   void PausePlayMode() override {
+    if (m_playModeState != PlayModeState::Playing) return;
+
     m_playModeState = PlayModeState::Paused;
     if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+    te::core::Log(te::core::LogLevel::Info, "Editor: Paused play mode");
+
+    // TODO: Pause game systems (physics, AI, scripts)
   }
   void StopPlayMode() override {
+    if (m_playModeState == PlayModeState::Stopped) return;
+
     m_playModeState = PlayModeState::Stopped;
     if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+    te::core::Log(te::core::LogLevel::Info, "Editor: Stopped play mode");
+
+    // Restore state from saved snapshot
+    RestorePlayModeSnapshot();
+
+    // TODO: Disable game systems (physics, AI, scripts)
   }
   void StepFrame() override {
-    // TODO: Advance one frame
+    // Can only step when paused or stopped
+    if (m_playModeState == PlayModeState::Playing) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: Cannot step frame while playing");
+      return;
+    }
+
+    // Save current state before stepping (if not already in play mode)
+    bool wasStopped = (m_playModeState == PlayModeState::Stopped);
+    if (wasStopped) {
+      SavePlayModeSnapshot();
+    }
+
+    te::core::Log(te::core::LogLevel::Info, "Editor: Stepping one frame");
+
+    // Temporarily set to playing state for the frame
+    PlayModeState previousState = m_playModeState;
+    m_playModeState = PlayModeState::Playing;
+
+    // Execute one frame update
+    float frameTime = m_frameTimeMs / 1000.0f;
+    if (frameTime <= 0.0f) frameTime = 1.0f / 60.0f;  // Default to 60 FPS
+    OnGameUpdate(frameTime);
+
+    // Restore previous state (paused or stopped)
+    m_playModeState = previousState;
+    if (m_toolbar) m_toolbar->SetPlayModeState(m_playModeState);
+
+    // If we were stopped, restore state immediately
+    if (wasStopped) {
+      RestorePlayModeSnapshot();
+    }
   }
   bool IsInPlayMode() const override {
     return m_playModeState != PlayModeState::Stopped;
@@ -683,10 +769,10 @@ public:
 
   // Layout management
   void SaveLayout(char const* path) override {
-    if (m_layoutManager) m_layoutManager->SaveLayout(path);
+    if (m_layoutManager) m_layoutManager->SaveToFile(path);
   }
   void LoadLayout(char const* path) override {
-    if (m_layoutManager) m_layoutManager->LoadLayout(path);
+    if (m_layoutManager) m_layoutManager->LoadFromFile(path);
   }
   void ResetLayout() override {
     if (m_layoutManager) m_layoutManager->ResetToDefault();
@@ -696,6 +782,126 @@ public:
   }
 
 private:
+  // === Play Mode Snapshot Management ===
+
+  /**
+   * @brief Save current level state before entering play mode.
+   *
+   * Traverses all entities in the current level and saves their transforms.
+   * Also saves editor camera state.
+   */
+  void SavePlayModeSnapshot() {
+    m_playModeSnapshot.entityTransforms.clear();
+    m_playModeSnapshot.hasCameraState = false;
+
+    if (!m_levelHandle.IsValid()) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: SavePlayModeSnapshot - no valid level");
+      return;
+    }
+
+    // Traverse all nodes in the level and save transforms
+    te::world::WorldManager::GetInstance().Traverse(m_levelHandle,
+      [this](te::scene::ISceneNode* node) {
+        if (!node) return;
+
+        // Try to cast to Entity
+        te::entity::Entity* entity = dynamic_cast<te::entity::Entity*>(node);
+        if (entity) {
+          EntityTransformSnapshot snapshot;
+          snapshot.entityId = entity->GetEntityId();
+          snapshot.localTransform = entity->GetLocalTransform();
+          m_playModeSnapshot.entityTransforms.push_back(snapshot);
+        }
+      });
+
+    // Save editor camera state
+    if (m_editorCamera) {
+      m_playModeSnapshot.cameraPosition = m_editorCamera->GetPosition();
+      m_playModeSnapshot.cameraRotationEuler = te::core::Vector3{
+        m_editorCamera->GetYaw(),
+        m_editorCamera->GetPitch(),
+        0.0f  // Roll not exposed
+      };
+      m_playModeSnapshot.cameraOrbitDistance = m_editorCamera->GetOrbitDistance();
+      m_playModeSnapshot.hasCameraState = true;
+    }
+
+    te::core::Log(te::core::LogLevel::Info,
+      ("Editor: Saved play mode snapshot with " +
+       std::to_string(m_playModeSnapshot.entityTransforms.size()) + " entities").c_str());
+  }
+
+  /**
+   * @brief Restore level state after exiting play mode.
+   *
+   * Restores all entity transforms and camera state from the saved snapshot.
+   */
+  void RestorePlayModeSnapshot() {
+    if (m_playModeSnapshot.entityTransforms.empty() && !m_playModeSnapshot.hasCameraState) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: RestorePlayModeSnapshot - no snapshot to restore");
+      return;
+    }
+
+    if (!m_levelHandle.IsValid()) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: RestorePlayModeSnapshot - no valid level");
+      return;
+    }
+
+    // Restore entity transforms
+    int restoredCount = 0;
+    te::world::WorldManager::GetInstance().Traverse(m_levelHandle,
+      [this, &restoredCount](te::scene::ISceneNode* node) {
+        if (!node) return;
+
+        te::entity::Entity* entity = dynamic_cast<te::entity::Entity*>(node);
+        if (!entity) return;
+
+        // Find matching snapshot
+        te::entity::EntityId entityId = entity->GetEntityId();
+        for (auto const& snapshot : m_playModeSnapshot.entityTransforms) {
+          if (snapshot.entityId == entityId) {
+            entity->SetLocalTransform(snapshot.localTransform);
+            restoredCount++;
+            break;
+          }
+        }
+      });
+
+    // Restore editor camera state
+    if (m_playModeSnapshot.hasCameraState && m_editorCamera) {
+      m_editorCamera->SetPosition(m_playModeSnapshot.cameraPosition);
+      m_editorCamera->SetRotation(
+        m_playModeSnapshot.cameraRotationEuler.x,
+        m_playModeSnapshot.cameraRotationEuler.y
+      );
+      m_editorCamera->SetOrbitDistance(m_playModeSnapshot.cameraOrbitDistance);
+    }
+
+    te::core::Log(te::core::LogLevel::Info,
+      ("Editor: Restored " + std::to_string(restoredCount) + " entity transforms").c_str());
+
+    // Clear snapshot
+    m_playModeSnapshot.entityTransforms.clear();
+    m_playModeSnapshot.hasCameraState = false;
+  }
+
+  /**
+   * @brief Execute one frame of game update.
+   * @param deltaTime Frame delta time in seconds
+   */
+  void OnGameUpdate(float deltaTime) {
+    // Call external game update callback if registered
+    if (m_onGameUpdate) {
+      m_onGameUpdate(deltaTime);
+    }
+
+    // TODO: Integrate with game systems:
+    // - Physics simulation step
+    // - Animation update
+    // - Script tick
+    // - AI update
+  }
+
   Phase m_phase = Phase::Launcher;
   te::world::LevelHandle m_levelHandle;
   int m_selectedLevelIndex = -1;
@@ -720,6 +926,8 @@ private:
 
   // Play mode state
   PlayModeState m_playModeState = PlayModeState::Stopped;
+  PlayModeSnapshot m_playModeSnapshot;  // Saved state for restoration
+  std::function<void(float)> m_onGameUpdate;  // Game update callback
 
   // Existing components
   IUndoSystem* m_undoSystem = nullptr;

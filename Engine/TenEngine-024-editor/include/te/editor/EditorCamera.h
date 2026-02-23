@@ -12,20 +12,19 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Camera bookmark for saving/restoring camera positions.
- */
-struct CameraBookmark {
-  te::math::Vec3 position;
-  te::math::Vec3 rotation;  // Euler angles in radians
-  te::math::Vec3 target;    // Look-at point for orbit mode
-  float distance;           // Distance from target for orbit
-  char name[32] = "";
-};
+// Note: CameraBookmark is defined in EditorTypes.h
+
+// Math type aliases for convenience (mapping te::math to te::core)
+namespace math {
+using Vec2 = te::core::Vector2;
+using Vec3 = te::core::Vector3;
+using Mat4 = te::core::Matrix4;
+using Ray = te::core::Ray;
+}
 
 /**
  * @brief Editor camera controller interface.
- * 
+ *
  * Provides camera navigation for the viewport including fly mode,
  * orbit mode, zoom, and camera bookmarks.
  */
@@ -104,44 +103,44 @@ public:
   /**
    * @brief Get the view matrix.
    */
-  virtual te::math::Mat4 GetViewMatrix() const = 0;
+  virtual math::Mat4 GetViewMatrix() const = 0;
   
   /**
    * @brief Get the projection matrix.
    */
-  virtual te::math::Mat4 GetProjectionMatrix() const = 0;
+  virtual math::Mat4 GetProjectionMatrix() const = 0;
   
   /**
    * @brief Get combined view-projection matrix.
    */
-  virtual te::math::Mat4 GetViewProjectionMatrix() const = 0;
+  virtual math::Mat4 GetViewProjectionMatrix() const = 0;
   
   // === Camera Properties ===
   
   /**
    * @brief Get camera position in world space.
    */
-  virtual te::math::Vec3 GetPosition() const = 0;
+  virtual math::Vec3 GetPosition() const = 0;
   
   /**
    * @brief Set camera position.
    */
-  virtual void SetPosition(te::math::Vec3 const& pos) = 0;
+  virtual void SetPosition(math::Vec3 const& pos) = 0;
   
   /**
    * @brief Get camera forward direction.
    */
-  virtual te::math::Vec3 GetForward() const = 0;
+  virtual math::Vec3 GetForward() const = 0;
   
   /**
    * @brief Get camera right direction.
    */
-  virtual te::math::Vec3 GetRight() const = 0;
+  virtual math::Vec3 GetRight() const = 0;
   
   /**
    * @brief Get camera up direction.
    */
-  virtual te::math::Vec3 GetUp() const = 0;
+  virtual math::Vec3 GetUp() const = 0;
   
   /**
    * @brief Get camera yaw angle in radians.
@@ -196,7 +195,7 @@ public:
    * @brief Focus camera on a point in world space.
    * @param point World position to focus on
    */
-  virtual void FocusOn(te::math::Vec3 const& point) = 0;
+  virtual void FocusOn(math::Vec3 const& point) = 0;
   
   /**
    * @brief Reset camera to default view.
@@ -245,12 +244,12 @@ public:
   /**
    * @brief Set orbit target point.
    */
-  virtual void SetOrbitTarget(te::math::Vec3 const& target) = 0;
+  virtual void SetOrbitTarget(math::Vec3 const& target) = 0;
   
   /**
    * @brief Get orbit target point.
    */
-  virtual te::math::Vec3 GetOrbitTarget() const = 0;
+  virtual math::Vec3 GetOrbitTarget() const = 0;
   
   /**
    * @brief Set orbit distance.
@@ -295,7 +294,7 @@ public:
    * @param y Screen Y position
    * @return Ray in world space
    */
-  virtual te::math::Ray ScreenPointToRay(int x, int y) const = 0;
+  virtual math::Ray ScreenPointToRay(int x, int y) const = 0;
   
   /**
    * @brief Convert screen point to world position.
@@ -303,14 +302,14 @@ public:
    * @param y Screen Y position
    * @return World position on near plane
    */
-  virtual te::math::Vec3 ScreenToWorld(int x, int y) const = 0;
+  virtual math::Vec3 ScreenToWorld(int x, int y) const = 0;
   
   /**
    * @brief Convert world position to screen coordinates.
    * @param worldPos World position
    * @return Screen coordinates (x, y)
    */
-  virtual te::math::Vec2 WorldToScreen(te::math::Vec3 const& worldPos) const = 0;
+  virtual math::Vec2 WorldToScreen(math::Vec3 const& worldPos) const = 0;
 };
 
 /**
