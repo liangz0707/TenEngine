@@ -237,29 +237,61 @@ private:
 
 // Helper function to get TypeId from component type
 namespace detail {
+    // Default implementation - returns empty string (will use typeid)
+    template<typename T>
+    struct ComponentTypeName {
+        static constexpr char const* value = nullptr;
+    };
+
     template<typename T>
     te::object::TypeId GetComponentTypeId() {
-        // Try ComponentRegistry first
+        // Try ComponentRegistry first with registered name
         IComponentRegistry* registry = GetComponentRegistry();
+
+        // First try the explicit registered name if available
+        if constexpr (ComponentTypeName<T>::value != nullptr) {
+            if (registry) {
+                IComponentTypeInfo const* info = registry->GetComponentTypeInfo(ComponentTypeName<T>::value);
+                if (info) {
+                    return info->typeId;
+                }
+            }
+
+            // Try TypeRegistry with registered name
+            te::object::TypeDescriptor const* desc = te::object::TypeRegistry::GetTypeByName(ComponentTypeName<T>::value);
+            if (desc) {
+                return desc->id;
+            }
+        }
+
+        // Fallback: use typeid name
         if (registry) {
-            // Use type name from typeid
             char const* typeName = typeid(T).name();
             IComponentTypeInfo const* info = registry->GetComponentTypeInfo(typeName);
             if (info) {
                 return info->typeId;
             }
         }
-        
-        // Fallback to TypeRegistry
+
+        // Fallback to TypeRegistry with typeid name
         char const* typeName = typeid(T).name();
         te::object::TypeDescriptor const* desc = te::object::TypeRegistry::GetTypeByName(typeName);
         if (desc) {
             return desc->id;
         }
-        
+
         return 0;
     }
 }
+
+// Macro to register component type name for template lookup
+// Must be used at global scope (outside any namespace)
+#define TE_REGISTER_COMPONENT_TYPE_NAME(T, name) \
+    namespace te { namespace entity { namespace detail { \
+        template<> struct ComponentTypeName<T> { \
+            static constexpr char const* value = name; \
+        }; \
+    }}}
 
 // Template implementations
 template<typename T>

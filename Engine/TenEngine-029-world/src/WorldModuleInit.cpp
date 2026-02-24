@@ -12,10 +12,16 @@
 #include <te/world/LevelResource.h>
 #include <te/entity/ComponentRegistry.h>
 #include <te/entity/PropertyReflection.h>
+#include <te/entity/Entity.h>  // For TE_REGISTER_COMPONENT_TYPE_NAME
 #include <te/object/TypeRegistry.h>
 #include <te/object/TypeId.h>
 #include <te/resource/ResourceManager.h>
 #include <te/resource/ResourceTypes.h>
+
+// Register component type names for Entity template lookup (must be at global scope)
+TE_REGISTER_COMPONENT_TYPE_NAME(te::world::ModelComponent, "ModelComponent")
+TE_REGISTER_COMPONENT_TYPE_NAME(te::world::LightComponent, "LightComponent")
+TE_REGISTER_COMPONENT_TYPE_NAME(te::world::CameraComponent, "CameraComponent")
 
 namespace te {
 namespace world {
