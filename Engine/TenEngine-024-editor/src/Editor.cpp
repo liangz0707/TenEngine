@@ -34,6 +34,9 @@
 #include <te/world/WorldManager.h>
 #include <te/world/LevelAssetDesc.h>
 #include <te/world/LevelResource.h>
+#include <te/world/LightComponent.h>
+#include <te/world/CameraComponent.h>
+#include <te/world/ModelComponent.h>
 #include <te/resource/ResourceManager.h>
 #include <te/resource/ResourceTypes.h>
 #include <te/resource/Resource.h>
@@ -615,12 +618,17 @@ public:
     te::entity::Entity* e = CreateEmptyEntity(name);
     if (!e) return nullptr;
 
-    // TODO: Add camera component
+    // Add CameraComponent
+    te::world::CameraComponent* comp = e->AddComponent<te::world::CameraComponent>();
+    if (comp) {
+      comp->fovY = 1.0472f;  // 60 degrees
+      comp->nearZ = 0.1f;
+      comp->farZ = 1000.f;
+      comp->isActive = true;
+    }
+
     te::core::Log(te::core::LogLevel::Info,
                   ("Editor: Created camera '" + std::string(name) + "'").c_str());
-
-    // TODO: Add CameraComponent
-    // e->AddComponent<CameraComponent>();
 
     return e;
   }
@@ -635,12 +643,41 @@ public:
       case LightType::Point: typeName = "Point"; break;
       case LightType::Spot: typeName = "Spot"; break;
     }
+
+    // Add LightComponent
+    te::world::LightComponent* comp = e->AddComponent<te::world::LightComponent>();
+    if (comp) {
+      switch (type) {
+        case LightType::Directional:
+          comp->type = te::world::LightType::Directional;
+          comp->direction[0] = 0.f;
+          comp->direction[1] = -1.f;
+          comp->direction[2] = 0.f;
+          comp->intensity = 1.0f;
+          break;
+        case LightType::Point:
+          comp->type = te::world::LightType::Point;
+          comp->range = 10.f;
+          comp->intensity = 1.0f;
+          break;
+        case LightType::Spot:
+          comp->type = te::world::LightType::Spot;
+          comp->range = 10.f;
+          comp->spotAngle = 0.5f;
+          comp->direction[0] = 0.f;
+          comp->direction[1] = -1.f;
+          comp->direction[2] = 0.f;
+          comp->intensity = 1.0f;
+          break;
+      }
+      comp->color[0] = 1.f;
+      comp->color[1] = 1.f;
+      comp->color[2] = 1.f;
+    }
+
     te::core::Log(te::core::LogLevel::Info,
                   ("Editor: Created " + std::string(typeName) + " light '" +
                    std::string(name) + "'").c_str());
-
-    // TODO: Add LightComponent
-    // e->AddComponent<LightComponent>();
 
     return e;
   }

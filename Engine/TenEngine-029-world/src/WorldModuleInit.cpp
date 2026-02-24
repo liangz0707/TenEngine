@@ -5,6 +5,8 @@
 
 #include <te/world/WorldModuleInit.h>
 #include <te/world/ModelComponent.h>
+#include <te/world/LightComponent.h>
+#include <te/world/CameraComponent.h>
 #include <te/world/LevelAssetDesc.h>
 #include <te/world/ModelAssetDesc.h>
 #include <te/world/LevelResource.h>
@@ -26,6 +28,8 @@ void RegisterWorldModule() {
     te::entity::IComponentRegistry* reg = te::entity::GetComponentRegistry();
     if (reg) {
         reg->RegisterComponentType<ModelComponent>("ModelComponent");
+        reg->RegisterComponentType<LightComponent>("LightComponent");
+        reg->RegisterComponentType<CameraComponent>("CameraComponent");
     }
 
     te::object::TypeDescriptor levelDesc = {};
