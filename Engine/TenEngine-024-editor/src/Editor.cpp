@@ -39,6 +39,8 @@
 #include <te/resource/Resource.h>
 #include <te/entity/EntityId.h>
 #include <te/entity/Entity.h>
+#include <te/entity/EntityManager.h>
+#include <te/scene/SceneManager.h>
 #include <string>
 #include <vector>
 #include <exception>
@@ -293,6 +295,15 @@ public:
   }
 
   void DrawMainEditorUI() {
+    // Update menu states before drawing
+    if (m_mainMenu) {
+      bool canUndo = m_undoSystem && m_undoSystem->CanUndo();
+      bool canRedo = m_undoSystem && m_undoSystem->CanRedo();
+      bool hasSelection = m_selectionManager && m_selectionManager->GetSelectionCount() > 0;
+      bool hasLevel = m_levelHandle.IsValid();
+      m_mainMenu->UpdateStandardMenuStates(canUndo, canRedo, hasSelection, hasLevel);
+    }
+
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
     if (ImGui::Begin("TenEngine Editor", nullptr,
@@ -418,7 +429,9 @@ public:
   }
 
   void OnMenuItemClicked(const char* menuName, int itemId) {
-    if (std::string(menuName) == "File") {
+    std::string menu(menuName);
+
+    if (menu == "File") {
       switch (itemId) {
         case IMainMenu::ID_NEW_SCENE:
           m_showNewSceneModal = true;
@@ -430,11 +443,15 @@ public:
         case IMainMenu::ID_SAVE:
           OnSave();
           break;
+        case IMainMenu::ID_SAVE_AS:
+          // TODO: Implement Save As
+          te::core::Log(te::core::LogLevel::Info, "Editor: Save As not yet implemented");
+          break;
         case IMainMenu::ID_EXIT:
           if (g_editorCtx.application) g_editorCtx.application->RequestExit(0);
           break;
       }
-    } else if (std::string(menuName) == "Edit") {
+    } else if (menu == "Edit") {
       switch (itemId) {
         case IMainMenu::ID_UNDO:
           if (m_undoSystem) m_undoSystem->Undo();
@@ -442,8 +459,190 @@ public:
         case IMainMenu::ID_REDO:
           if (m_undoSystem) m_undoSystem->Redo();
           break;
+        case IMainMenu::ID_CUT:
+          // TODO: Implement cut
+          break;
+        case IMainMenu::ID_COPY:
+          // TODO: Implement copy
+          break;
+        case IMainMenu::ID_PASTE:
+          // TODO: Implement paste
+          break;
+        case IMainMenu::ID_DUPLICATE:
+          // TODO: Implement duplicate
+          break;
+        case IMainMenu::ID_DELETE:
+          // TODO: Implement delete
+          break;
+        case IMainMenu::ID_SELECT_ALL:
+          // TODO: Implement select all
+          break;
+        case IMainMenu::ID_PREFERENCES:
+          // TODO: Open preferences panel
+          break;
+      }
+    } else if (menu == "View") {
+      switch (itemId) {
+        case IMainMenu::ID_VIEW_RESET_LAYOUT:
+          ResetLayout();
+          break;
+        case IMainMenu::ID_VIEW_FULLSCREEN:
+          // TODO: Toggle fullscreen
+          break;
+        case IMainMenu::ID_VIEW_TOGGLE_CONSOLE:
+          // TODO: Toggle console visibility
+          break;
+        case IMainMenu::ID_VIEW_TOGGLE_SCENE:
+          // TODO: Toggle scene view
+          break;
+        case IMainMenu::ID_VIEW_TOGGLE_PROPERTIES:
+          // TODO: Toggle properties panel
+          break;
+        case IMainMenu::ID_VIEW_TOGGLE_RESOURCES:
+          // TODO: Toggle resources panel
+          break;
+      }
+    } else if (menu == "GameObject") {
+      OnGameObjectMenuItem(itemId);
+    } else if (menu == "Tools") {
+      switch (itemId) {
+        case IMainMenu::ID_REIMPORT_ALL:
+          // TODO: Reimport all assets
+          te::core::Log(te::core::LogLevel::Info, "Editor: Reimport All not yet implemented");
+          break;
+        case IMainMenu::ID_PROJECT_SETTINGS:
+          // TODO: Open project settings
+          te::core::Log(te::core::LogLevel::Info, "Editor: Project Settings not yet implemented");
+          break;
+      }
+    } else if (menu == "Help") {
+      switch (itemId) {
+        case IMainMenu::ID_ABOUT:
+          // TODO: Show about dialog
+          te::core::Log(te::core::LogLevel::Info, "TenEngine Editor - Version 1.0");
+          break;
+        case IMainMenu::ID_DOCUMENTATION:
+          // TODO: Open documentation
+          te::core::Log(te::core::LogLevel::Info, "Editor: Documentation not yet implemented");
+          break;
       }
     }
+  }
+
+  void OnGameObjectMenuItem(int itemId) {
+    switch (itemId) {
+      case IMainMenu::ID_CREATE_EMPTY:
+        CreateEmptyEntity("GameObject");
+        break;
+      case IMainMenu::ID_CREATE_CUBE:
+        CreatePrimitiveEntity("Cube", PrimitiveType::Cube);
+        break;
+      case IMainMenu::ID_CREATE_SPHERE:
+        CreatePrimitiveEntity("Sphere", PrimitiveType::Sphere);
+        break;
+      case IMainMenu::ID_CREATE_PLANE:
+        CreatePrimitiveEntity("Plane", PrimitiveType::Plane);
+        break;
+      case IMainMenu::ID_CREATE_CYLINDER:
+        CreatePrimitiveEntity("Cylinder", PrimitiveType::Cylinder);
+        break;
+      case IMainMenu::ID_CREATE_CAMERA:
+        CreateCameraEntity("Camera");
+        break;
+      case IMainMenu::ID_CREATE_LIGHT_DIR:
+        CreateLightEntity("Directional Light", LightType::Directional);
+        break;
+      case IMainMenu::ID_CREATE_LIGHT_POINT:
+        CreateLightEntity("Point Light", LightType::Point);
+        break;
+      case IMainMenu::ID_CREATE_LIGHT_SPOT:
+        CreateLightEntity("Spot Light", LightType::Spot);
+        break;
+    }
+  }
+
+  enum class PrimitiveType { Cube, Sphere, Plane, Cylinder };
+  enum class LightType { Directional, Point, Spot };
+
+  te::entity::Entity* CreateEmptyEntity(char const* name) {
+    if (!m_levelHandle.IsValid()) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: Cannot create entity - no level loaded");
+      return nullptr;
+    }
+
+    te::scene::SceneRef worldRef = te::world::WorldManager::GetInstance().GetSceneRef(m_levelHandle);
+    if (!worldRef.IsValid()) {
+      te::core::Log(te::core::LogLevel::Warn, "Editor: Cannot create entity - invalid scene ref");
+      return nullptr;
+    }
+
+    te::scene::SceneManager::GetInstance().SetActiveWorld(worldRef);
+    te::entity::Entity* e = te::entity::EntityManager::GetInstance().CreateEntity(
+        worldRef, name);
+
+    if (e) {
+      te::core::Log(te::core::LogLevel::Info,
+                    ("Editor: Created empty entity '" + std::string(name) + "'").c_str());
+    }
+    return e;
+  }
+
+  te::entity::Entity* CreatePrimitiveEntity(char const* name, PrimitiveType type) {
+    te::entity::Entity* e = CreateEmptyEntity(name);
+    if (!e) return nullptr;
+
+    // TODO: Add mesh component based on primitive type
+    // For now just log the creation
+    const char* typeName = "Unknown";
+    switch (type) {
+      case PrimitiveType::Cube: typeName = "Cube"; break;
+      case PrimitiveType::Sphere: typeName = "Sphere"; break;
+      case PrimitiveType::Plane: typeName = "Plane"; break;
+      case PrimitiveType::Cylinder: typeName = "Cylinder"; break;
+    }
+    te::core::Log(te::core::LogLevel::Info,
+                  ("Editor: Created " + std::string(typeName) + " primitive '" +
+                   std::string(name) + "'").c_str());
+
+    // TODO: Add MeshComponent with appropriate primitive mesh
+    // te::world::ModelComponent* comp = e->AddComponent<te::world::ModelComponent>();
+    // if (comp) { comp->modelResourceId = GetPrimitiveMesh(type); }
+
+    return e;
+  }
+
+  te::entity::Entity* CreateCameraEntity(char const* name) {
+    te::entity::Entity* e = CreateEmptyEntity(name);
+    if (!e) return nullptr;
+
+    // TODO: Add camera component
+    te::core::Log(te::core::LogLevel::Info,
+                  ("Editor: Created camera '" + std::string(name) + "'").c_str());
+
+    // TODO: Add CameraComponent
+    // e->AddComponent<CameraComponent>();
+
+    return e;
+  }
+
+  te::entity::Entity* CreateLightEntity(char const* name, LightType type) {
+    te::entity::Entity* e = CreateEmptyEntity(name);
+    if (!e) return nullptr;
+
+    const char* typeName = "Unknown";
+    switch (type) {
+      case LightType::Directional: typeName = "Directional"; break;
+      case LightType::Point: typeName = "Point"; break;
+      case LightType::Spot: typeName = "Spot"; break;
+    }
+    te::core::Log(te::core::LogLevel::Info,
+                  ("Editor: Created " + std::string(typeName) + " light '" +
+                   std::string(name) + "'").c_str());
+
+    // TODO: Add LightComponent
+    // e->AddComponent<LightComponent>();
+
+    return e;
   }
 
   void DrawNewSceneModal() {
