@@ -13,6 +13,7 @@
 #include <te/pipelinecore/Config.h>
 #include <te/rhi/types.hpp>
 #include <cstdint>
+#include <memory>
 #include <vector>
 #include <functional>
 
@@ -162,7 +163,7 @@ public:
   void SubmitAll();
 
   /// Submit a specific batch
-  void SubmitBatch(SubmitBatch const& batch);
+  void Submit(SubmitBatch const& batch);
 
   // === Synchronization ===
 

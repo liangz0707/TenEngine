@@ -39,8 +39,8 @@ public:
     m_filter = filter;
     
     // Add to history if pattern is not empty
-    if (filter.namePattern && filter.namePattern[0] != '\0') {
-      AddToHistory(filter.namePattern);
+    if (!filter.namePattern.empty()) {
+      AddToHistory(filter.namePattern.c_str());
     }
   }
   

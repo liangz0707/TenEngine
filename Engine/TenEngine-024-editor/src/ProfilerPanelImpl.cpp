@@ -325,8 +325,8 @@ private:
       drawList->AddRectFilled(ImVec2(x0, y), ImVec2(x1, y + rowHeight - 2), color);
       
       // Label if wide enough
-      if (x1 - x0 > 30.0f && scope.name) {
-        drawList->AddText(ImVec2(x0 + 2, y + 2), IM_COL32(0, 0, 0, 255), scope.name);
+      if (x1 - x0 > 30.0f && !scope.name.empty()) {
+        drawList->AddText(ImVec2(x0 + 2, y + 2), IM_COL32(0, 0, 0, 255), scope.name.c_str());
       }
     }
     

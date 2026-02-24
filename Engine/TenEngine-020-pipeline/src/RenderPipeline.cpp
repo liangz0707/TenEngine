@@ -119,7 +119,7 @@ public:
     auto startTime = std::chrono::high_resolution_clock::now();
 
     // Get current frame slot
-    uint32_t slot = GetCurrentSlot().value;
+    uint32_t slot = GetCurrentSlot();
 
     // Wait for previous frame at this slot to complete
     WaitForSlot(slot);
@@ -169,7 +169,7 @@ public:
       case RenderPhase::Idle:
         // Start new frame
         frameCtx_ = ctx;
-        frameSlot_ = GetCurrentSlot().value;
+        frameSlot_ = GetCurrentSlot();
         WaitForSlot(frameSlot_);
         currentPhase_ = RenderPhase::BuildPipeline;
         pipelineCtx_->BeginFrame(ctx);
@@ -222,7 +222,7 @@ public:
   void TriggerRender(pipelinecore::FrameContext const& ctx) override {
     // Start the render process
     frameCtx_ = ctx;
-    frameSlot_ = GetCurrentSlot().value;
+    frameSlot_ = GetCurrentSlot();
     WaitForSlot(frameSlot_);
     currentPhase_ = RenderPhase::BuildPipeline;
     pipelineCtx_->BeginFrame(ctx);
@@ -280,7 +280,7 @@ public:
     auto* cmd = pipelineCtx_->BeginCommandList();
     if (!cmd) return;
 
-    uint32_t slot = GetCurrentSlot().value;
+    uint32_t slot = GetCurrentSlot();
 
     // Execute logical command buffer using the new executor
     ExecuteLogicalCommandBufferOnDeviceThread(cmd, cb, slot);

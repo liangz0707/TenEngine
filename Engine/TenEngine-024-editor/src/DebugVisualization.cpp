@@ -7,6 +7,7 @@
 #include <imgui.h>
 #include <vector>
 #include <chrono>
+#include <algorithm>
 
 namespace te {
 namespace editor {
@@ -32,15 +33,15 @@ public:
   }
 
   // === Global Flags ===
-  
+
   void SetFlags(DebugVisFlags flags) override {
     m_flags = flags;
   }
-  
+
   DebugVisFlags GetFlags() const override {
     return m_flags;
   }
-  
+
   void EnableVisualization(DebugVisFlags flag, bool enable) override {
     if (enable) {
       m_flags = m_flags | flag;
@@ -49,35 +50,35 @@ public:
         static_cast<uint32_t>(m_flags) & ~static_cast<uint32_t>(flag));
     }
   }
-  
+
   bool IsVisualizationEnabled(DebugVisFlags flag) const override {
     return HasFlag(m_flags, flag);
   }
-  
+
   void ToggleVisualization(DebugVisFlags flag) override {
     EnableVisualization(flag, !IsVisualizationEnabled(flag));
   }
-  
+
   // === Collision Settings ===
-  
+
   void SetCollisionSettings(CollisionVisSettings const& settings) override {
     m_collisionSettings = settings;
   }
-  
+
   CollisionVisSettings const& GetCollisionSettings() const override {
     return m_collisionSettings;
   }
-  
+
   // === Navigation Settings ===
-  
+
   void SetNavigationSettings(NavigationVisSettings const& settings) override {
     m_navigationSettings = settings;
   }
-  
+
   NavigationVisSettings const& GetNavigationSettings() const override {
     return m_navigationSettings;
   }
-  
+
   // === Rendering ===
 
   void OnDraw() override {
@@ -87,7 +88,7 @@ public:
     // as overlay geometry in the viewport.
 
     auto now = std::chrono::steady_clock::now();
-    
+
     // Draw primitives that haven't expired
     for (auto& primitive : m_primitives) {
       if (primitive.lifetime > 0.0f) {
@@ -97,49 +98,36 @@ public:
           continue;
         }
       }
-      
+
       // TODO: Integrate with Pipeline to actually render primitives
       DrawPrimitive(primitive);
     }
-    
+
     // Remove expired primitives
     m_primitives.erase(
       std::remove_if(m_primitives.begin(), m_primitives.end(),
                      [](DebugPrimitive const& p) { return p.lifetime == 0.0f; }),
       m_primitives.end());
   }
-  
+
   void DrawEntityCollision(uint64_t entityId) override {
     // TODO: Integrate with physics system (014-Physics) to query and draw collision shapes
-    // This requires:
-    // 1. Access to the physics world/collision system
-    // 2. Query collision components for the entity
-    // 3. Extract collision shape data (boxes, spheres, capsules, meshes)
-    // 4. Draw each shape using the debug renderer
     (void)entityId;
   }
 
   void DrawNavigationMesh() override {
     // TODO: Integrate with navigation system to draw nav mesh
-    // This requires:
-    // 1. Access to the navigation mesh data
-    // 2. Drawing walkable areas, obstacles, and links
-    // 3. Optional path visualization
   }
 
   void DrawEntityBounds(uint64_t entityId, math::Vec3 const& color) override {
     // TODO: Get entity bounds from scene system and draw bounding box
-    // This requires:
-    // 1. Query the entity's mesh/components for bounds
-    // 2. Calculate world-space bounding box
-    // 3. Draw using debug box primitive
     (void)entityId;
     (void)color;
   }
-  
+
   // === Debug Draw Primitives ===
-  
-  void DrawLine(math::Vec3 const& start, math::Vec3 const& end, 
+
+  void DrawLine(math::Vec3 const& start, math::Vec3 const& end,
                 math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
     p.type = DebugPrimitive::Line;
@@ -150,7 +138,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawBox(math::Vec3 const& center, math::Vec3 const& halfExtents,
                math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -164,7 +152,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawSphere(math::Vec3 const& center, float radius,
                   math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -176,7 +164,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawCylinder(math::Vec3 const& center, float radius, float height,
                     math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -189,7 +177,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawCapsule(math::Vec3 const& center, float radius, float height,
                    math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -202,7 +190,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawArrow(math::Vec3 const& start, math::Vec3 const& end,
                  math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -214,7 +202,7 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   void DrawText(math::Vec3 const& position, const char* text,
                 math::Vec3 const& color, float lifetime) override {
     DebugPrimitive p;
@@ -226,13 +214,13 @@ public:
     p.createTime = std::chrono::steady_clock::now();
     m_primitives.push_back(p);
   }
-  
+
   // === Persistence ===
-  
+
   void ClearDrawings() override {
     m_primitives.clear();
   }
-  
+
   void ClearOldDrawings(float maxAge) override {
     auto now = std::chrono::steady_clock::now();
     m_primitives.erase(
@@ -243,58 +231,58 @@ public:
                      }),
       m_primitives.end());
   }
-  
+
   // === UI ===
-  
+
   void OnDrawUI() override {
     ImGui::Text("Debug Visualization");
     ImGui::Separator();
-    
+
     // Collision
     if (ImGui::CollapsingHeader("Collision", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::Checkbox("Show Colliders", &m_collisionSettings.showColliders);
       ImGui::Checkbox("Show Triggers", &m_collisionSettings.showTriggers);
       ImGui::Checkbox("Show Contacts", &m_collisionSettings.showContacts);
-      
-      ImGui::ColorEdit3("Collider Color", &m_collisionSettings.colliderColor.x);
-      ImGui::ColorEdit3("Trigger Color", &m_collisionSettings.triggerColor.x);
+
+      ImGui::ColorEdit3("Collider Color", m_collisionSettings.colliderColor);
+      ImGui::ColorEdit3("Trigger Color", m_collisionSettings.triggerColor);
       ImGui::SliderFloat("Opacity", &m_collisionSettings.opacity, 0.0f, 1.0f);
     }
-    
+
     // Navigation
     if (ImGui::CollapsingHeader("Navigation")) {
       ImGui::Checkbox("Show Mesh", &m_navigationSettings.showMesh);
       ImGui::Checkbox("Show Links", &m_navigationSettings.showLinks);
       ImGui::Checkbox("Show Path", &m_navigationSettings.showPath);
-      
-      ImGui::ColorEdit3("Walkable Color", &m_navigationSettings.walkableColor.x);
+
+      ImGui::ColorEdit3("Walkable Color", m_navigationSettings.walkableColor);
       ImGui::SliderFloat("Opacity##Nav", &m_navigationSettings.opacity, 0.0f, 1.0f);
     }
-    
+
     // Quick toggles
     ImGui::Separator();
     ImGui::Text("Quick Toggles:");
-    
+
     bool collision = IsVisualizationEnabled(DebugVisFlags::Collision);
     if (ImGui::Checkbox("Collision", &collision)) {
       EnableVisualization(DebugVisFlags::Collision, collision);
     }
-    
+
     bool navigation = IsVisualizationEnabled(DebugVisFlags::Navigation);
     if (ImGui::Checkbox("Navigation", &navigation)) {
       EnableVisualization(DebugVisFlags::Navigation, navigation);
     }
-    
+
     bool bounds = IsVisualizationEnabled(DebugVisFlags::Bounds);
     if (ImGui::Checkbox("Bounds", &bounds)) {
       EnableVisualization(DebugVisFlags::Bounds, bounds);
     }
-    
+
     bool wireframe = IsVisualizationEnabled(DebugVisFlags::Wireframe);
     if (ImGui::Checkbox("Wireframe", &wireframe)) {
       EnableVisualization(DebugVisFlags::Wireframe, wireframe);
     }
-    
+
     // Clear button
     ImGui::Separator();
     if (ImGui::Button("Clear All Drawings")) {
@@ -305,8 +293,6 @@ public:
 private:
   void DrawPrimitive(DebugPrimitive const& p) {
     // TODO: Integrate with Pipeline module for actual rendering
-    // This would use the debug renderer to draw lines, boxes, spheres, etc.
-    // For now, primitives are stored but not rendered
     (void)p;
   }
 

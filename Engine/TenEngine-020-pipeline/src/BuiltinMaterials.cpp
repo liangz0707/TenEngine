@@ -5,10 +5,14 @@
 
 #include <te/pipeline/BuiltinMaterials.h>
 #include <te/material/RenderMaterial.hpp>
+#include <te/material/MaterialParam.hpp>
 
 #include <te/rhi/device.hpp>
 #include <te/rendercore/IRenderMaterial.hpp>
 #include <te/rendercore/IRenderPipelineState.hpp>
+#include <te/rendercore/IShaderEntry.hpp>
+#include <te/rendercore/resource_desc.hpp>
+#include <te/rendercore/shader_reflection.hpp>
 
 #include <cstring>
 #include <memory>
@@ -31,7 +35,7 @@ struct BuiltinShaderData {
     size_t vertexSize{0};
     void const* fragmentBytecode{nullptr};
     size_t fragmentSize{0};
-    rendercore::PipelineStateDesc pipelineState;
+    material::PipelineStateDesc pipelineState;
 };
 
 // === Material names to IDs ===
@@ -160,46 +164,41 @@ struct BuiltinMaterials::Impl {
     }
 
     // Get default pipeline state for material category
-    rendercore::PipelineStateDesc GetDefaultPipelineState(BuiltinMaterialId id) {
-        rendercore::PipelineStateDesc desc{};
+    material::PipelineStateDesc GetDefaultPipelineState(BuiltinMaterialId id) {
+        material::PipelineStateDesc desc{};
 
         // Configure based on material type
         uint32_t idValue = static_cast<uint32_t>(id);
 
         // Post-process materials (no depth, additive blend)
         if (idValue >= 0 && idValue < 10) {
-            desc.blendState = rhi::BlendStateDesc{};
-            desc.depthStencilState = rhi::DepthStencilStateDesc{};
-            desc.depthStencilState->depthEnable = false;
-            desc.rasterizerState = rhi::RasterizerStateDesc{};
-            desc.rasterizerState->cullMode = rhi::CullMode::None;
+            desc.blendEnable = false;
+            desc.depthStencil.depthTestEnable = false;
+            desc.depthStencil.depthWriteEnable = false;
+            desc.rasterization.cullMode = material::CullMode::None;
         }
         // Lighting materials
         else if (idValue >= 20 && idValue < 30) {
-            desc.blendState = rhi::BlendStateDesc{};
-            desc.blendState->enable = true;
-            desc.blendState->srcBlend = rhi::Blend::One;
-            desc.blendState->dstBlend = rhi::Blend::One;
-            desc.depthStencilState = rhi::DepthStencilStateDesc{};
-            desc.depthStencilState->depthEnable = true;
-            desc.depthStencilState->depthWriteEnable = false;
-            desc.rasterizerState = rhi::RasterizerStateDesc{};
+            desc.blendEnable = true;
+            desc.blendAttachments[0].blendEnable = true;
+            desc.blendAttachments[0].srcColorBlend = material::BlendFactor::One;
+            desc.blendAttachments[0].dstColorBlend = material::BlendFactor::One;
+            desc.blendAttachmentCount = 1;
+            desc.depthStencil.depthTestEnable = true;
+            desc.depthStencil.depthWriteEnable = false;
         }
         // Shadow materials
         else if (idValue >= 30 && idValue < 40) {
-            desc.blendState = rhi::BlendStateDesc{};
-            desc.blendState->enable = false;
-            desc.depthStencilState = rhi::DepthStencilStateDesc{};
-            desc.depthStencilState->depthEnable = true;
-            desc.depthStencilState->depthWriteEnable = true;
-            desc.rasterizerState = rhi::RasterizerStateDesc{};
-            desc.rasterizerState->cullMode = rhi::CullMode::Front;  // Peter panning mitigation
+            desc.blendEnable = false;
+            desc.depthStencil.depthTestEnable = true;
+            desc.depthStencil.depthWriteEnable = true;
+            desc.rasterization.cullMode = material::CullMode::Front;  // Peter panning mitigation
         }
         // Default
         else {
-            desc.blendState = rhi::BlendStateDesc{};
-            desc.depthStencilState = rhi::DepthStencilStateDesc{};
-            desc.rasterizerState = rhi::RasterizerStateDesc{};
+            desc.blendEnable = false;
+            desc.depthStencil.depthTestEnable = true;
+            desc.depthStencil.depthWriteEnable = true;
         }
 
         return desc;
@@ -214,7 +213,7 @@ struct BuiltinMaterials::Impl {
         if (!shaderEntry) return nullptr;
 
         // Get pipeline state
-        rendercore::PipelineStateDesc pipelineState = GetDefaultPipelineState(id);
+        material::PipelineStateDesc pipelineState = GetDefaultPipelineState(id);
 
         // Create RenderMaterial
         auto* renderMat = material::CreateRenderMaterial(shaderEntry, pipelineState);

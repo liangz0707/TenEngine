@@ -357,7 +357,7 @@ struct MenuItem {
   bool enabled = true;
   bool checked = false;
   bool separator = false;
-  std::string id;
+  int id = 0;  // Menu item ID (matches IMainMenu::ID_* constants)
   bool hasSubmenu = false;
   std::vector<MenuItem> submenuItems;
 };
@@ -545,6 +545,17 @@ struct KeyCombo {
   bool ctrl = false;
   bool alt = false;
   bool shift = false;
+
+  bool operator==(KeyCombo const& other) const {
+    return keyCode == other.keyCode &&
+           ctrl == other.ctrl &&
+           alt == other.alt &&
+           shift == other.shift;
+  }
+
+  bool operator!=(KeyCombo const& other) const {
+    return !(*this == other);
+  }
 };
 
 /**

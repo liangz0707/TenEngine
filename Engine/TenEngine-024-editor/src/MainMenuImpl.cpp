@@ -37,7 +37,7 @@ public:
   void AddMenu(MenuDef const& menu) override {
     // Check if menu already exists
     for (auto& m : m_menus) {
-      if (m.name && menu.name && std::string(m.name) == std::string(menu.name)) {
+      if (m.name == menu.name) {
         m = menu;
         return;
       }
@@ -47,10 +47,11 @@ public:
   
   void RemoveMenu(const char* name) override {
     if (!name) return;
-    
+
+    std::string nameStr(name);
     m_menus.erase(
       std::remove_if(m_menus.begin(), m_menus.end(),
-        [name](MenuDef const& m) { return m.name && std::string(m.name) == std::string(name); }),
+        [&nameStr](MenuDef const& m) { return m.name == nameStr; }),
       m_menus.end());
   }
   
@@ -60,9 +61,10 @@ public:
   
   MenuDef* GetMenu(const char* name) override {
     if (!name) return nullptr;
-    
+
+    std::string nameStr(name);
     for (auto& m : m_menus) {
-      if (m.name && std::string(m.name) == std::string(name)) {
+      if (m.name == nameStr) {
         return &m;
       }
     }
@@ -143,9 +145,9 @@ public:
       {"Open Scene", "Ctrl+O", true, false, false, ID_OPEN_SCENE},
       {"Save", "Ctrl+S", false, false, false, ID_SAVE},
       {"Save As...", "Ctrl+Shift+S", false, false, false, ID_SAVE_AS},
-      {"", nullptr, false, false, true, 0},  // Separator
-      {"Recent Files", nullptr, false, false, false, ID_RECENT_FILES, true},
-      {"", nullptr, false, false, true, 0},  // Separator
+      {"", "", false, false, true, 0},  // Separator
+      {"Recent Files", "", false, false, false, ID_RECENT_FILES, true},
+      {"", "", false, false, true, 0},  // Separator
       {"Exit", "Alt+F4", true, false, false, ID_EXIT}
     };
     m_menus.push_back(fileMenu);
@@ -156,16 +158,16 @@ public:
     editMenu.items = {
       {"Undo", "Ctrl+Z", false, false, false, ID_UNDO},
       {"Redo", "Ctrl+Y", false, false, false, ID_REDO},
-      {"", nullptr, false, false, true, 0},
+      {"", "", false, false, true, 0},
       {"Cut", "Ctrl+X", false, false, false, ID_CUT},
       {"Copy", "Ctrl+C", false, false, false, ID_COPY},
       {"Paste", "Ctrl+V", false, false, false, ID_PASTE},
       {"Duplicate", "Ctrl+D", false, false, false, ID_DUPLICATE},
       {"Delete", "Del", false, false, false, ID_DELETE},
-      {"", nullptr, false, false, true, 0},
+      {"", "", false, false, true, 0},
       {"Select All", "Ctrl+A", true, false, false, ID_SELECT_ALL},
-      {"", nullptr, false, false, true, 0},
-      {"Preferences...", nullptr, true, false, false, ID_PREFERENCES}
+      {"", "", false, false, true, 0},
+      {"Preferences...", "", true, false, false, ID_PREFERENCES}
     };
     m_menus.push_back(editMenu);
     
@@ -173,13 +175,13 @@ public:
     MenuDef viewMenu;
     viewMenu.name = "View";
     viewMenu.items = {
-      {"Reset Layout", nullptr, true, false, false, ID_VIEW_RESET_LAYOUT},
+      {"Reset Layout", "", true, false, false, ID_VIEW_RESET_LAYOUT},
       {"Fullscreen", "F11", true, false, false, ID_VIEW_FULLSCREEN},
-      {"", nullptr, false, false, true, 0},
-      {"Console", nullptr, true, true, false, ID_VIEW_TOGGLE_CONSOLE},
-      {"Scene Tree", nullptr, true, true, false, ID_VIEW_TOGGLE_SCENE},
-      {"Properties", nullptr, true, true, false, ID_VIEW_TOGGLE_PROPERTIES},
-      {"Resources", nullptr, true, true, false, ID_VIEW_TOGGLE_RESOURCES}
+      {"", "", false, false, true, 0},
+      {"Console", "", true, true, false, ID_VIEW_TOGGLE_CONSOLE},
+      {"Scene Tree", "", true, true, false, ID_VIEW_TOGGLE_SCENE},
+      {"Properties", "", true, true, false, ID_VIEW_TOGGLE_PROPERTIES},
+      {"Resources", "", true, true, false, ID_VIEW_TOGGLE_RESOURCES}
     };
     m_menus.push_back(viewMenu);
     
@@ -188,18 +190,18 @@ public:
     gameObjectMenu.name = "GameObject";
     gameObjectMenu.items = {
       {"Create Empty", "Ctrl+Shift+N", true, false, false, ID_CREATE_EMPTY},
-      {"", nullptr, false, false, true, 0},
-      {"3D Object", nullptr, true, false, false, 0, true, {
-        {"Cube", nullptr, true, false, false, ID_CREATE_CUBE},
-        {"Sphere", nullptr, true, false, false, ID_CREATE_SPHERE},
-        {"Plane", nullptr, true, false, false, ID_CREATE_PLANE},
-        {"Cylinder", nullptr, true, false, false, ID_CREATE_CYLINDER}
+      {"", "", false, false, true, 0},
+      {"3D Object", "", true, false, false, 0, true, {
+        {"Cube", "", true, false, false, ID_CREATE_CUBE},
+        {"Sphere", "", true, false, false, ID_CREATE_SPHERE},
+        {"Plane", "", true, false, false, ID_CREATE_PLANE},
+        {"Cylinder", "", true, false, false, ID_CREATE_CYLINDER}
       }},
-      {"Camera", nullptr, true, false, false, ID_CREATE_CAMERA},
-      {"Light", nullptr, true, false, false, 0, true, {
-        {"Directional Light", nullptr, true, false, false, ID_CREATE_LIGHT_DIR},
-        {"Point Light", nullptr, true, false, false, ID_CREATE_LIGHT_POINT},
-        {"Spot Light", nullptr, true, false, false, ID_CREATE_LIGHT_SPOT}
+      {"Camera", "", true, false, false, ID_CREATE_CAMERA},
+      {"Light", "", true, false, false, 0, true, {
+        {"Directional Light", "", true, false, false, ID_CREATE_LIGHT_DIR},
+        {"Point Light", "", true, false, false, ID_CREATE_LIGHT_POINT},
+        {"Spot Light", "", true, false, false, ID_CREATE_LIGHT_SPOT}
       }}
     };
     m_menus.push_back(gameObjectMenu);
@@ -208,18 +210,18 @@ public:
     MenuDef toolsMenu;
     toolsMenu.name = "Tools";
     toolsMenu.items = {
-      {"Reimport All", nullptr, true, false, false, ID_REIMPORT_ALL},
-      {"Project Settings...", nullptr, true, false, false, ID_PROJECT_SETTINGS}
+      {"Reimport All", "", true, false, false, ID_REIMPORT_ALL},
+      {"Project Settings...", "", true, false, false, ID_PROJECT_SETTINGS}
     };
     m_menus.push_back(toolsMenu);
-    
+
     // Help menu
     MenuDef helpMenu;
     helpMenu.name = "Help";
     helpMenu.items = {
       {"Documentation", "F1", true, false, false, ID_DOCUMENTATION},
-      {"", nullptr, false, false, true, 0},
-      {"About", nullptr, true, false, false, ID_ABOUT}
+      {"", "", false, false, true, 0},
+      {"About", "", true, false, false, ID_ABOUT}
     };
     m_menus.push_back(helpMenu);
   }
@@ -258,23 +260,23 @@ public:
 
 private:
   void DrawMenu(MenuDef& menu) {
-    if (!ImGui::BeginMenu(menu.name)) return;
-    
+    if (!ImGui::BeginMenu(menu.name.c_str())) return;
+
     for (auto& item : menu.items) {
-      DrawMenuItem(menu.name, item);
+      DrawMenuItem(menu.name.c_str(), item);
     }
-    
+
     ImGui::EndMenu();
   }
-  
+
   void DrawMenuItem(const char* menuName, MenuItem& item) {
     if (item.separator) {
       ImGui::Separator();
       return;
     }
-    
+
     if (item.hasSubmenu) {
-      if (ImGui::BeginMenu(item.label)) {
+      if (ImGui::BeginMenu(item.label.c_str())) {
         for (auto& subItem : item.submenuItems) {
           DrawMenuItem(menuName, subItem);
         }
@@ -282,7 +284,7 @@ private:
       }
       return;
     }
-    
+
     // Handle Recent Files submenu
     if (item.id == ID_RECENT_FILES) {
       if (ImGui::BeginMenu("Recent Files", !m_recentFiles.empty())) {
@@ -301,9 +303,9 @@ private:
       }
       return;
     }
-    
+
     // Standard menu item
-    if (ImGui::MenuItem(item.label, item.shortcut, item.checked, item.enabled)) {
+    if (ImGui::MenuItem(item.label.c_str(), item.shortcut.c_str(), item.checked, item.enabled)) {
       if (m_onMenuItemClicked) {
         m_onMenuItemClicked(menuName, item.id);
       }

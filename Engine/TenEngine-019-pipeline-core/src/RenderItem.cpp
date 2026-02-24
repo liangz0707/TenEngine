@@ -19,6 +19,11 @@ class RenderItemListImpl : public IRenderItemList {
   }
   void Clear() override { items_.clear(); }
   void Push(RenderItem const& item) override { items_.push_back(item); }
+  void Set(size_t i, RenderItem const& item) override {
+    if (i < items_.size()) {
+      items_[i] = item;
+    }
+  }
 
  private:
   std::vector<RenderItem> items_;

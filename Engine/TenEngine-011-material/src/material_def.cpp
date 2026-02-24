@@ -7,6 +7,7 @@
 #include <te/material/MaterialResource.h>
 #include <te/material/RenderMaterial.hpp>
 #include <te/shader/ShaderCollection.h>
+#include <te/shader/types.hpp>
 #include <te/resource/ResourceManager.h>
 #include <te/rendercore/uniform_layout.hpp>
 
@@ -23,8 +24,15 @@ struct MaterialData {
     MaterialHandle handle;
     std::unique_ptr<MaterialResource> resource;
     std::unique_ptr<RenderMaterial> renderMaterial;
-    std::vector<ParameterSlot> slotMapping;
-    std::map<std::string, ParameterSlot> nameToSlot;
+
+    struct SlotInfo {
+        std::string name;
+        uint32_t type;
+        uint32_t count;
+    };
+
+    std::vector<SlotInfo> slotMapping;
+    std::map<std::string, SlotInfo> nameToSlot;
 };
 
 struct MaterialInstanceData {
@@ -43,12 +51,12 @@ public:
     rhi::IDevice* device{nullptr};
 
     MaterialData* GetMaterial(MaterialHandle h) {
-        auto it = materials.find(reinterpret_cast<uintptr_t>(h.ptr));
+        auto it = materials.find(h.id);
         return it != materials.end() ? it->second.get() : nullptr;
     }
 
     MaterialInstanceData* GetInstance(MaterialInstanceHandle h) {
-        auto it = instances.find(reinterpret_cast<uintptr_t>(h.ptr));
+        auto it = instances.find(h.id);
         return it != instances.end() ? it->second.get() : nullptr;
     }
 };
@@ -80,15 +88,15 @@ MaterialHandle MaterialSystemImpl::Load(char const* path) {
 
     // Create material data
     auto data = std::make_unique<MaterialData>();
-    data->handle.ptr = reinterpret_cast<void*>(impl_->nextMaterialId);
+    data->handle.id = impl_->nextMaterialId;
     data->resource.reset(matRes);
 
     // Build slot mapping from resource parameters
     uint32_t slotIndex = 0;
-    for (auto const& [name, param] : matRes->GetParameters()) {
-        ParameterSlot slot{};
-        slot.name = name.c_str();
-        slot.type = param.type;
+    for (auto const& [name, param] : matRes->GetParams()) {
+        MaterialData::SlotInfo slot{};
+        slot.name = name;
+        slot.type = static_cast<uint32_t>(param.type);
         slot.count = param.count;
         data->slotMapping.push_back(slot);
         data->nameToSlot[name] = slot;
@@ -108,7 +116,7 @@ uint32_t MaterialSystemImpl::GetParameters(MaterialHandle h,
     auto* data = impl_->GetMaterial(h);
     if (!data || !data->resource) return 0;
 
-    auto const& params = data->resource->GetParameters();
+    auto const& params = data->resource->GetParams();
     uint32_t count = static_cast<uint32_t>(params.size());
     if (count > maxCount) count = maxCount;
 
@@ -116,7 +124,8 @@ uint32_t MaterialSystemImpl::GetParameters(MaterialHandle h,
         uint32_t i = 0;
         for (auto const& [name, param] : params) {
             if (i >= count) break;
-            outParams[i].name = name.c_str();
+            std::strncpy(outParams[i].name, name.c_str(), sizeof(outParams[i].name) - 1);
+            outParams[i].name[sizeof(outParams[i].name) - 1] = '\0';
             outParams[i].type = param.type;
             outParams[i].count = param.count;
             outParams[i].offset = 0;  // Will be filled from shader reflection
@@ -132,7 +141,7 @@ bool MaterialSystemImpl::GetDefaultValues(MaterialHandle h, void* outData, size_
     auto* data = impl_->GetMaterial(h);
     if (!data || !data->resource || !outData) return false;
 
-    auto const& params = data->resource->GetParameters();
+    auto const& params = data->resource->GetParams();
     size_t offset = 0;
 
     for (auto const& [name, param] : params) {
@@ -155,7 +164,9 @@ te::shader::IShaderHandle* MaterialSystemImpl::GetShaderRef(MaterialHandle h) {
     auto* collection = shader::ShaderCollection::GetInstance();
     if (!collection) return nullptr;
 
-    return reinterpret_cast<te::shader::IShaderHandle*>(collection->Get(shaderGuid));
+    // ShaderCollectionEntry is IShaderHandle
+    return const_cast<te::shader::IShaderHandle*>(
+        reinterpret_cast<te::shader::IShaderHandle const*>(collection->Get(shaderGuid)));
 }
 
 uint32_t MaterialSystemImpl::GetTextureRefs(MaterialHandle h, 
@@ -172,7 +183,7 @@ uint32_t MaterialSystemImpl::GetTextureRefs(MaterialHandle h,
     for (uint32_t i = 0; i < count; ++i) {
         if (outSlots) {
             outSlots[i].name = textureSlots[i].first.c_str();
-            outSlots[i].type = te::rendercore::UniformMemberType::Int;  // Texture slot
+            outSlots[i].type = static_cast<uint32_t>(te::rendercore::UniformMemberType::Int);  // Texture slot
             outSlots[i].count = 1;
         }
         if (outPaths) {
@@ -197,7 +208,7 @@ te::rendercore::IUniformLayout* MaterialSystemImpl::GetUniformLayout(MaterialHan
     te::rendercore::UniformLayoutDesc desc{};
     desc.members = entry->fragmentReflection.uniformBlock.members;
     desc.memberCount = entry->fragmentReflection.uniformBlock.memberCount;
-    desc.totalSize = entry->fragmentReflection.uniformBlock.size;
+    desc.totalSize = entry->fragmentReflection.uniformBlock.totalSize;
 
     return te::rendercore::CreateUniformLayout(desc);
 }
@@ -236,8 +247,8 @@ void MaterialSystemImpl::SetBuffer(MaterialInstanceHandle h,
     // Not implemented for now
 }
 
-uint32_t MaterialSystemImpl::GetSlotMapping(MaterialHandle h, 
-                                            ParameterSlot* outSlots, 
+uint32_t MaterialSystemImpl::GetSlotMapping(MaterialHandle h,
+                                            ParameterSlot* outSlots,
                                             uint32_t maxCount) {
     auto* data = impl_->GetMaterial(h);
     if (!data) return 0;
@@ -246,7 +257,13 @@ uint32_t MaterialSystemImpl::GetSlotMapping(MaterialHandle h,
     if (count > maxCount) count = maxCount;
 
     if (outSlots) {
-        std::memcpy(outSlots, data->slotMapping.data(), count * sizeof(ParameterSlot));
+        for (uint32_t i = 0; i < count; ++i) {
+            outSlots[i].name = data->slotMapping[i].name.c_str();
+            outSlots[i].type = data->slotMapping[i].type;
+            outSlots[i].count = data->slotMapping[i].count;
+            outSlots[i].set = 0;
+            outSlots[i].binding = i;
+        }
     }
 
     return count;
@@ -257,7 +274,7 @@ MaterialInstanceHandle MaterialSystemImpl::CreateInstance(MaterialHandle h) {
     if (!data) return MaterialInstanceHandle{};
 
     auto instance = std::make_unique<MaterialInstanceData>();
-    instance->handle.ptr = reinterpret_cast<void*>(impl_->nextInstanceId);
+    instance->handle.id = impl_->nextInstanceId;
     instance->parentHandle = h;
 
     MaterialInstanceHandle result = instance->handle;
@@ -268,7 +285,7 @@ MaterialInstanceHandle MaterialSystemImpl::CreateInstance(MaterialHandle h) {
 }
 
 void MaterialSystemImpl::ReleaseInstance(MaterialInstanceHandle h) {
-    auto it = impl_->instances.find(reinterpret_cast<uintptr_t>(h.ptr));
+    auto it = impl_->instances.find(h.id);
     if (it != impl_->instances.end()) {
         impl_->instances.erase(it);
     }
@@ -311,17 +328,20 @@ RenderMaterial* MaterialSystemImpl::CreateRenderMaterial(MaterialHandle h) {
     auto* collection = shader::ShaderCollection::GetInstance();
     if (!collection) return nullptr;
 
-    auto* shaderEntry = collection->Get(shaderGuid);
+    auto const* shaderEntry = collection->Get(shaderGuid);
     if (!shaderEntry) return nullptr;
 
     // Create render material
+    // ShaderCollectionEntry implements IShaderEntry, so we can cast
     auto* renderMat = new RenderMaterial();
-    renderMat->SetShaderEntry(const_cast<rendercore::IShaderEntry*>(shaderEntry));
+    renderMat->SetShaderEntry(const_cast<rendercore::IShaderEntry*>(
+        static_cast<rendercore::IShaderEntry const*>(shaderEntry)));
     renderMat->SetPipelineStateDesc(data->resource->GetPipelineStateDesc());
     renderMat->SetDevice(impl_->device);
 
     // Set CPU parameters from material resource
-    for (auto const& [name, param] : data->resource->GetParameters()) {
+    auto const& params = data->resource->GetParams();
+    for (auto const& [name, param] : params) {
         renderMat->SetDataParameter(name.c_str(), param.data.data(), param.data.size());
     }
 

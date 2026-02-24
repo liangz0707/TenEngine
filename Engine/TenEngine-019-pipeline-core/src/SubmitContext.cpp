@@ -238,11 +238,13 @@ void SubmitContext::SubmitQueue(QueueId queue) {
   auto& qd = impl_->queues[idx];
   if (!qd.queue || qd.pendingCommands.empty()) return;
 
-  // Submit with frame fence
+  // Submit each command list individually (API only takes single cmd)
   auto* fence = qd.frameFences[qd.currentFrameFence];
-  qd.queue->Submit(qd.pendingCommands.data(),
-                   static_cast<uint32_t>(qd.pendingCommands.size()),
-                   fence, nullptr, nullptr);
+  for (size_t i = 0; i < qd.pendingCommands.size(); ++i) {
+    // Only signal fence on the last command
+    rhi::IFence* cmdFence = (i == qd.pendingCommands.size() - 1) ? fence : nullptr;
+    qd.queue->Submit(qd.pendingCommands[i], cmdFence, nullptr, nullptr);
+  }
 
   // Clear pending (don't destroy - let frame tracking handle it)
   qd.pendingCommands.clear();
@@ -254,7 +256,7 @@ void SubmitContext::SubmitAll() {
   }
 }
 
-void SubmitContext::SubmitBatch(SubmitBatch const& batch) {
+void SubmitContext::Submit(SubmitBatch const& batch) {
   size_t idx = static_cast<size_t>(batch.queue);
   if (idx >= impl_->queues.size()) return;
 
@@ -262,27 +264,31 @@ void SubmitContext::SubmitBatch(SubmitBatch const& batch) {
   if (!qd.queue || batch.commandLists.empty()) return;
 
   // Extract wait semaphores
-  std::vector<rhi::ISemaphore*> waitSemaphores;
+  rhi::ISemaphore* waitSem = nullptr;
   for (auto const& sync : batch.waitSyncs) {
     if (sync.waitSemaphore) {
-      waitSemaphores.push_back(sync.waitSemaphore);
+      waitSem = sync.waitSemaphore;
+      break;  // API only supports single wait semaphore
     }
   }
 
   // Extract signal semaphores
-  std::vector<rhi::ISemaphore*> signalSemaphores;
+  rhi::ISemaphore* signalSem = nullptr;
   for (auto const& sync : batch.signalSyncs) {
     if (sync.signalSemaphore) {
-      signalSemaphores.push_back(sync.signalSemaphore);
+      signalSem = sync.signalSemaphore;
+      break;  // API only supports single signal semaphore
     }
   }
 
-  qd.queue->Submit(
-    batch.commandLists.data(),
-    static_cast<uint32_t>(batch.commandLists.size()),
-    batch.signalFence,
-    waitSemaphores.empty() ? nullptr : waitSemaphores.data(),
-    signalSemaphores.empty() ? nullptr : signalSemaphores.data());
+  // Submit each command list individually (API only takes single cmd)
+  for (size_t i = 0; i < batch.commandLists.size(); ++i) {
+    // Only signal fence/semaphore on the last command
+    rhi::IFence* cmdFence = (i == batch.commandLists.size() - 1) ? batch.signalFence : nullptr;
+    rhi::ISemaphore* cmdWaitSem = (i == 0) ? waitSem : nullptr;
+    rhi::ISemaphore* cmdSignalSem = (i == batch.commandLists.size() - 1) ? signalSem : nullptr;
+    qd.queue->Submit(batch.commandLists[i], cmdFence, cmdWaitSem, cmdSignalSem);
+  }
 }
 
 rhi::ISemaphore* SubmitContext::CreateSemaphore() {
@@ -498,7 +504,7 @@ void MultiQueueScheduler::Execute() {
   for (size_t idx : order) {
     auto& work = impl_->queueWork[idx];
     for (auto& batch : work.batches) {
-      impl_->submitCtx.SubmitBatch(batch);
+      impl_->submitCtx.Submit(batch);
     }
     work.batches.clear();
   }

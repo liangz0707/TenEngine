@@ -209,7 +209,7 @@ private:
 
     switch (m_mode) {
       case GizmoMode::Translate: {
-        te::core::Vector3 delta(0.0f, 0.0f, 0.0f);
+        te::core::Vector3 delta{0.0f, 0.0f, 0.0f};
 
         if (m_hoverState.hoveringX || m_hoverState.hoveringXYZ) {
           delta.x = dx * worldScale;
@@ -232,7 +232,7 @@ private:
 
         // TODO: Implement QuatFromAxisAngle in te::core::math
         // For now, use simplified Euler rotation
-        te::core::Quaternion rot(0.0f, 0.0f, 0.0f, 1.0f);
+        te::core::Quaternion rot{0.0f, 0.0f, 0.0f, 1.0f};
         if (m_hoverState.hoveringX) {
           // Rotation around X axis
           float halfAngle = angle * 0.5f;
@@ -289,7 +289,7 @@ private:
 
     switch (m_mode) {
       case GizmoMode::Translate: {
-        te::core::Vector3 delta(0.0f, 0.0f, 0.0f);
+        te::core::Vector3 delta{0.0f, 0.0f, 0.0f};
 
         if (m_hoverState.hoveringX || m_hoverState.hoveringXYZ) {
           delta.x = dx * worldScale;
@@ -311,7 +311,7 @@ private:
         float angle = (dx + dy) * 0.5f * 0.01f;
 
         // TODO: Implement QuatFromAxisAngle in te::core::math
-        te::core::Quaternion rot(0.0f, 0.0f, 0.0f, 1.0f);
+        te::core::Quaternion rot{0.0f, 0.0f, 0.0f, 1.0f};
         if (m_hoverState.hoveringX) {
           float halfAngle = angle * 0.5f;
           rot.x = std::sin(halfAngle);
@@ -361,10 +361,10 @@ private:
     (void)worldPos;
 
     // Placeholder: return center of viewport
-    return te::core::Vector2(
+    return te::core::Vector2{
       static_cast<float>(m_viewportWidth) * 0.5f,
       static_cast<float>(m_viewportHeight) * 0.5f
-    );
+    };
   }
   
   // State

@@ -5,6 +5,7 @@
 
 #include <te/rendercore/IShadingState.hpp>
 #include <cstdint>
+#include <cstddef>
 
 namespace te {
 namespace rhi {

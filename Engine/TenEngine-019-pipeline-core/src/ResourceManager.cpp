@@ -395,7 +395,7 @@ void TransientResourcePool::InsertBarriersForPass(uint32_t passIndex, rhi::IComm
         rhiBarrier.arrayLayer = 0;
         rhiBarrier.srcState = barrier.srcState;
         rhiBarrier.dstState = barrier.dstState;
-        cmd->ResourceBarrier(nullptr, 0, &rhiBarrier, 1);
+        cmd->ResourceBarrier(0, nullptr, 1, &rhiBarrier);
       }
     } else {
       rhi::IBuffer* buffer = GetBuffer(barrier.resource);
@@ -406,7 +406,7 @@ void TransientResourcePool::InsertBarriersForPass(uint32_t passIndex, rhi::IComm
         rhiBarrier.size = 0; // Whole buffer
         rhiBarrier.srcState = barrier.srcState;
         rhiBarrier.dstState = barrier.dstState;
-        cmd->ResourceBarrier(&rhiBarrier, 1, nullptr, 0);
+        cmd->ResourceBarrier(1, &rhiBarrier, 0, nullptr);
       }
     }
   }

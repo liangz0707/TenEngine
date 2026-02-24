@@ -6,6 +6,7 @@
 #define TE_SHADER_SHADER_COLLECTION_H
 
 #include <te/resource/ResourceId.h>
+#include <te/rendercore/IShaderEntry.hpp>
 #include <te/rendercore/shader_reflection.hpp>
 #include <te/rendercore/uniform_layout.hpp>
 #include <te/rendercore/resource_desc.hpp>
@@ -19,8 +20,9 @@ namespace shader {
 /**
  * Single shader entry: SPIR-V bytecode (per stage), vertex input, and per-stage reflection.
  * All reflection pointers refer to owned vectors; valid as long as the entry exists.
+ * Implements IShaderEntry interface for use with material system.
  */
-struct ShaderCollectionEntry {
+struct ShaderCollectionEntry : public rendercore::IShaderEntry {
   resource::ResourceId resourceId{};
   std::vector<std::uint8_t> vertexBytecode;
   std::vector<std::uint8_t> fragmentBytecode;
@@ -38,6 +40,17 @@ struct ShaderCollectionEntry {
   rendercore::ShaderReflectionDesc fragmentReflection{};
   std::vector<rendercore::UniformMember> fragmentUniformMembers;
   std::vector<rendercore::ShaderResourceBinding> fragmentResourceBindings;
+
+  // === IShaderEntry implementation ===
+  void const* GetVertexBytecode() const override { return vertexBytecode.data(); }
+  std::size_t GetVertexBytecodeSize() const override { return vertexBytecode.size(); }
+  void const* GetFragmentBytecode() const override { return fragmentBytecode.data(); }
+  std::size_t GetFragmentBytecodeSize() const override { return fragmentBytecode.size(); }
+  rendercore::VertexFormatDesc const* GetVertexInput() const override {
+    return vertexInputAttributes.empty() ? nullptr : &vertexInput;
+  }
+  rendercore::ShaderReflectionDesc const* GetVertexReflection() const override { return &vertexReflection; }
+  rendercore::ShaderReflectionDesc const* GetFragmentReflection() const override { return &fragmentReflection; }
 };
 
 /**

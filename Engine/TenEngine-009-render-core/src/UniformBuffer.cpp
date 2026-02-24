@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <memory>
+#include <string>
 #include <vector>
 #include <unordered_map>
 
@@ -205,10 +206,6 @@ IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, rhi::IDevice* 
 void ReleaseUniformBuffer(IUniformBuffer* buffer) {
   delete static_cast<UniformBufferImpl*>(buffer);
 }
-
-// Override the inline stubs
-#undef CreateUniformLayout
-#undef ReleaseUniformLayout
 
 IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc) {
   return CreateUniformLayoutInternal(desc);

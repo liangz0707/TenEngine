@@ -207,11 +207,11 @@ public:
   
   // === Selection Bounds ===
   
-  bool GetSelectionBounds(te::math::Vec3& min, te::math::Vec3& max) const override {
+  bool GetSelectionBounds(te::core::Vector3& min, te::core::Vector3& max) const override {
     if (m_selection.empty()) return false;
-    
-    min = te::math::Vec3(1e10f, 1e10f, 1e10f);
-    max = te::math::Vec3(-1e10f, -1e10f, -1e10f);
+
+    min = te::core::Vector3{1e10f, 1e10f, 1e10f};
+    max = te::core::Vector3{-1e10f, -1e10f, -1e10f};
     
     for (auto const& id : m_selection) {
       te::entity::Entity* entity = te::entity::EntityManager::GetInstance().GetEntity(id);
@@ -232,11 +232,13 @@ public:
     return true;
   }
   
-  bool GetSelectionCenter(te::math::Vec3& center) const override {
-    te::math::Vec3 min, max;
+  bool GetSelectionCenter(te::core::Vector3& center) const override {
+    te::core::Vector3 min, max;
     if (!GetSelectionBounds(min, max)) return false;
-    
-    center = (min + max) * 0.5f;
+
+    center.x = (min.x + max.x) * 0.5f;
+    center.y = (min.y + max.y) * 0.5f;
+    center.z = (min.z + max.z) * 0.5f;
     return true;
   }
   
@@ -282,8 +284,9 @@ private:
   void FireSelectionChange(std::vector<te::entity::EntityId> const& prev, bool additive) {
     if (m_onSelectionChanged) {
       SelectionChangeEvent evt;
-      evt.previousSelection = prev;
-      evt.currentSelection = m_selection;
+      // TODO: Convert EntityId to IEntity* using EntityAdapter
+      // For now, leave vectors empty (placeholder behavior)
+      (void)prev;
       evt.isAdditive = additive;
       m_onSelectionChanged(evt);
     }

@@ -4,6 +4,7 @@
 
 #include "te/material/material_def.hpp"
 #include "te/material/types.hpp"
+#include <memory>
 
 namespace te {
 namespace rhi {

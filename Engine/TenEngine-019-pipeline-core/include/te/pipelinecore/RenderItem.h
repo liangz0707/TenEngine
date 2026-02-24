@@ -32,6 +32,7 @@ struct RenderItem {
   uint64_t sortKey{0u};
   uint32_t submeshIndex{0};
   void* transform{nullptr};  // te::core::Matrix4 const* 或 nullptr
+  float worldMatrix[16]{};   // Cached world matrix for sorting/culling
   RenderItemBounds bounds{};
   void* skinMatrixBuffer{nullptr};
   uint32_t skinMatrixOffset{0};
@@ -44,6 +45,7 @@ struct IRenderItemList {
   virtual RenderItem const* At(size_t i) const = 0;
   virtual void Clear() = 0;
   virtual void Push(RenderItem const& item) = 0;
+  virtual void Set(size_t i, RenderItem const& item) = 0;
 };
 
 /// 灯光类型

@@ -15,6 +15,7 @@
 #include <te/rendercore/types.hpp>
 #include <cstdint>
 #include <cstddef>
+#include <memory>
 
 namespace te::rhi {
 struct IDevice;

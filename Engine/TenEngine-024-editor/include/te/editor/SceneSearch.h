@@ -14,22 +14,11 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Search filter criteria for scene hierarchy.
- */
-struct SceneSearchFilter {
-  const char* namePattern = nullptr;     ///< Name pattern (supports wildcards)
-  bool caseSensitive = false;
-  bool searchComponents = false;          ///< Also search component names
-  bool searchInactive = true;             ///< Include inactive entities
-  int componentTypeFilter = -1;           ///< -1 for all types
-  int layerFilter = -1;                   ///< -1 for all layers
-  int tagFilter = -1;                     ///< -1 for all tags
-};
+// Note: SceneSearchFilter is defined in EditorTypes.h
 
 /**
  * @brief Scene search manager interface.
- * 
+ *
  * Provides search and filtering capabilities for the scene hierarchy.
  */
 class ISceneSearch {

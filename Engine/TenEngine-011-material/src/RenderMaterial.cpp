@@ -5,6 +5,7 @@
 
 #include <te/material/RenderMaterial.hpp>
 #include <te/rendercore/uniform_layout.hpp>
+#include <te/rendercore/IShaderEntry.hpp>
 #include <te/rhi/device.hpp>
 #include <te/rhi/pso.hpp>
 #include <te/rhi/resources.hpp>
@@ -30,6 +31,12 @@ RenderMaterial::~RenderMaterial() {
         }
     }
     uniformBuffer_.reset();
+}
+
+// === IRenderPipelineState ===
+
+rhi::GraphicsPipelineStateDesc const* RenderMaterial::GetRHIStateDesc() const {
+    return &rhiPipelineStateDesc_;
 }
 
 // === IShadingState ===
@@ -159,8 +166,26 @@ void RenderMaterial::SetShaderEntry(rendercore::IShaderEntry* entry) {
     shaderEntry_ = entry;
 }
 
-void RenderMaterial::SetPipelineStateDesc(rendercore::PipelineStateDesc const& desc) {
+void RenderMaterial::SetPipelineStateDesc(PipelineStateDesc const& desc) {
     pipelineStateDesc_ = desc;
+
+    // Convert material::PipelineStateDesc to rhi::GraphicsPipelineStateDesc
+    rhiPipelineStateDesc_.blendAttachmentCount = desc.blendAttachmentCount;
+    for (uint32_t i = 0; i < desc.blendAttachmentCount && i < rhi::GraphicsPipelineStateDesc::kMaxBlendAttachments; ++i) {
+        rhiPipelineStateDesc_.blendAttachments[i].blendEnable = desc.blendAttachments[i].blendEnable;
+        rhiPipelineStateDesc_.blendAttachments[i].srcColorBlend = static_cast<rhi::BlendFactor>(desc.blendAttachments[i].srcColorBlend);
+        rhiPipelineStateDesc_.blendAttachments[i].dstColorBlend = static_cast<rhi::BlendFactor>(desc.blendAttachments[i].dstColorBlend);
+        rhiPipelineStateDesc_.blendAttachments[i].colorBlendOp = static_cast<rhi::BlendOp>(desc.blendAttachments[i].colorBlendOp);
+        rhiPipelineStateDesc_.blendAttachments[i].srcAlphaBlend = static_cast<rhi::BlendFactor>(desc.blendAttachments[i].srcAlphaBlend);
+        rhiPipelineStateDesc_.blendAttachments[i].dstAlphaBlend = static_cast<rhi::BlendFactor>(desc.blendAttachments[i].dstAlphaBlend);
+        rhiPipelineStateDesc_.blendAttachments[i].alphaBlendOp = static_cast<rhi::BlendOp>(desc.blendAttachments[i].alphaBlendOp);
+        rhiPipelineStateDesc_.blendAttachments[i].colorWriteMask = desc.blendAttachments[i].colorWriteMask;
+    }
+    rhiPipelineStateDesc_.depthStencil.depthTestEnable = desc.depthStencil.depthTestEnable;
+    rhiPipelineStateDesc_.depthStencil.depthWriteEnable = desc.depthStencil.depthWriteEnable;
+    rhiPipelineStateDesc_.depthStencil.depthCompareOp = static_cast<rhi::CompareOp>(desc.depthStencil.depthCompareOp);
+    rhiPipelineStateDesc_.rasterization.cullMode = static_cast<rhi::CullMode>(desc.rasterization.cullMode);
+    rhiPipelineStateDesc_.rasterization.frontFace = static_cast<rhi::FrontFace>(desc.rasterization.frontFace);
 }
 
 void RenderMaterial::SetDevice(rhi::IDevice* device) {
@@ -179,36 +204,16 @@ bool RenderMaterial::CreatePSO(rhi::IRenderPass* renderPass, uint32_t subpassCou
     // Ensure we have space for all subpasses
     psos_.resize(subpassCount > 0 ? subpassCount : 1);
 
-    // Create PSO for each subpass (simplified: use same PSO for all)
-    rhi::GraphicsPipelineStateDesc psoDesc{};
+    // Build GraphicsPSODesc using the pre-populated RHI pipeline state
+    rhi::GraphicsPSODesc psoDesc{};
+    psoDesc.vertex_shader = shaderEntry_->GetVertexBytecode();
+    psoDesc.vertex_shader_size = shaderEntry_->GetVertexBytecodeSize();
+    psoDesc.fragment_shader = shaderEntry_->GetFragmentBytecode();
+    psoDesc.fragment_shader_size = shaderEntry_->GetFragmentBytecodeSize();
+    psoDesc.pipelineState = &rhiPipelineStateDesc_;
 
-    // Copy from pipeline state desc
-    if (pipelineStateDesc_.blendState) {
-        psoDesc.blendState = *pipelineStateDesc_.blendState;
-    }
-    if (pipelineStateDesc_.depthStencilState) {
-        psoDesc.depthStencilState = *pipelineStateDesc_.depthStencilState;
-    }
-    if (pipelineStateDesc_.rasterizerState) {
-        psoDesc.rasterizerState = *pipelineStateDesc_.rasterizerState;
-    }
-
-    // Set shader bytecode
-    psoDesc.vertexShader.bytecode = shaderEntry_->GetVertexBytecode();
-    psoDesc.vertexShader.bytecodeSize = shaderEntry_->GetVertexBytecodeSize();
-    psoDesc.fragmentShader.bytecode = shaderEntry_->GetFragmentBytecode();
-    psoDesc.fragmentShader.bytecodeSize = shaderEntry_->GetFragmentBytecodeSize();
-
-    // Set vertex input from shader reflection
-    if (shaderEntry_->GetVertexInput()) {
-        psoDesc.vertexInput = *shaderEntry_->GetVertexInput();
-    }
-
-    // Set render pass (required for PSO creation)
-    psoDesc.renderPass = renderPass;
-
-    // Create PSO
-    rhi::IPSO* pso = device_->CreatePSO(psoDesc);
+    // Create PSO with render pass and subpass info
+    rhi::IPSO* pso = device_->CreateGraphicsPSO(psoDesc, nullptr, renderPass, subpassCount > 0 ? 0 : 0);
     if (!pso) return false;
 
     // Use same PSO for all subpasses
@@ -239,7 +244,7 @@ bool RenderMaterial::CreateUniformBuffer() {
     rendercore::UniformLayoutDesc layoutDesc{};
     layoutDesc.members = refl->uniformBlock.members;
     layoutDesc.memberCount = refl->uniformBlock.memberCount;
-    layoutDesc.totalSize = refl->uniformBlock.size;
+    layoutDesc.totalSize = refl->uniformBlock.totalSize;
 
     auto* layout = rendercore::CreateUniformLayout(layoutDesc);
     if (!layout) return false;
@@ -250,6 +255,7 @@ bool RenderMaterial::CreateUniformBuffer() {
 
 bool RenderMaterial::CreateDescriptorSet(rhi::IDescriptorSetLayout* skinLayout) {
     if (!device_) return false;
+    (void)skinLayout;  // Not used in this simplified implementation
 
     // Create descriptor set layout if not provided
     if (!descriptorSetLayout_) {
@@ -259,21 +265,16 @@ bool RenderMaterial::CreateDescriptorSet(rhi::IDescriptorSetLayout* skinLayout) 
 
         // Add uniform buffer binding (usually slot 0)
         layoutDesc.bindings[layoutDesc.bindingCount].binding = 0;
-        layoutDesc.bindings[layoutDesc.bindingCount].type = rhi::DescriptorType::UniformBuffer;
-        layoutDesc.bindings[layoutDesc.bindingCount].count = 1;
-        layoutDesc.bindings[layoutDesc.bindingCount].stageFlags = 
-            static_cast<uint32_t>(rhi::ShaderStage::Vertex) | 
-            static_cast<uint32_t>(rhi::ShaderStage::Fragment);
+        layoutDesc.bindings[layoutDesc.bindingCount].descriptorType = static_cast<uint32_t>(rhi::DescriptorType::UniformBuffer);
+        layoutDesc.bindings[layoutDesc.bindingCount].descriptorCount = 1;
         layoutDesc.bindingCount++;
 
         // Add texture bindings
         for (auto const& [binding, tex] : cpuTextures_) {
-            if (layoutDesc.bindingCount >= rhi::kMaxDescriptorBindings) break;
+            if (layoutDesc.bindingCount >= rhi::DescriptorSetLayoutDesc::kMaxBindings) break;
             layoutDesc.bindings[layoutDesc.bindingCount].binding = binding;
-            layoutDesc.bindings[layoutDesc.bindingCount].type = rhi::DescriptorType::SampledTexture;
-            layoutDesc.bindings[layoutDesc.bindingCount].count = 1;
-            layoutDesc.bindings[layoutDesc.bindingCount].stageFlags = 
-                static_cast<uint32_t>(rhi::ShaderStage::Fragment);
+            layoutDesc.bindings[layoutDesc.bindingCount].descriptorType = static_cast<uint32_t>(rhi::DescriptorType::CombinedImageSampler);
+            layoutDesc.bindings[layoutDesc.bindingCount].descriptorCount = 1;
             layoutDesc.bindingCount++;
         }
 
@@ -283,7 +284,7 @@ bool RenderMaterial::CreateDescriptorSet(rhi::IDescriptorSetLayout* skinLayout) 
     if (!descriptorSetLayout_) return false;
 
     // Create descriptor set
-    descriptorSet_ = device_->CreateDescriptorSet(descriptorSetLayout_);
+    descriptorSet_ = device_->AllocateDescriptorSet(descriptorSetLayout_);
     return descriptorSet_ != nullptr;
 }
 
@@ -298,7 +299,7 @@ void RenderMaterial::UploadParameters() {
     auto const* refl = shaderEntry_ ? shaderEntry_->GetFragmentReflection() : nullptr;
     if (!refl || !refl->uniformBlock.members) return;
 
-    size_t totalSize = refl->uniformBlock.size;
+    size_t totalSize = refl->uniformBlock.totalSize;
     std::vector<uint8_t> bufferData(totalSize, 0);
 
     // Copy each parameter to its offset
@@ -320,21 +321,16 @@ void RenderMaterial::UpdateDescriptorTextures() {
     // Update texture bindings
     for (auto const& [binding, texture] : cpuTextures_) {
         if (texture) {
-            rhi::DescriptorImageInfo imageInfo{};
-            imageInfo.texture = texture;
-            imageInfo.imageLayout = rhi::ImageLayout::ShaderReadOnly;
-            // Note: Sampler should be set separately or use immutable samplers
-            imageInfo.sampler = nullptr;
-
-            rhi::WriteDescriptorSet write{};
+            rhi::DescriptorWrite write{};
             write.dstSet = descriptorSet_;
-            write.dstBinding = binding;
-            write.dstArrayElement = 0;
-            write.descriptorCount = 1;
-            write.descriptorType = rhi::DescriptorType::SampledTexture;
-            write.imageInfo = &imageInfo;
+            write.binding = binding;
+            write.type = static_cast<uint32_t>(rhi::DescriptorType::CombinedImageSampler);
+            write.texture = texture;
+            write.sampler = nullptr;  // Use default sampler
+            write.buffer = nullptr;
+            write.bufferOffset = 0;
 
-            device_->UpdateDescriptorSets(1, &write);
+            device_->UpdateDescriptorSet(descriptorSet_, &write, 1);
         }
     }
 
@@ -342,20 +338,16 @@ void RenderMaterial::UpdateDescriptorTextures() {
     if (uniformBuffer_) {
         auto* buffer = uniformBuffer_->GetBuffer();
         if (buffer) {
-            rhi::DescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = buffer;
-            bufferInfo.offset = 0;
-            bufferInfo.range = uniformBuffer_->GetRingBufferOffset(0);  // Approximate
-
-            rhi::WriteDescriptorSet write{};
+            rhi::DescriptorWrite write{};
             write.dstSet = descriptorSet_;
-            write.dstBinding = 0;
-            write.dstArrayElement = 0;
-            write.descriptorCount = 1;
-            write.descriptorType = rhi::DescriptorType::UniformBuffer;
-            write.bufferInfo = &bufferInfo;
+            write.binding = 0;
+            write.type = static_cast<uint32_t>(rhi::DescriptorType::UniformBuffer);
+            write.buffer = buffer;
+            write.bufferOffset = 0;
+            write.texture = nullptr;
+            write.sampler = nullptr;
 
-            device_->UpdateDescriptorSets(1, &write);
+            device_->UpdateDescriptorSet(descriptorSet_, &write, 1);
         }
     }
 }
@@ -364,7 +356,7 @@ void RenderMaterial::UpdateDescriptorTextures() {
 
 RenderMaterial* CreateRenderMaterial(
     rendercore::IShaderEntry* shaderEntry,
-    rendercore::PipelineStateDesc const& pipelineState) {
+    PipelineStateDesc const& pipelineState) {
     auto* mat = new RenderMaterial();
     mat->SetShaderEntry(shaderEntry);
     mat->SetPipelineStateDesc(pipelineState);
@@ -375,5 +367,4 @@ void DestroyRenderMaterial(RenderMaterial* material) {
     delete material;
 }
 
-}  // namespace material
-}  // namespace te
+}  // namespace te::material

@@ -100,11 +100,7 @@ struct PipelineContext::Impl {
       desc.width = width;
       desc.height = height;
       desc.depth = 1;
-      desc.arraySize = 1;
-      desc.mipLevels = 1;
-      desc.format = static_cast<uint32_t>(rhi::Format::D32_Float);
-      desc.usage = static_cast<uint32_t>(rhi::TextureUsage::DepthStencil) |
-                   static_cast<uint32_t>(rhi::TextureUsage::RenderTarget);
+      desc.format = 40;  // DXGI_FORMAT_D32_FLOAT = 40
 
       depthBuffer = dev->CreateTexture(desc);
       if (depthBuffer) {
@@ -347,8 +343,8 @@ void PipelineContext::ConvertToLogicalCommandBuffer() {
   // Get render items from first pass (simplified)
   auto* items = impl_->renderItemsPerPass[0];
   if (items && items->Size() > 0) {
-    impl_->logicalCB = pipelinecore::ConvertToLogicalCommandBuffer(
-      items, impl_->logicalPipeline);
+    pipelinecore::ConvertToLogicalCommandBuffer(
+      items, impl_->logicalPipeline, &impl_->logicalCB);
   }
 }
 
@@ -424,10 +420,8 @@ void PipelineContext::ExecutePasses() {
     // Configure depth-stencil attachment
     if (depthBuffer) {
       rpDesc.depthStencilAttachment.texture = depthBuffer;
-      rpDesc.depthStencilAttachment.depthLoadOp = rhi::LoadOp::Clear;
-      rpDesc.depthStencilAttachment.depthStoreOp = rhi::StoreOp::Store;
-      rpDesc.depthStencilAttachment.stencilLoadOp = rhi::LoadOp::DontCare;
-      rpDesc.depthStencilAttachment.stencilStoreOp = rhi::StoreOp::DontCare;
+      rpDesc.depthStencilAttachment.loadOp = rhi::LoadOp::Clear;
+      rpDesc.depthStencilAttachment.storeOp = rhi::StoreOp::Store;
       rpDesc.depthStencilAttachment.clearDepth = 1.0f;
       rpDesc.depthStencilAttachment.clearStencil = 0;
     }
@@ -470,10 +464,8 @@ void PipelineContext::ExecutePasses() {
     // Add depth buffer to clear pass
     if (depthBuffer) {
       rpDesc.depthStencilAttachment.texture = depthBuffer;
-      rpDesc.depthStencilAttachment.depthLoadOp = rhi::LoadOp::Clear;
-      rpDesc.depthStencilAttachment.depthStoreOp = rhi::StoreOp::Store;
-      rpDesc.depthStencilAttachment.stencilLoadOp = rhi::LoadOp::DontCare;
-      rpDesc.depthStencilAttachment.stencilStoreOp = rhi::StoreOp::DontCare;
+      rpDesc.depthStencilAttachment.loadOp = rhi::LoadOp::Clear;
+      rpDesc.depthStencilAttachment.storeOp = rhi::StoreOp::Store;
       rpDesc.depthStencilAttachment.clearDepth = 1.0f;
       rpDesc.depthStencilAttachment.clearStencil = 0;
     }

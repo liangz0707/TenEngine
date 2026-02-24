@@ -9,6 +9,8 @@
 #include <te/rendercore/uniform_buffer.hpp>
 #include <te/rendercore/IRenderPipelineState.hpp>
 #include <te/rhi/resources.hpp>
+#include <te/rhi/pso.hpp>
+#include <te/material/MaterialParam.hpp>
 
 #include <cstdint>
 #include <map>
@@ -42,6 +44,9 @@ public:
     RenderMaterial();
     ~RenderMaterial() override;
 
+    // === IRenderPipelineState ===
+    rhi::GraphicsPipelineStateDesc const* GetRHIStateDesc() const override;
+
     // === IShadingState ===
     rendercore::IRenderPipelineState const* GetPipelineState() const override;
     rendercore::IShaderEntry const* GetShaderEntry() const override;
@@ -68,7 +73,7 @@ public:
 
     // === Configuration ===
     void SetShaderEntry(rendercore::IShaderEntry* entry);
-    void SetPipelineStateDesc(rendercore::PipelineStateDesc const& desc);
+    void SetPipelineStateDesc(PipelineStateDesc const& desc);
     void SetDevice(rhi::IDevice* device);
     void SetName(char const* name);
 
@@ -87,7 +92,8 @@ private:
 private:
     // Shader and pipeline state
     rendercore::IShaderEntry* shaderEntry_{nullptr};
-    rendercore::PipelineStateDesc pipelineStateDesc_;
+    PipelineStateDesc pipelineStateDesc_;
+    rhi::GraphicsPipelineStateDesc rhiPipelineStateDesc_;  // RHI-compatible state
     rendercore::IRenderPipelineState* pipelineState_{nullptr};
 
     // CPU data
@@ -118,7 +124,7 @@ private:
  */
 RenderMaterial* CreateRenderMaterial(
     rendercore::IShaderEntry* shaderEntry,
-    rendercore::PipelineStateDesc const& pipelineState);
+    PipelineStateDesc const& pipelineState);
 
 /**
  * @brief Destroy a RenderMaterial.

@@ -41,9 +41,8 @@ public:
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - m_height));
     ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, m_height));
     
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | 
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoSavedSettings |
-                              ImGuiWindowFlags_NoDocking |
                               ImGuiWindowFlags_NoTitleBar;
     
     if (!ImGui::Begin("##StatusBar", nullptr, flags)) {
@@ -58,12 +57,16 @@ public:
     float leftWidth = 0.0f;
     
     // Level name
-    ImGui::Text("Level: %s", m_levelName);
-    leftWidth += ImGui::CalcTextSize(ImGui::TextBuffer).x + spacing * 2;
-    
+    char levelText[256];
+    snprintf(levelText, sizeof(levelText), "Level: %s", m_levelName);
+    ImGui::Text("%s", levelText);
+    leftWidth += ImGui::CalcTextSize(levelText).x + spacing * 2;
+
     ImGui::SameLine();
-    ImGui::Text("| Selection: %zu", m_selectionCount);
-    leftWidth += ImGui::CalcTextSize(ImGui::TextBuffer).x + spacing * 2;
+    char selText[64];
+    snprintf(selText, sizeof(selText), "| Selection: %zu", m_selectionCount);
+    ImGui::Text("%s", selText);
+    leftWidth += ImGui::CalcTextSize(selText).x + spacing * 2;
     
     // Status message in center if present
     if (m_statusMessage[0] != '\0') {

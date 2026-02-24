@@ -13,45 +13,11 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Editor command context.
- */
-struct CommandContext {
-  void* editor = nullptr;           ///< Editor instance
-  void* selection = nullptr;        ///< Current selection
-  void* activeObject = nullptr;     ///< Active object
-};
-
-/**
- * @brief Editor command definition.
- */
-struct EditorCommand {
-  const char* id = nullptr;               ///< Unique command ID
-  const char* displayName = nullptr;      ///< Display name
-  const char* category = nullptr;         ///< Category for organization
-  const char* menuItem = nullptr;         ///< Menu path (e.g., "File/Save")
-  int priority = 0;                       ///< Menu item priority
-  
-  std::function<void(CommandContext&)> execute;  ///< Execute callback
-  std::function<bool(CommandContext&)> canExecute;  ///< Can execute check
-  std::function<bool(CommandContext&)> isChecked;   ///< Is checked for toggle
-  
-  bool visible = true;
-  bool enabled = true;
-};
-
-/**
- * @brief Macro definition for recorded actions.
- */
-struct EditorMacro {
-  char name[64] = "";
-  std::vector<const char*> commandIds;
-  bool enabled = true;
-};
+// Note: CommandContext, EditorCommand, and EditorMacro are defined in EditorTypes.h
 
 /**
  * @brief Editor scripting system interface.
- * 
+ *
  * Provides command registration, execution, and scripting capabilities.
  */
 class IEditorScripting {

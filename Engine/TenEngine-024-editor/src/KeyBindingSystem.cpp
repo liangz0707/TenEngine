@@ -9,11 +9,22 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <unordered_map>
 
 namespace te {
 namespace editor {
 
-// Simple hash for key combos
+// Comparator for KeyCombo to use with std::map
+struct KeyComboCompare {
+  bool operator()(KeyCombo const& a, KeyCombo const& b) const {
+    if (a.keyCode != b.keyCode) return a.keyCode < b.keyCode;
+    if (a.ctrl != b.ctrl) return a.ctrl < b.ctrl;
+    if (a.alt != b.alt) return a.alt < b.alt;
+    return a.shift < b.shift;
+  }
+};
+
+// Hash for KeyCombo to use with std::unordered_map
 struct KeyComboHash {
   size_t operator()(KeyCombo const& k) const {
     return static_cast<size_t>(k.keyCode) |
@@ -34,7 +45,7 @@ public:
   // === Registration ===
   
   bool RegisterAction(KeyBindingAction const& action) override {
-    if (!action.id) return false;
+    if (action.id.empty()) return false;
     
     std::string id(action.id);
     if (m_actions.find(id) != m_actions.end()) {
@@ -111,7 +122,7 @@ public:
   std::vector<KeyBindingAction const*> GetActionsByCategory(const char* category) const override {
     std::vector<KeyBindingAction const*> result;
     for (auto const& pair : m_actions) {
-      if (pair.second.category && strcmp(pair.second.category, category) == 0) {
+      if (!pair.second.category.empty() && pair.second.category == category) {
         result.push_back(&pair.second);
       }
     }
@@ -121,10 +132,11 @@ public:
   std::vector<const char*> GetCategories() const override {
     std::vector<const char*> categories;
     std::map<std::string, bool> seen;
-    
+
     for (auto const& pair : m_actions) {
-      if (pair.second.category && seen.find(pair.second.category) == seen.end()) {
-        categories.push_back(pair.second.category);
+      if (!pair.second.category.empty() && seen.find(pair.second.category) == seen.end()) {
+        m_categoryStrings.push_back(pair.second.category);
+        categories.push_back(m_categoryStrings.back().c_str());
         seen[pair.second.category] = true;
       }
     }
@@ -328,7 +340,7 @@ public:
   
   std::vector<const char*> FindConflicts() const override {
     std::vector<const char*> conflicts;
-    std::map<KeyCombo, std::string, KeyComboHash> usedCombos;
+    std::map<KeyCombo, std::string, KeyComboCompare> usedCombos;
     
     for (auto const& pair : m_actions) {
       if (pair.second.currentBinding.keyCode == 0) continue;
@@ -355,47 +367,47 @@ public:
 
 private:
   void DrawActionBinding(KeyBindingAction const* action) {
-    ImGui::PushID(action->id);
-    
-    ImGui::Text("%s", action->displayName);
+    ImGui::PushID(action->id.c_str());
+
+    ImGui::Text("%s", action->displayName.c_str());
     ImGui::SameLine(200.0f);
-    
+
     std::string bindingStr = FormatBinding(action->currentBinding);
-    
-    if (m_rebinding && m_rebindingActionId && 
-        strcmp(m_rebindingActionId, action->id) == 0) {
+
+    if (m_rebinding && m_rebindingActionId &&
+        strcmp(m_rebindingActionId, action->id.c_str()) == 0) {
       // Rebinding mode
       ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.4f, 0.1f, 1.0f));
       if (ImGui::Button("Press any key...")) {
         CancelRebind();
       }
       ImGui::PopStyleColor();
-      
+
       // Check for key press
       ImGuiIO& io = ImGui::GetIO();
       for (int i = 0; i < 512; i++) {
-        if (ImGui::IsKeyPressed(i)) {
+        if (ImGui::IsKeyPressed(static_cast<ImGuiKey>(i))) {
           KeyCombo combo;
           combo.keyCode = i;
           combo.ctrl = io.KeyCtrl;
           combo.alt = io.KeyAlt;
           combo.shift = io.KeyShift;
-          SetBinding(action->id, combo);
+          SetBinding(action->id.c_str(), combo);
           CancelRebind();
           break;
         }
       }
     } else {
       if (ImGui::Button(bindingStr.c_str(), ImVec2(120, 0))) {
-        StartRebind(action->id);
+        StartRebind(action->id.c_str());
       }
     }
-    
+
     ImGui::SameLine();
     if (ImGui::Button("Reset")) {
-      ResetBinding(action->id);
+      ResetBinding(action->id.c_str());
     }
-    
+
     ImGui::PopID();
   }
   
@@ -421,9 +433,12 @@ private:
 private:
   std::map<std::string, KeyBindingAction> m_actions;
   std::unordered_map<KeyCombo, std::string, KeyComboHash> m_keyToAction;
-  
+
   bool m_rebinding;
   const char* m_rebindingActionId;
+
+  // Storage for category strings returned by GetCategories
+  mutable std::vector<std::string> m_categoryStrings;
 };
 
 IKeyBindingSystem* CreateKeyBindingSystem() {

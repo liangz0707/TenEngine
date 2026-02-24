@@ -9,6 +9,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 
 namespace te {
 namespace editor {
@@ -23,15 +24,15 @@ public:
   // === Command Registration ===
   
   bool RegisterCommand(EditorCommand const& command) override {
-    if (!command.id) return false;
-    
-    std::string id(command.id);
+    if (command.id.empty()) return false;
+
+    std::string id = command.id;
     if (m_commands.find(id) != m_commands.end()) {
-      te::core::Log(te::core::LogLevel::Warning, 
+      te::core::Log(te::core::LogLevel::Warn,
                     ("EditorScripting: Command already registered: " + id).c_str());
       return false;
     }
-    
+
     m_commands[id] = command;
     return true;
   }
@@ -144,7 +145,7 @@ public:
     
     auto it = m_commands.find(std::string(commandId));
     if (it == m_commands.end()) {
-      te::core::Log(te::core::LogLevel::Warning, 
+      te::core::Log(te::core::LogLevel::Warn,
                     ("EditorScripting: Command not found: " + std::string(commandId)).c_str());
       return false;
     }
@@ -156,7 +157,7 @@ public:
     
     // Record to macro if recording
     if (m_recordingMacro && !m_currentMacroName.empty()) {
-      m_currentMacroCommands.push_back(commandId);
+      m_currentMacroCommands.push_back(std::string(commandId));
     }
     
     // Execute
@@ -188,7 +189,7 @@ public:
     if (it == m_commands.end()) return false;
     
     if (it->second.isChecked) {
-      return it->second.isChecked(m_defaultContext);
+      return it->second.isChecked();
     }
     return false;
   }
@@ -216,7 +217,7 @@ public:
   std::vector<EditorCommand const*> GetCommandsByCategory(const char* category) const override {
     std::vector<EditorCommand const*> result;
     for (auto const& pair : m_commands) {
-      if (pair.second.category && strcmp(pair.second.category, category) == 0) {
+      if (!pair.second.category.empty() && pair.second.category == category) {
         result.push_back(&pair.second);
       }
     }
@@ -226,10 +227,11 @@ public:
   std::vector<const char*> GetCategories() const override {
     std::vector<const char*> categories;
     std::map<std::string, bool> seen;
-    
+
     for (auto const& pair : m_commands) {
-      if (pair.second.category && seen.find(pair.second.category) == seen.end()) {
-        categories.push_back(pair.second.category);
+      if (!pair.second.category.empty() && seen.find(pair.second.category) == seen.end()) {
+        m_categoryStrings.push_back(pair.second.category);
+        categories.push_back(m_categoryStrings.back().c_str());
         seen[pair.second.category] = true;
       }
     }
@@ -240,31 +242,31 @@ public:
   
   const char* GetCommandMenuPath(const char* commandId) const override {
     auto cmd = GetCommand(commandId);
-    return cmd ? cmd->menuItem : nullptr;
+    return cmd ? cmd->menuItem.c_str() : nullptr;
   }
   
   std::vector<EditorCommand const*> GetCommandsForMenu(const char* menuPath) const override {
     std::vector<EditorCommand const*> result;
     if (!menuPath) return result;
-    
+
     size_t pathLen = strlen(menuPath);
     for (auto const& pair : m_commands) {
-      if (pair.second.menuItem) {
+      if (!pair.second.menuItem.empty()) {
         // Check if command starts with menu path
-        if (strncmp(pair.second.menuItem, menuPath, pathLen) == 0) {
+        if (strncmp(pair.second.menuItem.c_str(), menuPath, pathLen) == 0) {
           if (pair.second.menuItem[pathLen] == '/' || pair.second.menuItem[pathLen] == '\0') {
             result.push_back(&pair.second);
           }
         }
       }
     }
-    
+
     // Sort by priority
-    std::sort(result.begin(), result.end(), 
+    std::sort(result.begin(), result.end(),
               [](EditorCommand const* a, EditorCommand const* b) {
                 return a->priority < b->priority;
               });
-    
+
     return result;
   }
   
@@ -280,7 +282,7 @@ public:
   
   void AddToMacro(const char* commandId) override {
     if (m_recordingMacro && commandId) {
-      m_currentMacroCommands.push_back(commandId);
+      m_currentMacroCommands.push_back(std::string(commandId));
     }
   }
   
@@ -289,8 +291,11 @@ public:
     
     if (!m_currentMacroName.empty() && !m_currentMacroCommands.empty()) {
       EditorMacro macro;
-      std::strncpy(macro.name, m_currentMacroName.c_str(), sizeof(macro.name) - 1);
-      macro.commandIds = m_currentMacroCommands;
+      macro.name = m_currentMacroName;
+      macro.commandIds.resize(m_currentMacroCommands.size());
+      for (size_t i = 0; i < m_currentMacroCommands.size(); ++i) {
+        macro.commandIds[i] = m_currentMacroCommands[i];
+      }
       macro.enabled = true;
       m_macros.push_back(macro);
     }
@@ -302,11 +307,11 @@ public:
   
   bool ExecuteMacro(const char* name) override {
     if (!name) return false;
-    
+
     for (auto const& macro : m_macros) {
-      if (strcmp(macro.name, name) == 0) {
+      if (macro.name == name) {
         for (auto const& cmdId : macro.commandIds) {
-          ExecuteCommand(cmdId);
+          ExecuteCommand(cmdId.c_str(), nullptr);
         }
         return true;
       }
@@ -324,9 +329,9 @@ public:
   
   void DeleteMacro(const char* name) override {
     if (!name) return;
-    
+
     for (auto it = m_macros.begin(); it != m_macros.end(); ++it) {
-      if (strcmp(it->name, name) == 0) {
+      if (it->name == name) {
         m_macros.erase(it);
         return;
       }
@@ -372,7 +377,7 @@ public:
       
       std::string commandId = line.substr(start, end - start + 1);
       
-      if (ExecuteCommand(commandId.c_str())) {
+      if (ExecuteCommand(commandId.c_str(), nullptr)) {
         anyExecuted = true;
       }
     }
@@ -411,10 +416,10 @@ public:
       if (line.substr(0, 6) == "macro:") {
         m_macros.push_back(EditorMacro{});
         currentMacro = &m_macros.back();
-        std::strncpy(currentMacro->name, line.substr(6).c_str(), sizeof(currentMacro->name) - 1);
+        currentMacro->name = line.substr(6);
       } else if (currentMacro && line.substr(0, 2) == "  ") {
         // Command in macro
-        currentMacro->commandIds.push_back(strdup(line.substr(2).c_str()));
+        currentMacro->commandIds.push_back(line.substr(2));
       }
     }
     
@@ -424,11 +429,14 @@ public:
 private:
   std::map<std::string, EditorCommand> m_commands;
   CommandContext m_defaultContext;
-  
+
   std::vector<EditorMacro> m_macros;
   bool m_recordingMacro;
   std::string m_currentMacroName;
-  std::vector<const char*> m_currentMacroCommands;
+  std::vector<std::string> m_currentMacroCommands;
+
+  // Storage for category strings returned by GetCategories
+  mutable std::vector<std::string> m_categoryStrings;
 };
 
 IEditorScripting* CreateEditorScripting() {

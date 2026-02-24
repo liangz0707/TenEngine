@@ -21,6 +21,7 @@ enum class UniformMemberType : uint8_t {
 struct UniformMember {
   char name[64] = {};
   UniformMemberType type = UniformMemberType::Unknown;
+  uint32_t count = 1;               // Array element count (0 or 1 = scalar)
   uint32_t offset = 0;
   uint32_t size = 0;
 };
@@ -37,14 +38,9 @@ struct IUniformLayout {
   virtual ~IUniformLayout() = default;
 };
 
-inline IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc) {
-  (void)desc;
-  return nullptr;
-}
+IUniformLayout* CreateUniformLayout(UniformLayoutDesc const& desc);
 
-inline void ReleaseUniformLayout(IUniformLayout* layout) {
-  (void)layout;
-}
+void ReleaseUniformLayout(IUniformLayout* layout);
 
 }  // namespace rendercore
 }  // namespace te

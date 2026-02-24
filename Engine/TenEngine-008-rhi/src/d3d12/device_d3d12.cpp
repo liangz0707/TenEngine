@@ -64,6 +64,10 @@ struct BufferD3D12 final : IBuffer {
   ~BufferD3D12() override = default;
 };
 
+struct TextureD3D12 final : ITexture {
+  ComPtr<ID3D12Resource> resource;
+  ~TextureD3D12() override = default;
+};
 
 struct PSOD3D12 final : IPSO {
     ComPtr<ID3D12PipelineState> pipeline;
@@ -282,11 +286,6 @@ struct CommandListD3D12 final : ICommandList {
       list->ResourceBarrier((UINT)barriers.size(), barriers.data());
   }
   ~CommandListD3D12() override = default;
-};
-
-struct TextureD3D12 final : ITexture {
-  ComPtr<ID3D12Resource> resource;
-  ~TextureD3D12() override = default;
 };
 
 struct SamplerD3D12 final : ISampler {

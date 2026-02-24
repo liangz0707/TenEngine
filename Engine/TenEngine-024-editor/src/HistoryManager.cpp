@@ -9,7 +9,6 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
-#include <cstring>
 
 namespace te {
 namespace editor {
@@ -40,20 +39,19 @@ public:
   
   void EndCompoundAction() override {
     if (!m_inCompoundAction) return;
-    
+
     m_inCompoundAction = false;
-    
+
     if (m_compoundActions.empty()) return;
-    
+
     // Create compound action
     HistoryAction compound;
     compound.id = m_nextActionId++;
     compound.type = HistoryActionType::Multiple;
-    std::strncpy(compound.description, m_compoundDescription.c_str(), 
-                 sizeof(compound.description) - 1);
+    compound.description = m_compoundDescription;
     compound.timestamp = GetCurrentTimestamp();
-    compound.subActions = m_compoundActions;
-    
+    // Note: subActions is left empty; undo/redo are handled via lambdas that reference action IDs
+
     // Combined undo/redo
     compound.undo = [this, actions = m_compoundActions]() {
       for (auto it = actions.rbegin(); it != actions.rend(); ++it) {
@@ -62,9 +60,8 @@ public:
           action->undo();
         }
       }
-      return true;
     };
-    
+
     compound.redo = [this, actions = m_compoundActions]() {
       for (auto id : actions) {
         auto action = FindAction(id);
@@ -72,12 +69,11 @@ public:
           action->redo();
         }
       }
-      return true;
     };
-    
+
     // Record the compound action
     AddAction(compound);
-    
+
     m_compoundActions.clear();
     m_compoundDescription.clear();
   }
@@ -98,18 +94,17 @@ public:
   }
   
   uint64_t RecordPropertyChange(uint64_t targetId, char const* propertyName,
-                                std::function<bool()> undo, 
-                                std::function<bool()> redo) override {
+                                std::function<void()> undo,
+                                std::function<void()> redo) override {
     HistoryAction action;
     action.type = HistoryActionType::PropertyChange;
     action.targetId = targetId;
-    action.propertyName = propertyName;
+    action.propertyName = propertyName ? propertyName : "";
     action.undo = std::move(undo);
     action.redo = std::move(redo);
-    
-    std::snprintf(action.description, sizeof(action.description),
-                  "Change %s", propertyName ? propertyName : "property");
-    
+
+    action.description = "Change " + std::string(propertyName ? propertyName : "property");
+
     return RecordAction(action);
   }
   
@@ -129,40 +124,31 @@ public:
   
   bool Undo() override {
     if (!CanUndo()) return false;
-    
+
     m_currentPos--;
     auto const& action = m_actions[m_currentPos];
-    
+
     if (action.undo) {
-      if (!action.undo()) {
-        te::core::Log(te::core::LogLevel::Warning, 
-                      "HistoryManager: Undo failed");
-        m_currentPos++;
-        return false;
-      }
+      action.undo();
     }
-    
-    te::core::Log(te::core::LogLevel::Info, 
-                  ("HistoryManager: Undone - " + std::string(action.description)).c_str());
+
+    te::core::Log(te::core::LogLevel::Info,
+                  ("HistoryManager: Undone - " + action.description).c_str());
     return true;
   }
   
   bool Redo() override {
     if (!CanRedo()) return false;
-    
+
     auto const& action = m_actions[m_currentPos];
-    
+
     if (action.redo) {
-      if (!action.redo()) {
-        te::core::Log(te::core::LogLevel::Warning, 
-                      "HistoryManager: Redo failed");
-        return false;
-      }
+      action.redo();
     }
-    
+
     m_currentPos++;
-    te::core::Log(te::core::LogLevel::Info, 
-                  ("HistoryManager: Redone - " + std::string(action.description)).c_str());
+    te::core::Log(te::core::LogLevel::Info,
+                  ("HistoryManager: Redone - " + action.description).c_str());
     return true;
   }
   
@@ -176,12 +162,12 @@ public:
   
   char const* GetUndoDescription() const override {
     if (!CanUndo()) return "";
-    return m_actions[m_currentPos - 1].description;
+    return m_actions[m_currentPos - 1].description.c_str();
   }
-  
+
   char const* GetRedoDescription() const override {
     if (!CanRedo()) return "";
-    return m_actions[m_currentPos].description;
+    return m_actions[m_currentPos].description.c_str();
   }
   
   // === History Query ===
@@ -222,14 +208,14 @@ public:
   std::vector<HistoryAction const*> FindActions(char const* searchText) const override {
     std::vector<HistoryAction const*> result;
     if (!searchText) return result;
-    
+
     std::string search(searchText);
     std::transform(search.begin(), search.end(), search.begin(), ::tolower);
-    
+
     for (auto const& action : m_actions) {
-      std::string desc(action.description);
+      std::string desc = action.description;
       std::transform(desc.begin(), desc.end(), desc.begin(), ::tolower);
-      
+
       if (desc.find(search) != std::string::npos) {
         result.push_back(&action);
       }
@@ -268,13 +254,11 @@ public:
     HistoryBookmark bookmark;
     bookmark.actionId = m_currentPos > 0 ? m_actions[m_currentPos - 1].id : 0;
     bookmark.timestamp = GetCurrentTimestamp();
-    if (name) {
-      std::strncpy(bookmark.name, name, sizeof(bookmark.name) - 1);
-    }
-    
+    bookmark.name = name ? name : "";
+
     uint64_t id = m_nextBookmarkId++;
     m_bookmarks[id] = bookmark;
-    
+
     return id;
   }
   
@@ -317,25 +301,24 @@ public:
   void CompressHistory() override {
     // Merge consecutive similar actions
     if (m_actions.size() < 2) return;
-    
+
     std::vector<HistoryAction> compressed;
     HistoryAction* lastAction = nullptr;
-    
+
     for (auto& action : m_actions) {
-      if (lastAction && 
+      if (lastAction &&
           lastAction->type == action.type &&
           lastAction->targetId == action.targetId &&
           action.type == HistoryActionType::Transform) {
         // Merge: keep the redo from new action, old undo stays
         lastAction->redo = action.redo;
-        std::strncpy(lastAction->description, action.description, 
-                     sizeof(lastAction->description) - 1);
+        lastAction->description = action.description;
       } else {
         compressed.push_back(action);
         lastAction = &compressed.back();
       }
     }
-    
+
     m_actions = std::move(compressed);
   }
   
@@ -389,7 +372,7 @@ public:
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1));
       }
       
-      if (ImGui::Selectable(m_actions[i].description, false)) {
+      if (ImGui::Selectable(m_actions[i].description.c_str(), false)) {
         jumpToPos = static_cast<int>(i + 1);
       }
       
@@ -407,7 +390,7 @@ public:
       ImGui::Separator();
       ImGui::Text("Bookmarks:");
       for (auto const& pair : m_bookmarks) {
-        if (ImGui::Button(pair.second.name)) {
+        if (ImGui::Button(pair.second.name.c_str())) {
           JumpToBookmark(pair.first);
         }
       }

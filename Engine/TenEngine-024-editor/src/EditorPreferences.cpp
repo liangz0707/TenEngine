@@ -4,6 +4,7 @@
  */
 #include <te/editor/EditorPreferences.h>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <cstring>
 

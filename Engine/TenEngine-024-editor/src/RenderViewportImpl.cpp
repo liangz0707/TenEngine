@@ -15,8 +15,7 @@ public:
     // TODO: Integrate with render pipeline for viewport picking
     // This requires ray-casting against scene geometry
     te::core::Log(te::core::LogLevel::Warn,
-                  "RenderViewport: PickInViewport(%d, %d) not yet implemented - render pipeline integration required",
-                  x, y);
+                  "RenderViewport: PickInViewport not yet implemented");
     (void)x; (void)y;
     return nullptr;
   }
@@ -24,8 +23,7 @@ public:
   void DropFromResourceManager(te::resource::ResourceId const& resourceId, int x, int y) override {
     // TODO: Handle resource drop - create entity from dragged resource
     te::core::Log(te::core::LogLevel::Info,
-                  "RenderViewport: DropFromResourceManager(resourceId=%llu, x=%d, y=%d)",
-                  static_cast<unsigned long long>(resourceId), x, y);
+                  "RenderViewport: DropFromResourceManager called");
     (void)resourceId; (void)x; (void)y;
   }
 

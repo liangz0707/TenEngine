@@ -19,8 +19,11 @@ struct MaterialInstanceHandle {
 };
 
 struct ParameterSlot {
-  uint32_t set{0};
-  uint32_t binding{0};
+  char const* name{nullptr};       // Parameter name for scalar/vector params
+  uint32_t type{0};                // UniformMemberType value
+  uint32_t count{1};               // Element count (0 or 1 = scalar)
+  uint32_t set{0};                 // Descriptor set for textures
+  uint32_t binding{0};             // Binding slot for textures
 };
 
 }  // namespace material

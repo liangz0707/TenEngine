@@ -12,46 +12,11 @@
 namespace te {
 namespace editor {
 
-/**
- * @brief Key combination for shortcuts.
- */
-struct KeyCombo {
-  int keyCode = 0;        ///< Primary key code
-  bool ctrl = false;
-  bool alt = false;
-  bool shift = false;
-  
-  bool operator==(KeyCombo const& other) const {
-    return keyCode == other.keyCode && 
-           ctrl == other.ctrl && 
-           alt == other.alt && 
-           shift == other.shift;
-  }
-  
-  bool operator<(KeyCombo const& other) const {
-    if (keyCode != other.keyCode) return keyCode < other.keyCode;
-    if (ctrl != other.ctrl) return ctrl < other.ctrl;
-    if (alt != other.alt) return alt < other.alt;
-    return shift < other.shift;
-  }
-};
-
-/**
- * @brief Key binding action.
- */
-struct KeyBindingAction {
-  const char* id = nullptr;           ///< Unique action ID
-  const char* displayName = nullptr;  ///< Display name for UI
-  const char* category = nullptr;     ///< Category for organization
-  KeyCombo defaultBinding;            ///< Default key combination
-  KeyCombo currentBinding;            ///< Current key combination
-  std::function<void()> callback;     ///< Action callback
-  bool enabled = true;
-};
+// Note: KeyCombo and KeyBindingAction are defined in EditorTypes.h
 
 /**
  * @brief Key binding system interface.
- * 
+ *
  * Manages keyboard shortcuts and key bindings for the editor.
  */
 class IKeyBindingSystem {

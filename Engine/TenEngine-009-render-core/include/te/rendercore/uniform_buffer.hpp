@@ -28,15 +28,9 @@ struct IUniformBuffer {
   virtual ~IUniformBuffer() = default;
 };
 
-inline IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, te::rhi::IDevice* device) {
-  (void)layout;
-  (void)device;
-  return nullptr;
-}
+IUniformBuffer* CreateUniformBuffer(IUniformLayout const* layout, te::rhi::IDevice* device);
 
-inline void ReleaseUniformBuffer(IUniformBuffer* buffer) {
-  (void)buffer;
-}
+void ReleaseUniformBuffer(IUniformBuffer* buffer);
 
 }  // namespace rendercore
 }  // namespace te

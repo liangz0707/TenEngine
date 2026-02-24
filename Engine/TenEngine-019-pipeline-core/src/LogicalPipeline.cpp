@@ -19,6 +19,10 @@ class LogicalPipelineImpl : public ILogicalPipeline {
     if (!out || index >= passes_.size()) return;
     *out = passes_[index].config;
   }
+  IRenderItemList const* GetSourceItemList() const override {
+    // Returns nullptr by default; can be extended to hold source items
+    return nullptr;
+  }
 
  private:
   std::vector<PassEntry> passes_;
