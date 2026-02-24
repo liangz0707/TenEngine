@@ -143,7 +143,7 @@ if(TENENGINE_BUILD_EDITOR)
 
   # tenengine_editor executable (link texture/material/mesh so debugger can resolve symbols and Import works)
   add_executable(tenengine_editor Engine/TenEngine-024-editor/src/main_editor.cpp)
-  target_link_libraries(tenengine_editor PRIVATE te_editor te_application te_core te_resource)
+  target_link_libraries(tenengine_editor PRIVATE te_editor te_application te_core te_resource te_entity te_world)
   if(TARGET te_texture)
     target_link_libraries(tenengine_editor PRIVATE te_texture)
   endif()
@@ -158,6 +158,8 @@ if(TENENGINE_BUILD_EDITOR)
     ${TENENGINE_ROOT}/Engine/TenEngine-003-application/include
     ${TENENGINE_ROOT}/Engine/TenEngine-001-core/include
     ${TENENGINE_ROOT}/Engine/TenEngine-013-resource/include
+    ${TENENGINE_ROOT}/Engine/TenEngine-005-entity/include
+    ${TENENGINE_ROOT}/Engine/TenEngine-029-world/include
   )
   set_target_properties(tenengine_editor PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

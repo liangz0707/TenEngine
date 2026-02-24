@@ -16,6 +16,7 @@ set(ENTITY_SOURCES
   src/ComponentRegistry.cpp
   src/ComponentRegistration.cpp
   src/System.cpp
+  src/PropertyReflection.cpp
 )
 
 # Header files (for Visual Studio project view)
@@ -28,6 +29,7 @@ set(ENTITY_HEADERS
   include/te/entity/ComponentRegistry.h
   include/te/entity/ComponentRegistration.h
   include/te/entity/System.h
+  include/te/entity/PropertyReflection.h
 )
 
 add_library(te_entity STATIC
